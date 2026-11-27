@@ -17,7 +17,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "local-ca-incoming-2027",
@@ -31,7 +34,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "local-ny-junior-2028",
@@ -45,7 +51,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "local-fl-college-2027",
@@ -59,7 +68,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "local-wa-rural-2028",
@@ -73,7 +85,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "local-oh-public-university-2027",
@@ -87,7 +102,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "local-ga-senior-2029",
@@ -101,7 +119,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-tx-senior-2027",
@@ -115,7 +136,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-ca-incoming-2027",
@@ -129,7 +153,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-ny-junior-2028",
@@ -143,7 +170,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-fl-college-2027",
@@ -157,7 +187,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-wa-rural-2028",
@@ -171,7 +204,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-oh-public-university-2027",
@@ -185,7 +221,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "school_resources-ga-senior-2029",
@@ -199,7 +238,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-tx-senior-2027",
@@ -213,7 +255,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-ca-incoming-2027",
@@ -227,7 +272,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-ny-junior-2028",
@@ -241,7 +289,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-fl-college-2027",
@@ -255,7 +306,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-wa-rural-2028",
@@ -269,7 +323,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-oh-public-university-2027",
@@ -283,7 +340,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "regional-ga-senior-2029",
@@ -297,7 +357,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-tx-senior-2027",
@@ -311,7 +374,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-ca-incoming-2027",
@@ -325,7 +391,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-ny-junior-2028",
@@ -339,7 +408,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-fl-college-2027",
@@ -353,7 +425,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-wa-rural-2028",
@@ -367,7 +442,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-oh-public-university-2027",
@@ -381,7 +459,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "state-ga-senior-2029",
@@ -395,7 +476,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-tx-senior-2027",
@@ -409,7 +493,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-ca-incoming-2027",
@@ -423,7 +510,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-ny-junior-2028",
@@ -437,7 +527,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-fl-college-2027",
@@ -451,7 +544,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-wa-rural-2028",
@@ -465,7 +561,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-oh-public-university-2027",
@@ -479,7 +578,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "academic-ga-senior-2029",
@@ -493,7 +595,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-tx-senior-2027",
@@ -507,7 +612,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-ca-incoming-2027",
@@ -521,7 +629,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-ny-junior-2028",
@@ -535,7 +646,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-fl-college-2027",
@@ -549,7 +663,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-wa-rural-2028",
@@ -563,7 +680,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-oh-public-university-2027",
@@ -577,7 +697,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "humanities-ga-senior-2029",
@@ -591,7 +714,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-tx-senior-2027",
@@ -605,7 +731,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-ca-incoming-2027",
@@ -619,7 +748,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-ny-junior-2028",
@@ -633,7 +765,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-fl-college-2027",
@@ -647,7 +782,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-wa-rural-2028",
@@ -661,7 +799,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-oh-public-university-2027",
@@ -675,7 +816,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "leadership-ga-senior-2029",
@@ -689,7 +833,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-tx-senior-2027",
@@ -703,7 +850,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-ca-incoming-2027",
@@ -717,7 +867,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-ny-junior-2028",
@@ -731,7 +884,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-fl-college-2027",
@@ -745,7 +901,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-wa-rural-2028",
@@ -759,7 +918,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-oh-public-university-2027",
@@ -773,7 +935,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "community_service-ga-senior-2029",
@@ -787,7 +952,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-tx-senior-2027",
@@ -801,7 +969,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-ca-incoming-2027",
@@ -815,7 +986,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-ny-junior-2028",
@@ -829,7 +1003,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-fl-college-2027",
@@ -843,7 +1020,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-wa-rural-2028",
@@ -857,7 +1037,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-oh-public-university-2027",
@@ -871,7 +1054,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "language-ga-senior-2029",
@@ -885,7 +1071,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-tx-senior-2027",
@@ -899,7 +1088,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-ca-incoming-2027",
@@ -913,7 +1105,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-ny-junior-2028",
@@ -927,7 +1122,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-fl-college-2027",
@@ -941,7 +1139,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-wa-rural-2028",
@@ -955,7 +1156,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-oh-public-university-2027",
@@ -969,7 +1173,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "employment-ga-senior-2029",
@@ -983,7 +1190,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-tx-senior-2027",
@@ -997,7 +1207,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-ca-incoming-2027",
@@ -1011,7 +1224,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-ny-junior-2028",
@@ -1025,7 +1241,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-fl-college-2027",
@@ -1039,7 +1258,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-wa-rural-2028",
@@ -1053,7 +1275,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-oh-public-university-2027",
@@ -1067,7 +1292,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "arts-ga-senior-2029",
@@ -1081,7 +1309,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-tx-senior-2027",
@@ -1095,7 +1326,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-ca-incoming-2027",
@@ -1109,7 +1343,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-ny-junior-2028",
@@ -1123,7 +1360,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-fl-college-2027",
@@ -1137,7 +1377,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-wa-rural-2028",
@@ -1151,7 +1394,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-oh-public-university-2027",
@@ -1165,7 +1411,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "incoming_college-ga-senior-2029",
@@ -1179,7 +1428,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-tx-senior-2027",
@@ -1193,7 +1445,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-ca-incoming-2027",
@@ -1207,7 +1462,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-ny-junior-2028",
@@ -1221,7 +1479,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-fl-college-2027",
@@ -1235,7 +1496,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-wa-rural-2028",
@@ -1249,7 +1513,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-oh-public-university-2027",
@@ -1263,7 +1530,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "national-ga-senior-2029",
@@ -1277,7 +1547,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-tx-senior-2027",
@@ -1291,7 +1564,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-ca-incoming-2027",
@@ -1305,7 +1581,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-ny-junior-2028",
@@ -1319,7 +1598,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-fl-college-2027",
@@ -1333,7 +1615,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-wa-rural-2028",
@@ -1347,7 +1632,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-oh-public-university-2027",
@@ -1361,7 +1649,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "general-ga-senior-2029",
@@ -1375,7 +1666,10 @@
         "graduationYear": 2029
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "cross-category-tx-academic-service-2027",
@@ -1390,7 +1684,10 @@
         "graduationYear": 2027
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     },
     {
       "id": "cross-category-ca-humanities-arts-2028",
@@ -1405,7 +1702,10 @@
         "graduationYear": 2028
       },
       "relevanceJudgments": [],
-      "judgmentStatus": "pending"
+      "judgmentStatus": "pending",
+      "asOf": "2026-11-27",
+      "maxAgeDays": 365,
+      "expectedSources": []
     }
   ]
 }

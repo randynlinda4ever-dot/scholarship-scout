@@ -13,6 +13,9 @@ test("search intent corpus contains one hundred public, non-personal, unjudged c
     item.filters &&
     typeof item.filters.state === "string" &&
     Number.isInteger(item.filters.graduationYear) &&
+    item.asOf === "2026-11-27" &&
+    Array.isArray(item.expectedSources) &&
+    item.expectedSources.length === 0 &&
     Array.isArray(item.relevanceJudgments) &&
     item.relevanceJudgments.length === 0 &&
     item.judgmentStatus === "pending"
