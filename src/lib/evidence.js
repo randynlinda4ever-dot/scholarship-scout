@@ -32,7 +32,9 @@ export function isSafeHttpsUrl(value) {
     const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
     if (url.protocol !== "https:" || url.username || url.password || !host) return false;
     if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
-      host === "metadata" || host === "metadata.google.internal" || host.endsWith(".internal")) return false;
+      host === "metadata" || host === "metadata.google.internal" ||
+      host.endsWith(".internal") || host === "home.arpa" || host.endsWith(".home.arpa") ||
+      host.endsWith(".lan") || host.endsWith(".intranet")) return false;
     // URL canonicalizes nonstandard IPv4 forms (integer, hex, octal) to dotted decimal.
     if (host.includes(":") || /^\d+(?:\.\d+){0,3}$/.test(host)) return false;
     if (!host.includes(".")) return false;
@@ -49,6 +51,20 @@ const PRIVATE_URL_PARAMETER = /(?:email|e_mail|phone|mobile|telephone|tel|first.
 const TRACKING_URL_PARAMETER = /^(?:utm_.+|fbclid|gclid|mc_cid|mc_eid|ref|source)$/i;
 const PRIVATE_URL_VALUE = /(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:^|\D)\d{3}[- .]?\d{2}[- .]?\d{4}(?:\D|$)|(?:^|\D)\+?\d[\d ().-]{6,}\d(?:\D|$))/i;
 
+function decodeForPrivacyCheck(value) {
+  let decoded = String(value ?? "");
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  return decoded;
+}
+
 /**
  * Validate and normalize a public source URL before displaying or persisting it.
  * Remove private fragment state, tracking fields, and query parameters that
@@ -58,10 +74,12 @@ export function sanitizePublicHttpsUrl(value) {
   if (!isSafeHttpsUrl(value)) return null;
   try {
     const url = new URL(value);
-    const fragment = url.hash.slice(1);
+    const fragment = decodeForPrivacyCheck(url.hash.slice(1));
     if (PRIVATE_URL_PARAMETER.test(fragment) || PRIVATE_URL_VALUE.test(fragment)) url.hash = "";
     for (const [key, entry] of [...url.searchParams.entries()]) {
-      if (PRIVATE_URL_PARAMETER.test(key) || TRACKING_URL_PARAMETER.test(key) || PRIVATE_URL_VALUE.test(entry)) {
+      const checkedKey = decodeForPrivacyCheck(key);
+      const checkedEntry = decodeForPrivacyCheck(entry);
+      if (PRIVATE_URL_PARAMETER.test(checkedKey) || TRACKING_URL_PARAMETER.test(checkedKey) || PRIVATE_URL_VALUE.test(checkedEntry)) {
         url.searchParams.delete(key);
       }
     }
@@ -217,10 +235,25 @@ export function isSameOfficialSponsorSource(sponsorUrl, evidenceUrl) {
     evidenceHost.endsWith("." + sponsorHost);
 }
 
+export function isInactiveCriterionValue(value) {
+  if (value === undefined || value === null || value === false) return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return !normalized || normalized === "any";
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0 || value.every(isInactiveCriterionValue);
+  }
+  if (typeof value === "object") {
+    const entries = Object.values(value);
+    return entries.length === 0 || entries.every(isInactiveCriterionValue);
+  }
+  return false;
+}
+
 function activeCriterionEntries(record = {}) {
   return Object.entries(record.criteria ?? {}).filter(([key, value]) =>
-    key !== "applicationFee" && value !== undefined && value !== null && value !== "" &&
-    value !== "any" && value !== false && (!Array.isArray(value) || value.length > 0)
+    key !== "applicationFee" && !isInactiveCriterionValue(value)
   );
 }
 

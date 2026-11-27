@@ -1,9 +1,28 @@
 export type SearchJob = { category: string; query: string; page: number };
 export type SearchOutcome = { ok: true; job: SearchJob; results: Array<{ title?: unknown; url?: unknown; content?: unknown; publishedDate?: unknown }> } | { ok: false; job: SearchJob; status?: number };
+export type DiscoveryRateLimitConfig = {
+  clientPerMinute: number;
+  clientPerDay: number;
+  ipPerMinute: number;
+  ipPerDay: number;
+  maxConcurrentPerIp: number;
+  maxConcurrentGlobal: number;
+  leaseMs: number;
+  upstreamConcurrency: number;
+};
+export type RateLimitDecision = {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  reason?: string;
+  storageUnavailable?: boolean;
+  unattributed?: boolean;
+  release?: () => Promise<void>;
+};
 export const ALLOWED_CATEGORIES: readonly string[];
 export function getPublicClientAddress(req: Request): string | null;
-export function createPublicRateLimiter(options?: { now?: () => number; maxBuckets?: number }): (req: Request) => { allowed: boolean; retryAfterSeconds: number; unattributed?: boolean };
-export function createUpstashRateLimiter(options?: { url?: string; token?: string; fetchImpl?: typeof fetch; maxRequests?: number; windowMs?: number }): (req: Request) => Promise<{ allowed: boolean; retryAfterSeconds: number; storageUnavailable?: boolean; unattributed?: boolean }>;
+export function getDiscoveryRateLimitConfig(getEnv?: (key: string) => string | undefined): DiscoveryRateLimitConfig;
+export function createPublicRateLimiter(options?: { now?: () => number; maxBuckets?: number }): (req: Request) => RateLimitDecision;
+export function createUpstashRateLimiter(options?: { url?: string; token?: string; config?: DiscoveryRateLimitConfig; fetchImpl?: typeof fetch; randomUUID?: () => string; now?: () => number }): (req: Request) => Promise<RateLimitDecision>;
 export function isSafeHttpsUrl(value: unknown): boolean;
 export function canonicalizeUrl(value: string): string;
 export function normalizeTitle(value: string): string;
@@ -11,4 +30,12 @@ export function buildSearchJobs(state: string, graduationYear: number, categorie
 export function fetchSearchPage(gatewayBase: URL | string, gatewayToken: string, job: SearchJob, options?: { fetchImpl?: typeof fetch; deadlineAt?: number; clock?: () => number }): Promise<SearchOutcome>;
 export function runBoundedSearches(gatewayBase: URL | string, gatewayToken: string, jobs: SearchJob[], options?: { fetchImpl?: typeof fetch; concurrency?: number; deadlineAt?: number; clock?: () => number }): Promise<SearchOutcome[]>;
 export function normalizeAndRankResults(outcomes: SearchOutcome[], discoveredAt: string, state: string, graduationYear: number, options?: { randomUUID?: () => string }): { results: Array<Record<string, unknown>>; rawResultCount: number };
-export function createScholarshipDiscoveryHandler(deps?: { fetchImpl?: typeof fetch; now?: () => Date; randomUUID?: () => string; getEnv?: (key: string) => string | undefined; corsHeaders?: Record<string, string>; rateLimiter?: (req: Request) => { allowed: boolean; retryAfterSeconds: number; storageUnavailable?: boolean; unattributed?: boolean } | Promise<{ allowed: boolean; retryAfterSeconds: number; storageUnavailable?: boolean; unattributed?: boolean }> }): (req: Request) => Promise<Response>;
+export function createScholarshipDiscoveryHandler(deps?: {
+  fetchImpl?: typeof fetch;
+  now?: () => Date;
+  randomUUID?: () => string;
+  getEnv?: (key: string) => string | undefined;
+  corsHeaders?: Record<string, string>;
+  searchConcurrency?: number;
+  rateLimiter?: (req: Request) => RateLimitDecision | Promise<RateLimitDecision>;
+}): (req: Request) => Promise<Response>;

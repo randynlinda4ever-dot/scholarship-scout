@@ -36,6 +36,8 @@ test("rejects ACT and SAT scores outside their score ranges", () => {
   assert.equal(validateProfileChanges({ act: "" }, { act: "1" }).valid, true);
   assert.equal(validateProfileChanges({ sat: "" }, { sat: "399" }).valid, false);
   assert.equal(validateProfileChanges({ sat: "" }, { sat: "1600" }).valid, true);
+  assert.equal(validateProfileChanges({ sat: "" }, { sat: "1455" }).valid, false);
+  assert.equal(validateProfileChanges({ sat: "" }, { sat: "1450" }).valid, true);
 });
 
 test("rejects negative and nonnumeric service-hour values", () => {
@@ -56,4 +58,15 @@ test("does not block unrelated profile edits because of older unchanged values",
   const previous = { act: "42", interests: "history" };
   const next = { act: "42", interests: "science and engineering" };
   assert.deepEqual(validateProfileChanges(previous, next), { valid: true, errors: [] });
+});
+
+test("accepts valid residence, school, and planned-college states without country fields", () => {
+  assert.equal(validateProfileChanges({}, { state: "Texas" }).valid, true);
+  assert.equal(validateProfileChanges({}, { schoolState: "TX" }).valid, true);
+  assert.equal(validateProfileChanges({}, { plannedCollegeState: "California" }).valid, true);
+});
+
+test("rejects invalid state values and trims citizenship before validation", () => {
+  assert.equal(validateProfileChanges({}, { state: "Atlantis" }).valid, false);
+  assert.equal(validateProfileChanges({}, { citizenship: "U.S. citizen " }).valid, true);
 });

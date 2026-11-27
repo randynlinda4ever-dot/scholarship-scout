@@ -1,3 +1,5 @@
+export const MAX_TRACKER_RECORDS = 2000;
+
 export const APPLICATION_STATUSES = [
   "Not started",
   "Preparing",

@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readWorkspaceSource();
+const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 const discovery = await readFile(new URL("../src/lib/discovery.js", import.meta.url), "utf8");
 
 test("first-run scholarship discovery contains no school, district, county, or personal profile presets", () => {

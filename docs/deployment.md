@@ -1,37 +1,60 @@
 # Deployment and release controls
 
-> **Current deployment status — November 25, 2026:** Supabase is ACTIVE_HEALTHY and `scholarship-discover` is ACTIVE at version 10, inline source hash `5ebc47c217ffdaf9234df5ce12fa4860f671e0641febca218a87aee6a98bc328`. The latest inspected traffic window contains only version-9 HTTP 502 requests; no fresh version-10 synthetic request was observed. Vercel provenance remains a separate unverified gate. Do not infer deployment correctness from READY or HTTP 200 alone. See [the consolidated SC-246 report](sc246-gateway-recovery-2026-11-25.md).
+> **Current deployment status — November 27, 2026:** AgentGrid is the canonical application source. The runtime source snapshot inspected for this audit was revision `5a17758a431188a270bf94d1201a87d49734ef71`; subsequent audit commits changed tests/docs only. Supabase reports `scholarship-discover` ACTIVE at version 19. The returned deployed wrapper still uses the in-memory per-isolate limiter rather than the canonical Upstash-backed wrapper. An earlier request failed with DNS errors, but a later production smoke test returned 40 leads and Supabase logged discovery POST 200 at `05:09:06.848Z`. No Edge Function deployment or production secret change was performed. See [the current runtime audit](runtime-audit-2026-11-27.md).
 
-## Environments
+## Source and environments
 
-The current artifact is developed through the AgentGrid artifact/editor. Supabase project ref is wjrwvempgjvoxlioodse. No production deployment or database migration was performed in the current implementation pass.
+- Canonical frontend and Edge Function source: the existing AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`.
+- Existing Supabase project: `wjrwvempgjvoxlioodse`.
+- Supabase function: `scholarship-discover`, reported ACTIVE at version 19 with `verify_jwt=false` for public discovery only.
+- Vercel is not the canonical source or deployment control for this project and was not used in this audit. Do not infer current production state from an old Vercel deployment.
+- AgentGrid artifact commits update canonical source; they do not automatically prove that the public domain or Supabase Edge Function is running that revision.
 
 ## Current backend deployment
 
-- `scholarship-discover` is ACTIVE at version 10, with `verify_jwt=false` for this function only to permit public discovery. Its inspected inline source hash is `5ebc47c217ffdaf9234df5ce12fa4860f671e0641febca218a87aee6a98bc328`.
-- The latest inspected function-edge log window contained seven POST 502 requests tagged version 9, latest `2026-11-25T15:04:10.559Z`. No version-10 request appeared in the result. These failures must not be relabeled as fresh v10 failures.
-- Local SearXNG, the authenticated gateway, and Cloudflare Tunnel were not freshly inspected in this pass. The earlier Quick Tunnel HTTP 200 is historical and does not prove a current or stable route.
-- The live v10 source remains a fixed inline implementation and is not semantically equivalent to the AgentGrid HEAD shared adaptive helper. See SC-247 for the separate source-parity gate.
-- scholarship-verify is not deployed.
-- The configured SearXNG gateway URL and bearer token are server-side Edge Function secrets. Do not place either value in a VITE_ variable or frontend file.
+The Supabase function response returned an entrypoint that imports `createPublicRateLimiter()`, the in-memory per-isolate limiter. The returned deployed helper contains adaptive search, a complete-result cache, and bounded retries, but the wrapper does not use the canonical Upstash V2 module.
+
+The current AgentGrid wrapper imports `createUpstashRateLimiter` and `getDiscoveryRateLimitConfig` from `supabase/functions/_shared/discovery-rate-limit.mjs`. It requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, uses distributed client/IP quotas and concurrency leases, and allows `x-scout-client-id` through CORS. The returned deployed file set does not contain that module/wrapper. Source parity is incomplete.
+
+An earlier failure log at `2026-11-27T02:48:55.575Z` showed four upstream DNS failures against `plugin-loan-anybody-drilling.trycloudflare.com`. A later production smoke test returned 40 leads, and Supabase logged a successful discovery POST at `2026-11-27T05:09:06.848Z`. This is a single successful request, not a sustained-uptime guarantee. The named-tunnel URL in prior documentation was not directly health-checked. Neither gateway secret nor either Upstash secret was read or changed; the connected Supabase integration does not expose a secrets read/write action.
+
+Do not deploy the canonical wrapper until:
+
+1. The current gateway URL and bearer token are reconciled from authoritative sources without printing either secret.
+2. Both Upstash secrets are verified as present and valid.
+3. The deployed/canonical source diff and request/response contract are reviewed.
+4. The prior deployed version, source hash, and rollback path are recorded.
+5. A synthetic end-to-end request proves the gateway and function path.
+
+The canonical wrapper intentionally fails closed with HTTP 503 when the shared limiter is unavailable. Do not bypass this control or substitute the in-memory fallback in production.
 
 ## Release requirements
 
-Before deploying a new frontend or Edge Function:
+Before declaring a release ready:
 
-1. Run npm ci from the lockfile.
-2. Run npm audit --audit-level=moderate.
-3. Run the full npm test suite.
-4. Run npm run build and review bundle output.
-5. Run current browser tests for authentication, backup restore, local storage failures, accessibility, and mobile behavior.
-6. Test the Edge Function using isolated credentials and synthetic data.
-7. Confirm the request includes only permitted search fields.
-8. Review gateway uptime, request limits, timeouts, CORS, and JWT enforcement.
-9. Review migration history, RLS, grants, and rollback before any schema change.
-10. Smoke-test the deployed result and record its version.
+1. Resolve the latest AgentGrid revision and record its full commit hash.
+2. Run `npm ci` from the committed lockfile.
+3. Run `npm test` and record pass/fail/skip counts.
+4. Run `npm run build` and review TypeScript and Vite output.
+5. Run `npm audit --audit-level=moderate`.
+6. Run focused Edge Function tests, including CORS, 429/503 behavior, retries, partial results, and source URL safety.
+7. Run a synthetic production POST with only state, graduation year, and selected category IDs.
+8. Verify public search, source review, local save/restore, cloud owner isolation, and sign-in/session behavior in a real browser.
+9. Check keyboard operation, screen-reader names/status, responsive layouts, and offline behavior.
+10. Confirm no private student data or secrets appear in requests, responses, logs, or client bundles.
 
-Do not apply the legacy schema migration. Do not deploy the unreviewed discovery source or verification placeholder. Production deployment requires separate explicit approval.
+A green build is not proof of working discovery. A successful search is not proof that every result is a legitimate or currently open scholarship.
+
+## Data and migration safeguards
+
+- Preserve local-first student data and the current discovery payload boundary.
+- Preserve Supabase RLS and owner-scoped cloud scholarship CRUD.
+- Do not apply `supabase/legacy/202611090001_scholarship_scout.sql`; it is incompatible with the existing schema.
+- Reconcile live migration history before any schema change.
+- Review actual query patterns before adding or removing indexes.
+- Do not enable password auth without first enabling leaked-password protection.
+- Do not introduce automatic sponsor contact or application submission.
 
 ## Rollback
 
-Keep each artifact change independently reviewable. Artifact history retains earlier committed revisions; restore the previous source revision if a frontend change causes a regression. Database or Edge Function rollback must be planned against actual live state and cannot be assumed to be equivalent to source-control rollback.
+Keep AgentGrid changes in focused commits. Artifact history retains earlier committed revisions; restore a previous source revision if a frontend change causes a regression. Supabase Edge Function rollback must use the recorded prior deployed source and version, not an assumed match to an AgentGrid commit. Database changes require a separate migration-specific rollback plan. No production deployment, secret update, database migration, or RLS change was performed during the November 27 audit.

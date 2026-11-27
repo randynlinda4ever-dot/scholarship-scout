@@ -22,7 +22,6 @@ export default class AppErrorBoundary extends Component<Props, State> {
           <h1>Scholarship Scout could not display this page.</h1>
           <p>Your locally saved information has not been intentionally cleared. Reload the app to try again.</p>
           <button type="button" onClick={() => window.location.reload()}>Reload Scholarship Scout</button>
-          <small>A generic error category was saved in local diagnostics when browser storage was available.</small>
         </main>
       );
     }

@@ -164,13 +164,38 @@ test("backup import sanitizes criteria evidence URLs inside source history", () 
   );
 });
 
-test("encrypted backup modal clears passwords on failure and re-focuses when the restore preview changes", async () => {
+test("encrypted backup export validates the plaintext payload and import allows encryption overhead", async () => {
   const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
   const start = app.indexOf("const exportEncryptedBackup");
   const end = app.indexOf("const restoreLocalBackup", start);
   assert.ok(start >= 0 && end > start);
   const exportHandler = app.slice(start, end);
+  assert.match(exportHandler, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft\)/);
+  assert.match(exportHandler, /validateScoutBackup\(backup, Object\.keys\(initialProfile\)\)/);
+  assert.match(exportHandler, /const validatedBackup = \{ \.\.\.backup, \.\.\.validation\.value \}/);
 
+  const importStart = app.indexOf("const importLocalBackup");
+  const importEnd = app.indexOf("const importEncryptedBackup", importStart);
+  assert.ok(importStart >= 0 && importEnd > importStart);
+  assert.match(app.slice(importStart, importEnd), /file\.size > MAX_ENCRYPTED_BACKUP_FILE_BYTES/);
+});
+
+test("backup restore waits for encrypted persistence before reporting success", async () => {
+  const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const start = app.indexOf("const restoreLocalBackup");
+  const end = app.indexOf("const confirmRestoreLocalBackup", start);
+  assert.ok(start >= 0 && end > start);
+  const restoreHandler = app.slice(start, end);
+  assert.match(restoreHandler, /await flushLocalVault\(\)/);
+  assert.match(restoreHandler, /mergeProfile\(imported\.profileDraft \?\? imported\.profile\)/);
+  assert.match(restoreHandler, /previousStorage = Object\.fromEntries/);
+});
+
+test("encrypted backup modal clears passwords on failure and re-focuses when the restore preview changes", async () => {
+  const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const start = app.indexOf("const exportEncryptedBackup");
+  const end = app.indexOf("const restoreLocalBackup", start);
+  const exportHandler = app.slice(start, end);
   assert.match(exportHandler, /finally\s*\{\s*setBackupPassword\(''\);\s*setBackupPasswordConfirm\(''\);\s*setBackupBusy\(false\);\s*\}/);
   assert.match(app, /backupBusyRef\.current = backupBusy;/);
   assert.match(app, /\}, \[showAdd, selected\?\.id, backupDialogMode, backupPendingRestore\]\);/);

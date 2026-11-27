@@ -9,6 +9,14 @@ export const RELIABILITY_EVENT_TYPES = Object.freeze([
 const ALLOWED_TYPES = new Set(RELIABILITY_EVENT_TYPES);
 const MAX_EVENTS = 25;
 
+function defaultStorage() {
+  try { return globalThis.localStorage; } catch { return undefined; }
+}
+
+function defaultTarget() {
+  try { return globalThis.window; } catch { return undefined; }
+}
+
 function isValidTimestamp(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -24,7 +32,7 @@ export function appendReliabilityEvent(events, input, now = new Date()) {
   return safe.slice(-MAX_EVENTS);
 }
 
-export function readReliabilityEvents(storage = globalThis.localStorage) {
+export function readReliabilityEvents(storage = defaultStorage()) {
   try {
     const raw = storage?.getItem?.(RELIABILITY_STORAGE_KEY);
     if (!raw) return [];
@@ -47,8 +55,8 @@ function notify(target) {
 }
 
 export function recordReliabilityEvent(type, {
-  storage = globalThis.localStorage,
-  target = globalThis.window,
+  storage = defaultStorage(),
+  target = defaultTarget(),
   now = () => new Date(),
 } = {}) {
   if (!ALLOWED_TYPES.has(type)) return readReliabilityEvents(storage);
@@ -62,14 +70,14 @@ export function recordReliabilityEvent(type, {
   }
 }
 
-export function clearReliabilityEvents(storage = globalThis.localStorage, target = globalThis.window) {
+export function clearReliabilityEvents(storage = defaultStorage(), target = defaultTarget()) {
   try { storage?.removeItem?.(RELIABILITY_STORAGE_KEY); } catch { /* storage may be unavailable */ }
   notify(target);
 }
 
 export function installReliabilityMonitoring({
-  target = globalThis.window,
-  storage = globalThis.localStorage,
+  target = defaultTarget(),
+  storage = defaultStorage(),
   now = () => new Date(),
 } = {}) {
   if (!target?.addEventListener || !target?.removeEventListener) return () => {};

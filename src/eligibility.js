@@ -2,7 +2,7 @@
  * Transparent rule-based scholarship matching.
  * Unknown inputs stay unknown; only documented matches count as passes.
  */
-import { calendarDateKey, classifySourceAuthority, deriveSourceStatus, isSafeHttpsUrl, isSameOfficialSponsorSource } from "./lib/evidence.js";
+import { calendarDateKey, classifySourceAuthority, deriveSourceStatus, isInactiveCriterionValue, isSafeHttpsUrl, isSameOfficialSponsorSource } from "./lib/evidence.js";
 
 const asNumber = (value, min = 0, max = Number.POSITIVE_INFINITY) => {
   if (value === null || value === undefined || typeof value === "boolean") return null;
@@ -18,6 +18,20 @@ const validThreshold = (value, min, max) => {
   const text = String(value).trim();
   const parsed = typeof value === "number" ? value : /^\d+(?:\.\d+)?$/.test(text) ? Number(text) : NaN;
   return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+};
+
+const validScore = (value, min, max, step = 1) => {
+  const score = asNumber(value, min, max);
+  return score !== null && Number.isInteger(score) && (score - min) % step === 0
+    ? score
+    : null;
+};
+
+const validScoreThreshold = (value, min, max, step = 1) => {
+  const threshold = validThreshold(value, min, max);
+  return threshold !== null && Number.isInteger(threshold) && (threshold - min) % step === 0
+    ? threshold
+    : null;
 };
 
 const CRITERION_KEYS_BY_LABEL = {
@@ -69,6 +83,11 @@ const isValidDateOnly = (value) => {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 const isExplicitNo = (value) => /^(?:no|nope|none)\b/.test(norm(value));
+const isConfirmedAffirmativeStatus = (value) => {
+  const status = norm(value);
+  return /^(?:yes|confirmed)\b/.test(status) &&
+    !/\b(?:no|not|no longer|inactive|unconfirmed|pending|reported|awaiting|unsure|without)\b/.test(status);
+};
 
 const numericHighSchoolGrade = (grade) =>
   /\b(?:grade\s*)?(9|10|11|12)(?:th)?(?:\s*grade)?\b/.exec(grade)?.[1] ?? null;
@@ -97,13 +116,22 @@ export function profileRankPercent(profile) {
   const classRank = String(profile.classRank ?? "");
   // A rank fraction is more precise than an accompanying rounded band such as "top 10%".
   const ratio = classRank.match(/(\d+)\s*(?:of|\/)\s*(\d+)/i);
-  if (ratio && Number(ratio[2]) > 0) return (Number(ratio[1]) / Number(ratio[2])) * 100;
+  if (ratio) {
+    const rank = Number(ratio[1]);
+    const total = Number(ratio[2]);
+    if (!Number.isSafeInteger(rank) || !Number.isSafeInteger(total) ||
+        rank < 1 || total < 1 || rank > total) return null;
+    return (rank / total) * 100;
+  }
   const explicit = classRank.match(/(\d+(?:\.\d+)?)\s*%/);
   if (explicit) return Number(explicit[1]);
   return null;
 }
 export function assessEligibility(scholarship, profile, now = new Date()) {
-  const criteria = scholarship.criteria ?? {};
+  const rawCriteria = scholarship.criteria;
+  const criteria = rawCriteria == null
+    ? {}
+    : typeof rawCriteria === "object" && !Array.isArray(rawCriteria) ? rawCriteria : {};
   const checks = [];
   const addCheck = (label, outcome, detail) => {
     const criterionKey = label.startsWith("NSE/NPE medal — ")
@@ -142,36 +170,115 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
   const fail = (label, detail) => addCheck(label, "fail", detail);
   const pass = (label, detail) => addCheck(label, "pass", detail);
   const unknown = (label, detail) => addCheck(label, "unknown", detail);
+  const invalidCriteria = new Set();
+  const markInvalidCriterion = (key, label) => {
+    invalidCriteria.add(key);
+    unknown(label, "The stored sponsor rule has an invalid shape or value and cannot be scored safely. Confirm the official requirement.");
+  };
+  if (rawCriteria != null && criteria !== rawCriteria) {
+    unknown("Sponsor criteria", "The stored sponsor criteria are not a valid object.");
+  }
 
-  if (criteria.state) {
+  const booleanCriterionLabels = {
+    requiresShhMembership: "SHH membership",
+    requiresSpanishAchievement: "Spanish achievement",
+    requiresNseRegistration2027: "NSE/NPE 2026/27 participation",
+    requiresFourHMembership: "4-H membership",
+    requiresTestScore: "Standardized test score",
+    requiresFullTimeEnrollment: "Full-time enrollment",
+    requiresFinancialNeed: "Financial need",
+    requiresFirstGeneration: "First-generation status",
+    applicationFee: "Application fee",
+  };
+  for (const [key, label] of Object.entries(booleanCriterionLabels)) {
+    const value = criteria[key];
+    if (value !== undefined && value !== null && typeof value !== "boolean") {
+      markInvalidCriterion(key, label);
+    }
+  }
+
+  const textCriterionLabels = {
+    state: "State residency",
+    schoolState: "School location state",
+    collegeState: "Intended college location state",
+    district: "School district",
+    institution: "College destination",
+    requiredMembership: "Organization membership",
+    otherRequirement: "Additional sponsor requirements",
+  };
+  for (const [key, label] of Object.entries(textCriterionLabels)) {
+    const value = criteria[key];
+    if (value !== undefined && value !== null && value !== "" && typeof value !== "string") {
+      markInvalidCriterion(key, label);
+    }
+  }
+  if (criteria.citizenship !== undefined && criteria.citizenship !== null && criteria.citizenship !== "" &&
+      !["any", "us-citizen", "eligible-noncitizen"].includes(criteria.citizenship)) {
+    markInvalidCriterion("citizenship", "Citizenship");
+  }
+  if (criteria.educationLevel !== undefined && criteria.educationLevel !== null && criteria.educationLevel !== "" &&
+      !["high-school-senior", "high-school-student", "incoming-college", "undergraduate"].includes(criteria.educationLevel)) {
+    markInvalidCriterion("educationLevel", "Education level");
+  }
+  if (criteria.graduationYear !== undefined && criteria.graduationYear !== null && criteria.graduationYear !== "" &&
+      !(Number.isInteger(criteria.graduationYear) && criteria.graduationYear >= 1900 && criteria.graduationYear <= 2100) &&
+      !(typeof criteria.graduationYear === "string" && /^\d{4}$/.test(criteria.graduationYear) &&
+        Number(criteria.graduationYear) >= 1900 && Number(criteria.graduationYear) <= 2100)) {
+    markInvalidCriterion("graduationYear", "Graduation year");
+  }
+  if (criteria.ageRange !== undefined && criteria.ageRange !== null && criteria.ageRange !== "" &&
+      (typeof criteria.ageRange !== "object" || Array.isArray(criteria.ageRange))) {
+    markInvalidCriterion("ageRange", "Age range");
+  }
+  if (criteria.minActOrSat !== undefined && criteria.minActOrSat !== null && criteria.minActOrSat !== "" &&
+      (typeof criteria.minActOrSat !== "object" || Array.isArray(criteria.minActOrSat))) {
+    markInvalidCriterion("minActOrSat", "ACT or SAT threshold");
+  }
+  if (criteria.requiredNseMedalYears !== undefined && criteria.requiredNseMedalYears !== null &&
+      criteria.requiredNseMedalYears !== "" && !Array.isArray(criteria.requiredNseMedalYears)) {
+    markInvalidCriterion("requiredNseMedalYears", "NSE/NPE medal");
+  }
+  if (criteria.majorKeywords !== undefined && criteria.majorKeywords !== null && criteria.majorKeywords !== "" &&
+      (!Array.isArray(criteria.majorKeywords) ||
+        !criteria.majorKeywords.every((value) => typeof value === "string" && value.trim()))) {
+    markInvalidCriterion("majorKeywords", "Field of study");
+  }
+  const allowedEnrollmentStatuses = new Set(["full-time", "part-time", "incoming", "current-student"]);
+  if (criteria.enrollmentStatuses !== undefined && criteria.enrollmentStatuses !== null && criteria.enrollmentStatuses !== "" &&
+      (!Array.isArray(criteria.enrollmentStatuses) ||
+        !criteria.enrollmentStatuses.every((value) => allowedEnrollmentStatuses.has(value)))) {
+    markInvalidCriterion("enrollmentStatuses", "Enrollment status alternatives");
+  }
+
+  if (criteria.state && !invalidCriteria.has("state")) {
     const state = norm(profile.state);
     if (!state) unknown("State residency", "State of residence is not recorded.");
     else if (state === norm(criteria.state)) pass("State residency", `Profile state is ${profile.state}.`);
     else fail("State residency", `Requires ${criteria.state}; profile lists ${profile.state}.`);
   }
 
-  if (criteria.schoolState) {
+  if (criteria.schoolState && !invalidCriteria.has("schoolState")) {
     const schoolState = norm(profile.schoolState);
     if (!schoolState) unknown("School location state", "The state where the current school is located is not recorded.");
     else if (schoolState === norm(criteria.schoolState)) pass("School location state", `Current school location is ${profile.schoolState}.`);
     else fail("School location state", `Requires a school located in ${criteria.schoolState}; profile lists ${profile.schoolState}.`);
   }
 
-  if (criteria.collegeState) {
+  if (criteria.collegeState && !invalidCriteria.has("collegeState")) {
     const collegeState = norm(profile.plannedCollegeState);
     if (!collegeState) unknown("Intended college location state", "The state of the intended college destination is not recorded.");
     else if (collegeState === norm(criteria.collegeState)) pass("Intended college location state", `Intended college location is ${profile.plannedCollegeState}.`);
     else fail("Intended college location state", `Requires an intended college in ${criteria.collegeState}; profile lists ${profile.plannedCollegeState}.`);
   }
 
-  if (criteria.district) {
+  if (criteria.district && !invalidCriteria.has("district")) {
     const district = norm(profile.district);
     if (!district) unknown("School district", "School district is not recorded.");
     else if (district === norm(criteria.district)) pass("School district", `Profile lists ${profile.district}.`);
     else fail("School district", `Requires ${criteria.district}; profile lists ${profile.district}.`);
   }
 
-  if (criteria.ageRange && typeof criteria.ageRange === "object" && !Array.isArray(criteria.ageRange)) {
+  if (criteria.ageRange && !invalidCriteria.has("ageRange") && typeof criteria.ageRange === "object" && !Array.isArray(criteria.ageRange)) {
     const range = criteria.ageRange;
     const hasMin = range.min !== undefined && range.min !== null && range.min !== "";
     const hasMax = range.max !== undefined && range.max !== null && range.max !== "";
@@ -196,52 +303,65 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.requiresShhMembership) {
+  if (criteria.requiresShhMembership === true) {
     const status = norm(profile.shhMembershipStatus);
-    if (status.startsWith("confirmed") || status.startsWith("yes")) pass("SHH membership", "Profile marks Sociedad Honoraria Hispánica membership as confirmed; chapter sponsor should still confirm eligibility for this award.");
+    if (isConfirmedAffirmativeStatus(status)) pass("SHH membership", "Profile marks Sociedad Honoraria Hispánica membership as confirmed; chapter sponsor should still confirm eligibility for this award.");
     else if (isExplicitNo(status)) fail("SHH membership", "Profile indicates no SHH membership.");
     else unknown("SHH membership", "Membership is reported or unconfirmed; the chapter sponsor must verify active initiation and current chapter standing.");  }
 
-  if (criteria.requiresSpanishAchievement) {
+  if (criteria.requiresSpanishAchievement === true) {
     const status = norm(profile.spanishAchievementStatus);
-    if (status.startsWith("confirmed") || status.startsWith("yes")) pass("Spanish achievement", "Profile marks the required Spanish/Portuguese achievement as confirmed.");
+    if (isConfirmedAffirmativeStatus(status)) pass("Spanish achievement", "Profile marks the required Spanish/Portuguese achievement as confirmed.");
     else if (isExplicitNo(status)) fail("Spanish achievement", "Profile indicates the sponsor's required Spanish/Portuguese achievement is not met.");
     else unknown("Spanish achievement", "Transcript courses are recorded, but the SHH sponsor must decide whether they demonstrate the high achievement required by the award.");
   }
 
-  if (criteria.requiredNseMedalYears?.length) {
+  if (Array.isArray(criteria.requiredNseMedalYears) && criteria.requiredNseMedalYears.length && !invalidCriteria.has("requiredNseMedalYears")) {
     const medalText = norm(profile.nseMedalYears);
-    const explicitlyUnknown = !medalText || /not recorded|unknown|unsure|confirm/i.test(medalText);
-    const explicitlyNone = /no medals|none|no nse|no npe/i.test(medalText);
-    const recordedYears = explicitlyUnknown || explicitlyNone ? [] : medalText.match(/20\d{2}/g) ?? [];
+    const explicitlyUnknown = !medalText ||
+      /\b(?:not recorded|unknown|unsure|unconfirmed|pending)\b|\bconfirm(?!ed)\b/i.test(medalText);
+    const statements = medalText.split(/[;,\n]|\bbut\b/i).map(norm).filter(Boolean);
+    const explicitlyNone = statements.some((statement) =>
+      /\bnone\b/i.test(statement) ||
+      (/\bno\s+(?:(?:nse|npe|nse\/npe)\s+)?medals\b/i.test(statement) && !/\b20\d{2}\b/.test(statement))
+    );
     for (const year of criteria.requiredNseMedalYears) {
-      if (explicitlyUnknown) unknown(`NSE/NPE medal — ${year}`, `No confirmed medal record for ${year} is stored.`);
-      else if (explicitlyNone) fail(`NSE/NPE medal — ${year}`, `Profile records no NSE/NPE medals.`);
-      else if (recordedYears.includes(String(year))) pass(`NSE/NPE medal — ${year}`, `Profile records an NSE/NPE medal for ${year}; verify the result against the official score record.`);
-      else fail(`NSE/NPE medal — ${year}`, `The recorded medal years do not include ${year}.`);
+      const validYear = Number.isInteger(year) && year >= 1900 && year <= 2100;
+      const yearStatements = validYear
+        ? statements.filter((statement) => new RegExp("\\b" + year + "\\b").test(statement))
+        : [];
+      const explicitlyNegativeForYear = yearStatements.some((statement) =>
+        /\b(?:no|not|never|without|did not earn|didn't earn)\b.{0,60}\bmedals?\b/i.test(statement) ||
+        /\bmedals?\b.{0,60}\b(?:no|not|never|without)\b/i.test(statement)
+      );
+      if (!validYear) unknown("NSE/NPE medal — " + year, "The sponsor's required medal year is invalid and needs review.");
+      else if (explicitlyUnknown) unknown("NSE/NPE medal — " + year, "No confirmed medal record for " + year + " is stored.");
+      else if (explicitlyNone || explicitlyNegativeForYear) fail("NSE/NPE medal — " + year, "Profile indicates no NSE/NPE medal for " + year + ".");
+      else if (yearStatements.length > 0) pass("NSE/NPE medal — " + year, "Profile records an NSE/NPE medal for " + year + "; verify the result against the official score record.");
+      else fail("NSE/NPE medal — " + year, "The recorded medal years do not include " + year + ".");
     }
   }
 
-  if (criteria.requiresNseRegistration2027) {
+  if (criteria.requiresNseRegistration2027 === true) {
     const status = norm(profile.nseRegistered2027);
-    if (status.startsWith("yes") || status.startsWith("confirmed")) pass("NSE/NPE 2026/27 participation", "Profile marks participation during the 2026/27 exam year as confirmed; verify with the exam administrator.");
+    if (isConfirmedAffirmativeStatus(status)) pass("NSE/NPE 2026/27 participation", "Profile marks participation during the 2026/27 exam year as confirmed; verify with the exam administrator.");
     else if (isExplicitNo(status)) fail("NSE/NPE 2026/27 participation", "Profile indicates no NSE/NPE participation during 2026/27.");
     else unknown("NSE/NPE 2026/27 participation", "Participation in the 2026/27 NSE/NPE is not confirmed.");
   }
 
-  if (criteria.requiresFourHMembership) {
+  if (criteria.requiresFourHMembership === true) {
     const status = norm(profile.fourHMembershipStatus);
-    if (status.startsWith("yes") || status.startsWith("confirmed")) pass("4-H membership", "Profile marks 4-H membership as confirmed.");
+    if (isConfirmedAffirmativeStatus(status)) pass("4-H membership", "Profile marks 4-H membership as confirmed.");
     else if (isExplicitNo(status)) fail("4-H membership", "Profile indicates no 4-H membership.");
     else unknown("4-H membership", "4-H membership and any required years of participation have not been confirmed.");
   }
 
-  if (criteria.requiresTestScore) {
-    const hasAct = String(profile.act ?? "").match(/\d+/);
-    const hasSat = String(profile.sat ?? "").match(/\d+/);
+  if (criteria.requiresTestScore === true) {
+    const hasAct = validScore(profile.act, 1, 36) !== null;
+    const hasSat = validScore(profile.sat, 400, 1600, 10) !== null;
     hasAct || hasSat
-      ? pass("Standardized test score", "An ACT or SAT score is recorded; confirm the sponsor accepts the score type and test date.")
-      : unknown("Standardized test score", "The scholarship requires a standardized test score, but none is recorded.");
+      ? pass("Standardized test score", "A valid ACT or SAT score is recorded; confirm the sponsor accepts the score type and test date.")
+      : unknown("Standardized test score", "A valid ACT score (1–36) or SAT score (400–1600 in 10-point increments) is not recorded.");
   }
 
   if (criteria.citizenship === "us-citizen") {
@@ -263,7 +383,7 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     else unknown("Eligible noncitizen status", "A non-citizen description does not establish a sponsor-approved eligible-noncitizen category. Confirm the exact immigration category with the sponsor.");
   }
 
-  if (criteria.educationLevel) {
+  if (criteria.educationLevel && !invalidCriteria.has("educationLevel")) {
     const grade = norm(profile.grade);
     const ambiguousLabel = isAmbiguousEducationLabel(grade);
     const highSchoolStudent = isHighSchoolStudent(grade);
@@ -306,7 +426,7 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.graduationYear !== undefined && criteria.graduationYear !== null && criteria.graduationYear !== "") {
+  if (criteria.graduationYear !== undefined && criteria.graduationYear !== null && criteria.graduationYear !== "" && !invalidCriteria.has("graduationYear")) {
     const graduationYear = String(profile.graduationYear ?? "").trim();
     if (!/^\d{4}$/.test(graduationYear)) {
       unknown("Graduation year", "Expected graduation year is not recorded as a four-digit calendar year.");
@@ -333,26 +453,26 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     else rank <= maximum ? pass("Class rank", "Top " + rank.toFixed(2) + "% meets the top " + maximum + "% cutoff.") : fail("Class rank", "Top " + rank.toFixed(2) + "% does not meet the top " + maximum + "% cutoff.");
   }
 
-  for (const [key, label, minimumAllowed, maximumAllowed] of [["minAct", "ACT minimum", 1, 36], ["minSat", "SAT minimum", 400, 1600]]) {
+  for (const [key, label, minimumAllowed, maximumAllowed, step] of [["minAct", "ACT minimum", 1, 36, 1], ["minSat", "SAT minimum", 400, 1600, 10]]) {
     const rawMinimum = criteria[key];
     if (rawMinimum !== undefined && rawMinimum !== null && rawMinimum !== "") {
-      const minimum = validThreshold(rawMinimum, minimumAllowed, maximumAllowed);
+      const minimum = validScoreThreshold(rawMinimum, minimumAllowed, maximumAllowed, step);
       const score = key === "minAct"
-        ? asNumber(profile.act, 1, 36)
-        : asNumber(profile.sat, 400, 1600);
-      if (minimum === null) unknown(label, "The sponsor's " + (key === "minAct" ? "ACT" : "SAT") + " threshold is malformed or outside the supported score range.");
-      else if (score === null) unknown(label, "A comparable test score is not recorded.");
+        ? validScore(profile.act, 1, 36)
+        : validScore(profile.sat, 400, 1600, 10);
+      if (minimum === null) unknown(label, "The sponsor's " + (key === "minAct" ? "ACT" : "SAT") + " threshold is malformed or outside the supported score range or increments.");
+      else if (score === null) unknown(label, "A valid comparable test score is not recorded.");
       else score >= minimum ? pass(label, score + " meets the " + minimum + " minimum.") : fail(label, score + " is below the " + minimum + " minimum.");
     }
   }
 
-  if (criteria.minActOrSat) {
-    const act = asNumber(profile.act, 1, 36);
-    const sat = asNumber(profile.sat, 400, 1600);
+  if (criteria.minActOrSat && !invalidCriteria.has("minActOrSat")) {
+    const act = validScore(profile.act, 1, 36);
+    const sat = validScore(profile.sat, 400, 1600, 10);
     const rawActMinimum = criteria.minActOrSat.act ?? null;
     const rawSatMinimum = criteria.minActOrSat.sat ?? null;
-    const actMinimum = validThreshold(rawActMinimum, 1, 36);
-    const satMinimum = validThreshold(rawSatMinimum, 400, 1600);
+    const actMinimum = validScoreThreshold(rawActMinimum, 1, 36);
+    const satMinimum = validScoreThreshold(rawSatMinimum, 400, 1600, 10);
     const hasActRoute = rawActMinimum !== null && rawActMinimum !== "";
     const hasSatRoute = rawSatMinimum !== null && rawSatMinimum !== "";
     const invalidRoute = (hasActRoute && actMinimum === null) || (hasSatRoute && satMinimum === null);
@@ -370,7 +490,7 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.majorKeywords?.length) {
+  if (Array.isArray(criteria.majorKeywords) && criteria.majorKeywords.length && !invalidCriteria.has("majorKeywords")) {
     const academicText = norm([profile.plannedMajor, profile.interests].filter(Boolean).join(" "));
     if (!academicText) {
       unknown("Field of study", "Planned major and academic interests are not recorded.");
@@ -382,7 +502,7 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.institution) {
+  if (criteria.institution && !invalidCriteria.has("institution")) {
     const plannedCollege = norm(profile.plannedCollege);
     if (!plannedCollege) unknown("College destination", "A planned college destination is not recorded.");
     else if (containsKeywordPhrase(plannedCollege, criteria.institution)) {
@@ -392,7 +512,7 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.requiresFullTimeEnrollment) {
+  if (criteria.requiresFullTimeEnrollment === true) {
     const status = norm(profile.collegeStatus);
     const explicitlyFullTime = /\bfull[\s-]?time\b/.test(status);
     const explicitlyNotFullTime = /\b(?:part[\s-]?time|not\s+(?:currently\s+)?full[\s-]?time|no\s+full[\s-]?time)\b/.test(status);
@@ -404,7 +524,7 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.enrollmentStatuses?.length) {
+  if (Array.isArray(criteria.enrollmentStatuses) && criteria.enrollmentStatuses.length && !invalidCriteria.has("enrollmentStatuses")) {
     const status = norm(profile.collegeStatus);
     const grade = norm(profile.grade);
     const highSchoolStudent = isHighSchoolStudent(grade);
@@ -460,43 +580,41 @@ export function assessEligibility(scholarship, profile, now = new Date()) {
     }
   }
 
-  if (criteria.requiredMembership) {
-    const activityText = norm(profile.activities);
-    const hasMembership = containsKeywordPhrase(activityText, criteria.requiredMembership);
-    const explicitlyLacksGoodStanding = /\b(?:not|no longer|without)\s+(?:\w+\s+){0,3}good standing\b/.test(activityText);
-    if (hasMembership && explicitlyLacksGoodStanding) {
-      unknown("Organization membership", `The profile records ${criteria.requiredMembership}, but also indicates that good standing is not met; confirm the sponsor's current membership rules.`);
-    } else if (hasMembership && containsKeywordPhrase(activityText, "good standing")) {
-      pass("Organization membership", `Profile notes ${criteria.requiredMembership} membership in good standing; confirm any chapter-specific sponsor rules.`);
-    } else if (hasMembership) {
-      unknown("Organization membership", `The profile lists ${criteria.requiredMembership}; confirm active membership and good standing if required.`);
+  if (typeof criteria.requiredMembership === "string" && criteria.requiredMembership.trim() && !invalidCriteria.has("requiredMembership")) {
+    const activityEntries = String(profile.activities ?? "").split(/[;\n]+/).map(norm).filter(Boolean);
+    const membershipEntry = activityEntries.find((entry) => containsKeywordPhrase(entry, criteria.requiredMembership));
+    const explicitlyLacksGoodStanding = membershipEntry &&
+      /\b(?:not|no longer|without)\s+(?:\w+\s+){0,3}good standing\b/.test(membershipEntry);
+    if (!membershipEntry) {
+      unknown("Organization membership", "Confirm whether you belong to " + criteria.requiredMembership + " and meet the sponsor's membership rules.");
+    } else if (explicitlyLacksGoodStanding) {
+      unknown("Organization membership", "The profile records " + criteria.requiredMembership + ", but also indicates that good standing is not met; confirm the sponsor's current membership rules.");
+    } else if (containsKeywordPhrase(membershipEntry, "good standing")) {
+      pass("Organization membership", "Profile notes " + criteria.requiredMembership + " membership in good standing; confirm any chapter-specific sponsor rules.");
     } else {
-      unknown("Organization membership", `Confirm whether you belong to ${criteria.requiredMembership} and meet the sponsor's membership rules.`);
+      unknown("Organization membership", "The profile lists " + criteria.requiredMembership + "; confirm active membership and good standing if required.");
     }
   }
 
-  if (criteria.requiresFinancialNeed) unknown("Financial need", "Needs-based qualification cannot be inferred from the matching profile. Review the sponsor's exact definition and required financial-aid documents.");
-  if (criteria.requiresFirstGeneration) {
+  if (criteria.requiresFinancialNeed === true) unknown("Financial need", "Needs-based qualification cannot be inferred from the matching profile. Review the sponsor's exact definition and required financial-aid documents.");
+  if (criteria.requiresFirstGeneration === true) {
     const firstGen = norm(profile.firstGeneration);
-    if (firstGen.startsWith("yes")) pass("First-generation status", "Profile marks first-generation status as confirmed; compare it with the sponsor's definition.");
+    if (isConfirmedAffirmativeStatus(firstGen)) pass("First-generation status", "Profile marks first-generation status as confirmed; compare it with the sponsor's definition.");
     else if (isExplicitNo(firstGen)) fail("First-generation status", "Profile indicates that the first-generation requirement is not met.");
     else unknown("First-generation status", "First-generation status is not confirmed; sponsor definitions differ.");
   }
-  if (criteria.otherRequirement) unknown("Additional sponsor requirements", criteria.otherRequirement);
+  if (typeof criteria.otherRequirement === "string" && criteria.otherRequirement.trim() && !invalidCriteria.has("otherRequirement")) unknown("Additional sponsor requirements", criteria.otherRequirement);
 
   const sourceAuthority = scholarship.sourceAuthority || classifySourceAuthority(scholarship.sourceUrl);
   const sourceStatus = deriveSourceStatus({ ...scholarship, sourceAuthority }, now);
   const sourceVerified = sourceStatus === "verified";
 
   const riskFlags = [];
-  const hasMandatoryCriteria = Object.entries(criteria).some(([key, value]) => {
-    const normalizedString = typeof value === "string" ? value.trim().toLowerCase() : null;
-    const inactiveValue = normalizedString === "" || normalizedString === "any" || value === false;
-    return key !== "applicationFee" &&
-      scholarship.criteriaImportance?.[key] !== "preferred" &&
-      value !== undefined && value !== null && !inactiveValue &&
-      (!Array.isArray(value) || value.length > 0);
-  });
+  const hasMandatoryCriteria = Object.entries(criteria).some(([key, value]) =>
+    key !== "applicationFee" &&
+    scholarship.criteriaImportance?.[key] !== "preferred" &&
+    !isInactiveCriterionValue(value)
+  );
   if (!hasMandatoryCriteria) unknown("Mandatory eligibility criteria", "No mandatory sponsor requirements have been recorded. Preferred qualifications alone cannot establish eligibility.");
   if (criteria.applicationFee === true) riskFlags.push("The listing indicates an application fee. Treat this as a serious warning and verify directly with the sponsor; the FTC advises never paying to apply for a scholarship.");
   if (!scholarship.sourceUrl) unknown("Official source", "Add the sponsor's official scholarship page.");

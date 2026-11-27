@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readWorkspaceSource();
+const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 
 test("live discovery distinguishes loading from completed no-match and result states", () => {
   assert.match(app, /discoveryState === 'loading'[\s\S]*?className="cloud-loading" aria-hidden="true"/);

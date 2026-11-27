@@ -20,6 +20,16 @@ test("scholarship discovery uses the public SearXNG gateway without database wri
   assert.doesNotMatch(functionSource, /student_profiles|eligibility_checks/);
 });
 
+test("production discovery wrapper uses the shared Upstash limiter, not the isolate-local fallback", () => {
+  assert.match(entrypointSource, /createUpstashRateLimiter/);
+  assert.match(entrypointSource, /getDiscoveryRateLimitConfig/);
+  assert.match(entrypointSource, /UPSTASH_REDIS_REST_URL/);
+  assert.match(entrypointSource, /UPSTASH_REDIS_REST_TOKEN/);
+  assert.match(entrypointSource, /rateLimiter,/);
+  assert.match(entrypointSource, /x-scout-client-id/);
+  assert.doesNotMatch(entrypointSource, /createPublicRateLimiter/);
+});
+
 test("live discovery allows only generic reusable categories", () => {
   assert.match(functionSource, /ALLOWED_CATEGORIES/);
   for (const forbidden of ["example_district_id", "shh", "nse_npe", "texas_4h"]) assert.equal(functionSource.includes(forbidden), false);

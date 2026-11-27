@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { vaultStorage } from "./localVault.js";
 
 type ScoutRuntimeConfig = {
   VITE_SUPABASE_URL?: string;
@@ -41,6 +42,8 @@ export function getSupabaseClient(): Promise<SupabaseClient | null> {
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: true,
+          flowType: "pkce",
+          storage: vaultStorage,
         },
       }))
       .catch((error) => {
@@ -49,4 +52,16 @@ export function getSupabaseClient(): Promise<SupabaseClient | null> {
       });
   }
   return supabaseClientPromise;
+}
+
+/**
+ * Stop background refresh before locking the local vault. Do not initialize
+ * Supabase just to lock: only an already-created client needs to be stopped.
+ */
+export async function stopSupabaseAutoRefreshForVaultLock(): Promise<void> {
+  const existingClient = supabaseClientPromise;
+  if (!existingClient) return;
+  const client = await existingClient;
+  if (!client) return;
+  await client.auth.stopAutoRefresh();
 }

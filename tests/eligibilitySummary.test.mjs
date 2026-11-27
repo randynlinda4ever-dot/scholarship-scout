@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { summarizeEligibilityAssessment } from "../src/lib/eligibilitySummary.js";
-import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
 test("groups passed, failed, and unknown rules without collapsing the outcomes", () => {
   const summary = summarizeEligibilityAssessment({
@@ -89,7 +88,7 @@ test("unverified source matches remain distinct from verified eligibility and aw
 });
 
 test("discovery cards, tracker status, and detail banner use the defensive eligibility summary", async () => {
-const app = await readWorkspaceSource();
+  const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
   assert.match(app, /function CandidateCard[\s\S]*?const summary = summarizeEligibilityAssessment\(assessment\)/);
   assert.match(app, /<StatusPill status=\{summary\.status as Status\}\/>/);
   assert.match(app, /<StatusPill status=\{selectedSummary!\.status as Status\}\/>/);

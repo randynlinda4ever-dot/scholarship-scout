@@ -1,34 +1,36 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites } from './lib/localVault.js';
+import { installReliabilityMonitoring } from './lib/reliabilityMonitor.js';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
-import { deriveSourceStatus, getEvidenceExcerptAttributions, getSourceAttribution, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
+import { deriveSourceStatus, getEvidenceCompleteness, getEvidenceExcerptAttributions, getOfficialSourceFreshness, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
 import { appendSourceEvidenceHistory, invalidateSourceReviewIfChanged } from './lib/sourceReview.js';
-import { getSupabaseClient, supabaseConfigured } from './lib/supabaseClient';
+import { getSupabaseClient, stopSupabaseAutoRefreshForVaultLock, supabaseConfigured } from './lib/supabaseClient';
 import { buildScoutBackup, validateScoutBackup } from './lib/backup.js';
 
 import { findPotentialDuplicates, getDeadlineMilestones, getDeadlineUrgency } from './lib/trackerInsights.js';
 import { APPLICATION_CHECKLIST_STEPS, normalizeApplicationProgress, updateApplicationProgress } from './lib/applicationProgress.js';
 import { createApplicationWorkspace, normalizeApplicationWorkspace, getApplicationWorkspaceSummary, countApplicationWords, RECOMMENDATION_STATUSES, type ApplicationWorkspaceEntry } from './lib/applicationWorkspace.js';
 import { summarizeEligibilityAssessment } from './lib/eligibilitySummary.js';
+import { DISCOVERY_CATEGORY_OPTIONS } from './lib/discovery.js';
 import { isLiveDiscoveryCategorySupported } from './lib/liveDiscoveryCapabilities.js';
 import { getProfileReadiness } from './lib/profileReadiness.js';
+import { buildManualSearchQueries } from './lib/manualSearchQueries.js';
 import { validateProfileChanges } from './lib/profileValidation.js';
-import { APPLICATION_STATUSES, TRACKER_PRIORITIES, filterAndSortTrackerRecords, getApplicationStatusCounts, normalizeTrackerRecord, type ApplicationStatus, type TrackerPriority } from './lib/trackerManagement.js';
+import { APPLICATION_STATUSES, TRACKER_PRIORITIES, MAX_TRACKER_RECORDS, filterAndSortTrackerRecords, getApplicationStatusCounts, normalizeTrackerRecord, type ApplicationStatus, type TrackerPriority } from './lib/trackerManagement.js';
 import { buildTrackerCsvReport } from './lib/trackerReport.js';
-import { clearReliabilityEvents, readReliabilityEvents, RELIABILITY_CHANGE_EVENT } from './lib/reliabilityMonitor.js';
+import { getDiscoveryErrorMessage } from './lib/discoveryErrors.js';
 import { writeJsonStorage, writeJsonStorageBatch } from './lib/browserStorage.js';
 import { AUTH_EMAIL_COOLDOWN_SECONDS, getAuthCooldownRemainingSeconds, isAuthRateLimitError, isExpiredAuthLinkError } from './lib/authCooldown.js';
-import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveCloudScholarship, sendMagicLink, signOutCloudUser, type LiveScholarship, type LiveDiscoverySummary } from './lib/scholarshipApi';
+import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveCloudScholarship, sendMagicLink, signInWithGoogle, linkGoogleIdentity, signOutCloudUser, deleteCloudAccount, type LiveScholarship, type LiveDiscoverySummary } from './lib/scholarshipApi';
+import { hasPendingAuthCallback, hasPendingAuthCallbackError } from './lib/authRedirect.js';
+import { PRIVACY_REQUEST_TYPES, PRIVACY_REQUESTER_TYPES, buildPrivacyRequestMailto } from './lib/privacyRequests.js';
+import { BrandMark } from './components/BrandMark';
 import './App.css';
-import { CheckField, Field, SelectField } from './components/WorkspaceFields';
-import { ApplicationStatusPill, EligibilityMatchSummary, EvidenceCompletenessList, PriorityPill, SourceStatusPill, StatusPill } from './components/StatusPills';
-import type { CriteriaImportance, Profile, Scholarship, Status } from './domain/types.js';
-import { OverviewPage } from './features/workspace/pages/OverviewPage';
-import { SettingsPage } from './features/workspace/pages/SettingsPage';
-import { DiscoveryPage } from './features/workspace/pages/DiscoveryPage';
-import { CloudSearchPage } from './features/workspace/pages/CloudSearchPage';
-import { ScholarshipsPage } from './features/workspace/pages/ScholarshipsPage';
-import { EligibilityFiltersPage } from './features/workspace/pages/EligibilityFiltersPage';
-import { ApplicationPrepPage } from './features/workspace/pages/ApplicationPrepPage';
+import './brand-system.css';
+
+// This module is imported only after legal acceptance and local-vault unlock.
+const localStorage = vaultStorage;
+installReliabilityMonitoring();
 
 function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record: T): T {
   const criteriaEvidence = record.criteriaEvidence && typeof record.criteriaEvidence === 'object'
@@ -47,10 +49,72 @@ function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record
   } as T;
 }
 
+type Status = EligibilityAssessment['status'];
+type CriteriaImportance = 'mandatory' | 'preferred';
 
+type GlyphName =
+  | 'home' | 'search' | 'cloud' | 'book' | 'checklist' | 'user' | 'settings'
+  | 'book-stack' | 'check-circle' | 'info' | 'calendar-clock'
+  | 'menu' | 'close' | 'chevron-left' | 'chevron-right';
 
+function NavGlyph({ name }: { name: GlyphName }) {
+  const glyphs: Record<GlyphName, ReactNode> = {
+    home: <><path d="m3.5 10.5 8.5-7 8.5 7" /><path d="M5.5 9.5v10h5.2v-5.8h2.6v5.8h5.2v-10" /></>,
+    search: <><circle cx="10.8" cy="10.8" r="6.6" /><path d="m16 16 4.5 4.5" /></>,
+    cloud: <path d="M6.2 18.5h11.4a4 4 0 0 0 .5-8 6.3 6.3 0 0 0-12.1-1.3 4.7 4.7 0 0 0 .2 9.3Z" />,
+    book: <><path d="M3.5 5.5c3.8-1.3 7.1-.6 8.5 1.2 1.4-1.8 4.7-2.5 8.5-1.2v13c-3.8-1.3-7.1-.6-8.5 1.2-1.4-1.8-4.7-2.5-8.5-1.2v-13Z" /><path d="M12 6.7v13" /></>,
+    checklist: <><rect x="4" y="3.5" width="16" height="17" rx="2.2" /><path d="m7.2 8 1.2 1.2 2-2.2M12.8 8h4M7.2 13l1.2 1.2 2-2.2M12.8 13h4M7.5 17h9" /></>,
+    user: <><circle cx="12" cy="8" r="3.3" /><path d="M5 20c.5-3.6 2.9-5.5 7-5.5s6.5 1.9 7 5.5" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.1 1.8-1.8 3.1-2.1-.5a7.8 7.8 0 0 1-1.7 1l-.5 2.1h-3.6l-.5-2.1a7.8 7.8 0 0 1-1.7-1l-2.1.5-1.8-3.1 1.1-1.8a7.4 7.4 0 0 1 0-2l-1.1-1.8 1.8-3.1 2.1.5a7.8 7.8 0 0 1 1.7-1l.5-2.1h3.6l.5 2.1a7.8 7.8 0 0 1 1.7 1l2.1-.5 1.8 3.1-1.1 1.8a7.4 7.4 0 0 1 .1 1.9Z" transform="translate(-.7 -1.5) scale(1.06)" /></>,
+    'book-stack': <><path d="M4 5.5h13.5a2.5 2.5 0 0 1 2.5 2.5v11H6.5A2.5 2.5 0 0 1 4 16.5v-11Z" /><path d="M4 8H2.8v10a2 2 0 0 0 2 2H18M8 9h8M8 12.5h6" /></>,
+    'check-circle': <><circle cx="12" cy="12" r="8.5" /><path d="m8 12.1 2.6 2.6 5.5-5.5" /></>,
+    info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 10.8v5M12 7.4h.01" /></>,
+    'calendar-clock': <><rect x="3" y="4.5" width="13" height="15.5" rx="2" /><path d="M7 2.8v3.4M12 2.8v3.4M3 9h13M7 12.5h2M7 16h3" /><circle cx="17.3" cy="16.8" r="4" /><path d="M17.3 14.5v2.5l1.5 1" /></>,
+    menu: <><path d="M4 6.5h16M4 12h16M4 17.5h16" /></>,
+    close: <><path d="m6 6 12 12M18 6 6 18" /></>,
+    'chevron-left': <path d="m14.5 5-7 7 7 7" />,
+    'chevron-right': <path d="m9.5 5 7 7-7 7" />,
+  };
 
-
+  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{glyphs[name]}</svg>;
+}
+type Scholarship = {
+  id: string; name: string; provider: string; award: string; deadline: string; openDate?: string; openDateTimezone?: string;
+  deadlineText?: string; deadlineTime?: string; deadlineTimezone?: string; deadlineTimezoneText?: string; deadlineNotPublished?: boolean;
+  priorityDeadline?: string; priorityDeadlineText?: string; priorityDeadlineTimezone?: string;
+  sourceUrl: string; evidenceUrl?: string; sourceVerified: boolean; evidenceText: string; notes: string;
+  awardEvidenceText?: string; awardEvidenceUrl?: string; awardCurrencyBasis?: string; awardBasis?: string;
+  /** Transient editor signal; removed before tracker persistence. */
+  sourceReviewConfirmed?: boolean;
+  sourceAuthority?: string; sourceStatus?: 'verified' | 'needs-review' | 'expired'; lastCheckedDate?: string;
+  discoverySourceUrl?: string; discoverySourceLabel?: string; discoveredOn?: string;
+  /** Date this tracker record was created; distinct from discovery and sponsor review. */
+  recordCreatedAt?: string;
+  backendOpportunityId?: string;
+  applicationStatus?: ApplicationStatus; priority?: TrackerPriority; tags?: string[]; archived?: boolean;
+  submittedAt?: string; decisionDate?: string;
+  criteria: EligibilityCriteria;
+  criteriaImportance?: Partial<Record<keyof EligibilityCriteria, CriteriaImportance>>;
+  criteriaEvidence?: Record<string, { excerpt?: string; sourceUrl?: string }>;
+  sourceEvidenceHistory?: Array<{
+    recordedAt: string; sourceUrl?: string; evidenceUrl?: string; evidenceText?: string;
+    awardEvidenceText?: string; awardEvidenceUrl?: string; awardCurrencyBasis?: string; awardBasis?: string;
+    sourceAuthority?: string; lastCheckedDate?: string;
+    criteriaEvidence?: Record<string, { excerpt?: string; sourceUrl?: string }>;
+  }>;
+};
+type Profile = {
+  state: string; county: string; citizenship: string; age: string; school: string; schoolState: string; grade: string; graduationYear: string;
+  plannedCollege: string; plannedCollegeState: string; plannedMajor: string; degreeGoal: string; collegeStatus: string;
+  gpa: string; gpaType: string; classRank: string; rankDetails: string; credits: string; programNotes: string;
+  texasGrantNotation: string; act: string; sat: string; apCourses: string; dualCreditCourses: string;
+  academicHonors: string; interests: string; activities: string; serviceHours: string; service: string;
+  employment: string; certifications: string; languages: string; firstGeneration: string;
+  district: string; shhMembershipStatus: string; spanishAchievementStatus: string;
+  nseMedalYears: string; nseRegistered2027: string; fourHMembershipStatus: string;
+  searchKeywords: string;
+  profileVersion: string;
+};
 
 const initialProfile: Profile = {
   // Personal student details are intentionally not bundled into the public client.
@@ -63,8 +127,7 @@ const initialProfile: Profile = {
   employment: '', certifications: '', languages: '', firstGeneration: '',
   district: '', shhMembershipStatus: '', spanishAchievementStatus: '',
   nseMedalYears: '', nseRegistered2027: '', fourHMembershipStatus: '',
-  academicStrengths: '', careerInterests: '', awardsHonors: '',
-  preferredCollegeLocation: '', enrollmentPlan: '', searchKeywords: '',
+  searchKeywords: '',
   profileVersion: 'profile-general-2026-11',
 };
 
@@ -94,11 +157,12 @@ const SOURCES = [
   { name: 'CareerOneStop Scholarship Finder', group: 'Government-supported search', detail: 'A national search tool with study-level and location filters.', url: 'https://www.careeronestop.org/Toolkit/Training/find-scholarships.aspx?curPage=1&studyLevelfilter=High+School' },
   { name: 'College Board BigFuture', group: 'National search', detail: 'Search scholarships and narrow opportunities by your own plans and profile.', url: 'https://bigfuture.collegeboard.org/scholarship-search' },
   { name: 'Federal Student Aid — Scholarship Tips', group: 'Official guidance', detail: 'Where to look, common application materials, deadlines, and ways to organize searches.', url: 'https://studentaid.gov/articles/scholarship-tips/' },
-  { name: 'FTC — Avoid Scholarship Scams', group: 'Safety / verification', detail: 'Warning signs include upfront fees, guaranteed awards, and requests for bank or card details.', url: 'https://consumer.ftc.gov/articles/how-avoid-scholarship-and-financial-aid-scams' },
 ];
 
 const statuses: Status[] = ['Eligible', 'Rules match — source unverified', 'Needs information', 'Ineligible', 'Expired'];
 const PROFILE_VERSION = 'profile-general-2026-11';
+const PROFILE_DRAFT_SAVE_ERROR = 'Your profile draft could not be saved in this browser. Export an encrypted backup before closing or reloading.';
+const PROFILE_SAVE_ERROR = 'Your profile could not be saved in this browser. Export an encrypted backup before closing or reloading.';
 const mergeProfile = (saved: unknown): Profile => {
   const prior = saved && typeof saved === 'object' ? saved as Partial<Profile> : {};
   return { ...initialProfile, ...prior, profileVersion: PROFILE_VERSION };
@@ -133,36 +197,114 @@ const createWorkspaceItemId = () => `workspace-${Date.now()}-${Math.random().toS
 function App() {
   const [tab, setTab] = useState('Overview');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  useEffect(() => { setMobileNavOpen(false); }, [tab]);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('scout-sidebar-collapsed') === 'true'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('scout-sidebar-collapsed', String(desktopSidebarCollapsed)); } catch { /* sidebar preference is optional */ }
+  }, [desktopSidebarCollapsed]);
+  useEffect(() => {
+    setMobileNavOpen(false);
+    window.scrollTo(0, 0);
+  }, [tab]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    try { return localStorage.getItem('scout-theme') === 'dark' ? 'dark' : 'light'; }
-    catch { return 'light'; }
+    try {
+      const savedTheme = localStorage.getItem('scout-theme');
+      const hasExplicitPreference = localStorage.getItem('scout-theme-choice') === 'true';
+      return hasExplicitPreference && savedTheme === 'light' ? 'light' : 'dark';
+    } catch { return 'dark'; }
   });
   const [compactView, setCompactView] = useState(() => {
     try { return localStorage.getItem('scout-compact-view') === 'true'; }
     catch { return false; }
   });
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
-  const [reliabilityEvents, setReliabilityEvents] = useState(() => readReliabilityEvents());
   const [items, setItems] = useState<Scholarship[]>(loadScholarships);
   const [profile, setProfile] = useState<Profile>(() => mergeProfile(readLocalJson('scout-profile')));
   const [profileDraft, setProfileDraft] = useState<Profile>(() => mergeProfile(readLocalJson('scout-profile-draft') ?? readLocalJson('scout-profile')));
   const profilePersistenceRef = useRef<Profile>(profile);
+  const profileSaveGenerationRef = useRef(0);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
   const [applicationStatusFilter, setApplicationStatusFilter] = useState('All');
   const [archiveFilter, setArchiveFilter] = useState<'active'|'archived'|'all'>('active');
   const [trackerSortBy, setTrackerSortBy] = useState<'deadline'|'priority'|'award'|'applicationStatus'|'eligibility'|'name'>('deadline');
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddValidation, setShowAddValidation] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Scholarship | null>(null);
   const [draft, setDraft] = useState<Scholarship>(emptyScholarship);
-  const [notice, setNotice] = useState('Discovery and rule-based eligibility checks are ready.');
+  const [notice, setNotice] = useState('');
+  const [alert, setAlert] = useState('');
+  useEffect(() => {
+    let timeout: number | undefined;
+    let lockStarted = false;
+    const scheduleLock = () => {
+      if (timeout !== undefined) window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        if (lockStarted) return;
+        lockStarted = true;
+        void stopSupabaseAutoRefreshForVaultLock()
+          .catch(() => undefined)
+          .then(() => lockLocalVault())
+          .then(() => window.location.reload())
+          .catch((reason) => {
+          lockStarted = false;
+          setAlert(reason instanceof Error ? reason.message : 'The local vault could not be locked. Keep this tab open and retry.');
+          scheduleLock();
+        });
+      }, 15 * 60 * 1000);
+    };
+    const onActivity = () => { if (!lockStarted) scheduleLock(); };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasPendingLocalVaultWrites()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const onPageHide = () => { void flushLocalVault().catch(() => undefined); };
+    const onVaultPersistenceError = () => setAlert('The latest encrypted local save failed. Keep this tab open and retry before reloading or locking.');
+    const activityEvents: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
+    for (const eventName of activityEvents) window.addEventListener(eventName, onActivity, { passive: true });
+    window.addEventListener('scout:vault-persistence-error', onVaultPersistenceError);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('pagehide', onPageHide);
+    scheduleLock();
+    return () => {
+      if (timeout !== undefined) window.clearTimeout(timeout);
+      for (const eventName of activityEvents) window.removeEventListener(eventName, onActivity);
+      window.removeEventListener('scout:vault-persistence-error', onVaultPersistenceError);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, []);
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(''), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
   const [profileSaveStatus, setProfileSaveStatus] = useState<'idle'|'saved'|'draft'|'unavailable'>('idle');
   const [cloudUser, setCloudUser] = useState<{id:string;email?:string;is_anonymous?:boolean}|null>(null);
   const [cloudEmail, setCloudEmail] = useState('');
   const [cloudMessage, setCloudMessage] = useState('');
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [privacyRequestType, setPrivacyRequestType] = useState("access");
+  const [privacyRequestRequesterType, setPrivacyRequestRequesterType] = useState("self");
+  const [privacyRequestDetails, setPrivacyRequestDetails] = useState("");
+  const [privacyRequestEmail, setPrivacyRequestEmail] = useState("");
+  const [privacyRequestReference, setPrivacyRequestReference] = useState("");
+  const [privacyRequestHref, setPrivacyRequestHref] = useState("");
+  const [privacyRequestMessage, setPrivacyRequestMessage] = useState("");
+  useEffect(() => {
+    const accountEmail = cloudUser?.email;
+    if (accountEmail) setPrivacyRequestEmail((current) => current || accountEmail);
+  }, [cloudUser?.email]);
+  const [deleteCloudConfirmation, setDeleteCloudConfirmation] = useState("");
+  const [deleteCloudAcknowledged, setDeleteCloudAcknowledged] = useState(false);
+  const [deleteLocalWithCloud, setDeleteLocalWithCloud] = useState(false);
+  const [localDeleteConfirmation, setLocalDeleteConfirmation] = useState("");
+  const [localDeleteAcknowledged, setLocalDeleteAcknowledged] = useState(false);
+  const [deletionBusy, setDeletionBusy] = useState(false);
+  const [deletionMessage, setDeletionMessage] = useState("");
   const [authCooldownUntil, setAuthCooldownUntil] = useState(() => {
     try { return Number(sessionStorage.getItem('scout-auth-email-cooldown-until')) || 0; } catch { return 0; }
   });
@@ -176,7 +318,6 @@ function App() {
   ]);
   const [discoverySummary, setDiscoverySummary] = useState<LiveDiscoverySummary | null>(null);
   const [discoveryState, setDiscoveryState] = useState<'idle' | 'loading' | 'results' | 'empty' | 'error'>('idle');
-  const [discoveryWarnings, setDiscoveryWarnings] = useState<string[]>([]);
   const [applicationProgress, setApplicationProgress] = useState(() => {
     try {
       const raw = localStorage.getItem('scout-application-progress');
@@ -201,28 +342,57 @@ function App() {
   const [deadlineCalendarDay, setDeadlineCalendarDay] = useState(() => localToday());
 
   useEffect(() => {
+    const generation = ++profileSaveGenerationRef.current;
+    const isCurrentSave = () => generation === profileSaveGenerationRef.current;
     const timeout = window.setTimeout(() => {
-      if (!saveJson('scout-profile-draft', profileDraft)) {
-        setProfileSaveStatus('unavailable');
-        setNotice('Your profile draft could not be saved in this browser. Export an encrypted backup before closing or reloading.');
-        return;
-      }
-      const validation = validateProfileChanges(profilePersistenceRef.current, profileDraft);
-      if (!validation.valid) {
-        setProfileSaveStatus('draft');
-        return;
-      }
-      if (!saveJson('scout-profile', profileDraft)) {
-        setProfileSaveStatus('unavailable');
-        setNotice('Your profile could not be saved in this browser. Export an encrypted backup before closing or reloading.');
-        return;
-      }
-      profilePersistenceRef.current = profileDraft;
-      setProfile(profileDraft);
-      try { localStorage.removeItem('scout-profile-draft'); } catch { /* preserve recoverable draft */ }
-      setProfileSaveStatus('saved');
+      void (async () => {
+        try {
+          if (!saveJson('scout-profile-draft', profileDraft)) {
+            throw new Error(PROFILE_DRAFT_SAVE_ERROR);
+          }
+          await flushLocalVault();
+          if (!isCurrentSave()) return;
+
+          // Clear only a previous profile-save warning; preserve unrelated alerts.
+          setAlert((currentAlert) =>
+            currentAlert === PROFILE_DRAFT_SAVE_ERROR || currentAlert === PROFILE_SAVE_ERROR
+              ? ''
+              : currentAlert
+          );
+
+          const validation = validateProfileChanges(profilePersistenceRef.current, profileDraft);
+          if (!validation.valid) {
+            setProfileSaveStatus('draft');
+            return;
+          }
+          if (!saveJson('scout-profile', profileDraft)) {
+            throw new Error(PROFILE_SAVE_ERROR);
+          }
+          try { localStorage.removeItem('scout-profile-draft'); } catch { /* preserve recoverable draft */ }
+          await flushLocalVault();
+          if (!isCurrentSave()) return;
+
+          profilePersistenceRef.current = profileDraft;
+          setProfile(profileDraft);
+          setProfileSaveStatus('saved');
+          setAlert((currentAlert) =>
+            currentAlert === PROFILE_DRAFT_SAVE_ERROR || currentAlert === PROFILE_SAVE_ERROR
+              ? ''
+              : currentAlert
+          );
+        } catch (error) {
+          if (!isCurrentSave()) return;
+          setProfileSaveStatus('unavailable');
+          setAlert(error instanceof Error ? error.message : PROFILE_DRAFT_SAVE_ERROR);
+        }
+      })();
     }, 300);
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+      if (profileSaveGenerationRef.current === generation) {
+        profileSaveGenerationRef.current += 1;
+      }
+    };
   }, [profileDraft]);
   useEffect(() => {
     const now = new Date();
@@ -234,6 +404,10 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('scout-theme', theme); } catch { /* storage may be unavailable */ }
   }, [theme]);
+  const chooseTheme = (nextTheme: 'dark' | 'light') => {
+    try { localStorage.setItem('scout-theme-choice', 'true'); } catch { /* storage may be unavailable */ }
+    setTheme(nextTheme);
+  };
   useEffect(() => {
     try { localStorage.setItem('scout-compact-view', String(compactView)); } catch { /* storage may be unavailable */ }
   }, [compactView]);
@@ -247,12 +421,6 @@ function App() {
       window.removeEventListener('online', markOnline);
       window.removeEventListener('offline', markOffline);
     };
-  }, []);
-
-  useEffect(() => {
-    const refreshDiagnostics = () => setReliabilityEvents(readReliabilityEvents());
-    window.addEventListener(RELIABILITY_CHANGE_EVENT, refreshDiagnostics);
-    return () => window.removeEventListener(RELIABILITY_CHANGE_EVENT, refreshDiagnostics);
   }, []);
 
   useEffect(() => {
@@ -304,8 +472,10 @@ function App() {
 
   useEffect(() => {
     // Avoid loading the Supabase SDK on the local-first landing experience.
-    // Auth is initialized only when a cloud-related tab is actually opened.
-    if (tab !== 'Settings' && tab !== 'Cloud Search') return;
+    // OAuth and email callbacks must also initialize auth when they return to Overview.
+    const hasAuthCallback = hasPendingAuthCallback();
+    const hasAuthCallbackError = hasPendingAuthCallbackError();
+    if (tab !== 'Settings' && tab !== 'Cloud Search' && !hasAuthCallback) return;
     let active = true;
     let authEventObserved = false;
     let subscription: { unsubscribe: () => void } | null = null;
@@ -318,15 +488,20 @@ function App() {
         setCloudUser(session?.user
           ? { id: session.user.id, email: session.user.email, is_anonymous: session.user.is_anonymous }
           : null);
-        if (session?.user && event === 'SIGNED_IN') {
+        if (session?.user && (event === 'SIGNED_IN' || (hasAuthCallback && event === 'INITIAL_SESSION'))) {
+          setTab('Settings');
           if (session.user.is_anonymous) {
             setCloudMessage('A private anonymous browser session is ready. No email or password was required.');
+          } else if (session.user.app_metadata?.provider === 'google') {
+            setCloudMessage('Google sign-in completed. Your cloud account is connected in this browser.');
           } else {
-            setTab('Settings');
             setCloudMessage('Signed in successfully. Your cloud account is connected in this browser.');
           }
           try { sessionStorage.removeItem('scout-auth-email-cooldown-until'); } catch { /* storage may be unavailable */ }
           setAuthCooldownUntil(0);
+        } else if (!session?.user && hasAuthCallback && event === 'INITIAL_SESSION') {
+          setTab('Settings');
+          setCloudMessage('Sign-in could not be completed. The sign-in link may have expired or the provider may have cancelled the request. Try again from Settings.');
         }
         if (!session?.user) setLiveResults([]);
       });
@@ -336,13 +511,29 @@ function App() {
       // Do not let that older lookup overwrite the newer auth state.
       void client.auth.getUser().then(({ data, error }) => {
         if (active && !authEventObserved) {
-          setCloudUser(!error && data.user
-            ? { id: data.user.id, email: data.user.email, is_anonymous: data.user.is_anonymous }
+          const user = !error ? data.user : null;
+          setCloudUser(user
+            ? { id: user.id, email: user.email, is_anonymous: user.is_anonymous }
             : null);
+          if (hasAuthCallback) {
+            setTab('Settings');
+            setCloudMessage(user
+              ? 'Sign-in completed. Your cloud account is connected in this browser.'
+              : 'Sign-in could not be completed. The link may have expired or the provider may have cancelled the request. Try again from Settings.');
+          }
         }
       });
+      if (hasAuthCallbackError) {
+        setTab('Settings');
+        setCloudMessage('Sign-in was cancelled or could not be completed. You can try again from Settings.');
+      }
     }).catch(() => {
-      if (active) setCloudMessage('Cloud authentication could not be initialized. Local tracking remains available.');
+      if (active) {
+        if (hasAuthCallback) setTab('Settings');
+        setCloudMessage(hasAuthCallback
+          ? 'Sign-in could not be completed. Check the provider configuration and try again.'
+          : 'Cloud authentication could not be initialized. Local tracking remains available.');
+      }
     });
 
     return () => {
@@ -382,7 +573,7 @@ function App() {
     setCloudBusy(true);
     void listCloudScholarships()
       .then((rows) => { if (active) setLiveResults(rows); })
-      .catch((error) => { if (active) setCloudMessage(error instanceof Error ? error.message : "Could not load saved cloud records."); })
+      .catch(() => { if (active) setCloudMessage('Could not load saved scholarship records. Try again later.'); })
       .finally(() => { if (active) setCloudBusy(false); });
     return () => { active = false; };
   }, [cloudUser?.id]);
@@ -390,29 +581,50 @@ function App() {
   const saveProfile = (next: Profile) => {
     setProfileDraft(next);
   };
-  const saveItems = (next: Scholarship[]) => {
+  const saveItems = (next: Scholarship[]): boolean => {
+    if (!Array.isArray(next) || next.length > MAX_TRACKER_RECORDS) {
+      setAlert(`Your tracker is limited to ${MAX_TRACKER_RECORDS.toLocaleString()} scholarships. Remove an existing record before adding another.`);
+      return false;
+    }
     const normalized = normalizeScholarshipRecords(next.map((item) => normalizeTrackerRecord(item))) as Scholarship[];
-    setItems(normalized);
     const validIds = normalized.map((item) => item.id);
-    const scholarshipsSaved = saveJson('scout-scholarships', normalized);
     const retainedProgress = normalizeApplicationProgress(applicationProgress, validIds);
-    setApplicationProgress(retainedProgress);
-    const progressSaved = saveJson('scout-application-progress', retainedProgress);
     const retainedWorkspace = normalizeApplicationWorkspace(applicationWorkspace, validIds);
+    const storageResult = writeJsonStorageBatch({
+      'scout-scholarships': normalized,
+      'scout-application-progress': retainedProgress,
+      'scout-application-workspace': retainedWorkspace,
+    });
+    if (!storageResult.ok) {
+      setAlert(storageResult.rollbackSucceeded
+        ? 'Your changes could not be saved. Previously saved tracker data was preserved. Export an encrypted backup before trying again.'
+        : 'Your changes could not be saved, and browser storage could not fully restore the previous data. Keep this tab open and export an encrypted backup.');
+      return false;
+    }
+    setItems(normalized);
+    setApplicationProgress(retainedProgress);
     setApplicationWorkspace(retainedWorkspace);
-    const workspaceSaved = saveJson('scout-application-workspace', retainedWorkspace);
-    if (!scholarshipsSaved || !progressSaved || !workspaceSaved) setNotice('Your changes are active in this tab, but browser storage could not save them. Export an encrypted backup before closing or reloading.');
+    void flushLocalVault().catch(() => setAlert('Your changes are active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
+    return true;
   };
   const saveApplicationTask = (scholarshipId: string, stepIndex: number, checked: boolean) => {
     const next = updateApplicationProgress(applicationProgress, scholarshipId, stepIndex, checked);
+    if (!saveJson('scout-application-progress', next)) {
+      setAlert('Checklist progress could not be saved. The previously saved checklist was preserved.');
+      return;
+    }
     setApplicationProgress(next);
-    if (!saveJson('scout-application-progress', next)) setNotice('Checklist progress changed in this tab, but browser storage could not save it. Export an encrypted backup before closing or reloading.');
+    void flushLocalVault().catch(() => setAlert('Checklist progress is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
   };
   const saveApplicationWorkspaceEntry = (scholarshipId: string, entry: ApplicationWorkspaceEntry) => {
     const validIds = items.map((item) => item.id);
     const next = normalizeApplicationWorkspace({ ...applicationWorkspace, [scholarshipId]: entry }, validIds);
+    if (!saveJson('scout-application-workspace', next)) {
+      setAlert('Application workspace could not be saved. The previously saved workspace was preserved.');
+      return;
+    }
     setApplicationWorkspace(next);
-    if (!saveJson('scout-application-workspace', next)) setNotice('Application workspace changed in this tab, but browser storage could not save it. Export an encrypted backup before closing or reloading.');
+    void flushLocalVault().catch(() => setAlert('Application workspace is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
   };
   const closeBackupDialog = () => {
     setBackupDialogMode('closed');
@@ -439,6 +651,7 @@ function App() {
   };
   const exportEncryptedBackup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (backupBusyRef.current) return;
     if (backupPassword.length < 12) {
       setNotice('Use a backup password with at least 12 characters.');
       return;
@@ -447,33 +660,42 @@ function App() {
       setNotice('The backup passwords do not match.');
       return;
     }
+    backupBusyRef.current = true;
     setBackupBusy(true);
     try {
-      const backup = buildScoutBackup(profile, items, new Date(), applicationProgress, applicationWorkspace);
+      const backup = buildScoutBackup(profile, items, new Date(), applicationProgress, applicationWorkspace, profileDraft);
+      const validation = validateScoutBackup(backup, Object.keys(initialProfile));
+      if (!validation.ok) {
+        setAlert(validation.error);
+        return;
+      }
+      const validatedBackup = { ...backup, ...validation.value };
       const { encryptBackup } = await import('./lib/backupCrypto.js');
-      const encrypted = await encryptBackup(backup, backupPassword);
+      const encrypted = await encryptBackup(validatedBackup, backupPassword);
       downloadBackupFile(JSON.stringify(encrypted, null, 2), `scholarship-scout-encrypted-backup-${localToday()}.json`);
       closeBackupDialog();
       setNotice('Encrypted backup downloaded. Keep the password separate; it is never saved and cannot be recovered.');
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not encrypt the backup. No file was downloaded.');
+      setAlert('Could not create the encrypted backup. Check your password and browser security settings, then try again. No file was downloaded.');
     } finally {
+      backupBusyRef.current = false;
       setBackupPassword('');
       setBackupPasswordConfirm('');
       setBackupBusy(false);
     }
   };
-  const restoreLocalBackup = (parsed: unknown, encrypted: boolean, confirmed = false): boolean => {
+  const restoreLocalBackup = async (parsed: unknown, encrypted: boolean, confirmed = false): Promise<boolean> => {
     const validation = validateScoutBackup(parsed, Object.keys(initialProfile));
     if (!validation.ok) {
-      setNotice(validation.error);
+      setAlert(validation.error);
       return false;
     }
     const imported = validation.value;
     const restoredProfile = mergeProfile(imported.profile);
+    const restoredProfileDraft = mergeProfile(imported.profileDraft ?? imported.profile);
     const profileValidation = validateProfileChanges(profilePersistenceRef.current, restoredProfile);
     if (!profileValidation.valid) {
-      setNotice(profileValidation.errors[0] || 'The backup profile contains invalid values. Nothing was changed.');
+      setAlert(profileValidation.errors[0] || 'The backup profile contains invalid values. Nothing was changed.');
       return false;
     }
 
@@ -498,58 +720,110 @@ function App() {
     const restoredProgress = normalizeApplicationProgress(imported.applicationProgress, restoredScholarshipIds);
     const restoredWorkspace = normalizeApplicationWorkspace(imported.applicationWorkspace, restoredScholarshipIds);
 
+    const storageKeys = [
+      'scout-profile',
+      'scout-profile-draft',
+      'scout-scholarships',
+      'scout-application-progress',
+      'scout-application-workspace',
+    ];
+    let previousStorage: Record<string, string | null>;
+    try {
+      previousStorage = Object.fromEntries(storageKeys.map((key) => [key, localStorage.getItem(key)]));
+    } catch {
+      setAlert('The browser could not read the current local data before restoring. Nothing was changed.');
+      return false;
+    }
+
     const storageResult = writeJsonStorageBatch({
       'scout-profile': restoredProfile,
-      'scout-profile-draft': restoredProfile,
+      'scout-profile-draft': restoredProfileDraft,
       'scout-scholarships': restoredScholarships,
       'scout-application-progress': restoredProgress,
       'scout-application-workspace': restoredWorkspace,
     });
     if (!storageResult.ok) {
-      setNotice(storageResult.rollbackSucceeded
+      setAlert(storageResult.rollbackSucceeded
         ? 'The browser could not save this restore. The previous local data was rolled back and left in place.'
         : 'The browser could not save the restore or fully roll back its storage writes. Keep this tab open and export the current local state before reloading.');
       return false;
     }
 
+    try {
+      await flushLocalVault();
+    } catch {
+      let rollbackWritesSucceeded = true;
+      for (const key of storageKeys) {
+        try {
+          const previousValue = previousStorage[key];
+          if (previousValue === null || previousValue === undefined) localStorage.removeItem(key);
+          else localStorage.setItem(key, previousValue);
+        } catch {
+          rollbackWritesSucceeded = false;
+        }
+      }
+      let rollbackPersisted = false;
+      try {
+        await flushLocalVault();
+        rollbackPersisted = true;
+      } catch { /* report that durable rollback could not be confirmed */ }
+      setAlert(rollbackWritesSucceeded && rollbackPersisted
+        ? 'The encrypted backup restore could not be saved. Your previous local data was restored.'
+        : 'The encrypted backup restore failed and durable rollback could not be confirmed. Keep this tab open and export the current local state before reloading.');
+      return false;
+    }
+
     setProfile(restoredProfile);
-    setProfileDraft(restoredProfile);
+    setProfileDraft(restoredProfileDraft);
     profilePersistenceRef.current = restoredProfile;
     setBackupPendingRestore(null);
-    setProfileSaveStatus('saved');
+    const restoredDraftHasChanges = Object.keys(initialProfile).some((key) =>
+      restoredProfileDraft[key as keyof Profile] !== restoredProfile[key as keyof Profile]
+    );
+    setProfileSaveStatus(restoredDraftHasChanges ? 'draft' : 'saved');
     setItems(restoredScholarships);
     setApplicationProgress(restoredProgress);
     setApplicationWorkspace(restoredWorkspace);
     setNotice('Backup imported. Your profile, tracker, checklists, and application workspaces were restored locally.');
     return true;
   };
-  const confirmRestoreLocalBackup = () => {
-    if (!backupPendingRestore) return;
-    if (restoreLocalBackup(backupPendingRestore.data, backupPendingRestore.encrypted, true)) closeBackupDialog();
+  const confirmRestoreLocalBackup = async () => {
+    if (!backupPendingRestore || backupBusyRef.current) return;
+    backupBusyRef.current = true;
+    setBackupBusy(true);
+    try {
+      if (await restoreLocalBackup(backupPendingRestore.data, backupPendingRestore.encrypted, true)) closeBackupDialog();
+    } catch {
+      setAlert('The encrypted backup restore could not be completed. Your current workspace was not reported as restored.');
+    } finally {
+      backupBusyRef.current = false;
+      setBackupBusy(false);
+    }
   };
   const importLocalBackup = async (file?: File) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setNotice('Backup is larger than the 2 MB limit. Your current data was not changed.');
-      return;
-    }
     try {
+      const { isEncryptedBackupEnvelope, MAX_ENCRYPTED_BACKUP_FILE_BYTES } = await import('./lib/backupCrypto.js');
+      if (!Number.isSafeInteger(file.size) || file.size > MAX_ENCRYPTED_BACKUP_FILE_BYTES) {
+        setAlert('Backup file exceeds the supported 3 MB limit. Your current data was not changed.');
+        return;
+      }
       const parsed: unknown = JSON.parse(await file.text());
-      const { isEncryptedBackupEnvelope } = await import('./lib/backupCrypto.js');
       if (isEncryptedBackupEnvelope(parsed)) {
         setBackupImportFile(file);
         setBackupPassword('');
         setBackupDialogMode('import');
         return;
       }
-      restoreLocalBackup(parsed, false);
+      await restoreLocalBackup(parsed, false);
     } catch {
-      setNotice('Could not read that backup file. Your current data was not changed.');
+      setAlert('Could not read that backup file. Your current data was not changed.');
     }
   };
   const importEncryptedBackup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!backupImportFile) return;
+    if (!backupImportFile || backupBusyRef.current) return;
+    backupBusyRef.current = true;
     setBackupBusy(true);
     try {
       const envelope: unknown = JSON.parse(await backupImportFile.text());
@@ -557,10 +831,11 @@ function App() {
       if (!isEncryptedBackupEnvelope(envelope)) throw new Error('The encrypted backup file is no longer available.');
       const decrypted = await decryptBackup(envelope, backupPassword);
       setBackupPassword('');
-      restoreLocalBackup(decrypted, true);
+      await restoreLocalBackup(decrypted, true);
     } catch {
-      setNotice('Could not decrypt that backup. Check the password and file integrity. Your current data was not changed.');
+      setAlert('Could not decrypt that backup. Check the password and file integrity. Your current data was not changed.');
     } finally {
+      backupBusyRef.current = false;
       setBackupPassword('');
       setBackupBusy(false);
     }
@@ -590,11 +865,43 @@ function App() {
     } catch (error) {
       if (isAuthRateLimitError(error)) {
         beginAuthCooldown();
-        setCloudMessage('Supabase is temporarily limiting sign-in emails. Wait for the countdown before trying again.');
+        setCloudMessage('Sign-in emails are temporarily rate-limited. Wait for the countdown before trying again.');
       } else if (isExpiredAuthLinkError((error as {code?:string})?.code, error instanceof Error ? error.message : '')) {
         setCloudMessage('That sign-in link was already used or expired. Wait for the timer, request one new link, and use the newest link only once.');
       } else {
-        setCloudMessage(error instanceof Error ? error.message : 'Could not send the sign-in link. Check the email address and connection.');
+        setCloudMessage('Could not send the sign-in link. Check the email address and connection, then try again.');
+      }
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+  const handleGoogleSignIn = async () => {
+    if (!supabaseConfigured || !isOnline) {
+      setCloudMessage('Google sign-in is unavailable until cloud services are configured and the app is online.');
+      return;
+    }
+    const linkingAnonymousAccount = cloudUser?.is_anonymous === true;
+    setCloudBusy(true);
+    setCloudMessage(linkingAnonymousAccount
+      ? 'Connecting Google to your existing cloud account…'
+      : 'Redirecting to Google sign-in…');
+    try {
+      if (linkingAnonymousAccount) {
+        await linkGoogleIdentity();
+      } else {
+        await signInWithGoogle();
+      }
+    } catch (error) {
+      const code = String((error as { code?: unknown })?.code ?? '').toLowerCase();
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      if (code.includes('manual_linking_disabled') || message.includes('manual linking is disabled')) {
+        setCloudMessage('Google account linking is disabled in Supabase. Enable manual identity linking in the Auth provider settings, then retry.');
+      } else if (code.includes('identity_already_exists') || code.includes('identity_exists') || message.includes('identity already exists')) {
+        setCloudMessage('That Google identity is already linked to a different Scholarship Scout account. Accounts and saved records are not merged automatically.');
+      } else if (code.includes('provider_disabled') || code.includes('unsupported_provider') || message.includes('provider is not enabled')) {
+        setCloudMessage('Google sign-in is not enabled for this project yet. Complete the Google provider setup in Supabase Auth settings.');
+      } else {
+        setCloudMessage('Google sign-in could not be started. Check the Google provider configuration and try again.');
       }
     } finally {
       setCloudBusy(false);
@@ -607,7 +914,7 @@ function App() {
       const user = await getCloudUser();
       if (!user) {
         setCloudUser(null);
-        setCloudMessage('No active sign-in session was found in this browser. Open the newest sign-in email link here, then check again.');
+        setCloudMessage('No active sign-in session was found. Complete Google sign-in or open the newest email sign-in link in this browser, then check again.');
         return;
       }
       setCloudUser({id:user.id,email:user.email,is_anonymous:user.is_anonymous});
@@ -615,7 +922,7 @@ function App() {
         ? 'Your private anonymous browser session is active. Keep this browser data to retain access to its cloud records.'
         : 'Signed in successfully. Your cloud account is connected in this browser.');
     } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : 'Could not check the cloud session.');
+      setCloudMessage('Could not check your account session. Refresh the page and try again.');
     } finally {
       setCloudBusy(false);
     }
@@ -629,12 +936,82 @@ function App() {
       setExaResults([]);
       setCloudMessage('Signed out of the cloud account. Your local profile and tracker were not changed.');
     } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : 'Could not sign out.');
+      setCloudMessage('Could not sign out right now. Check your connection and try again.');
     } finally {
       setCloudBusy(false);
     }
   };
+  const handlePrivacyRequest = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      const href = buildPrivacyRequestMailto({
+        requestType: privacyRequestType,
+        requesterType: privacyRequestRequesterType,
+        details: privacyRequestDetails,
+        contactEmail: privacyRequestEmail,
+        previousRequestReference: privacyRequestReference,
+      });
+      setPrivacyRequestHref(href);
+      setPrivacyRequestMessage("Your email draft is ready. Open it below and press Send. Scholarship Scout has not received the request yet.");
+    } catch (error) {
+      setPrivacyRequestHref("");
+      setPrivacyRequestMessage(error instanceof Error ? error.message : "Check the request details and try again.");
+    }
+  };
+
+  const handleCloudAccountDeletion = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!cloudUser || deleteCloudConfirmation !== "DELETE MY ACCOUNT" || !deleteCloudAcknowledged) return;
+
+    setDeletionBusy(true);
+    setDeletionMessage("Deleting the signed-in account and its cloud records…");
+    try {
+      await deleteCloudAccount();
+      setCloudUser(null);
+      setLiveResults([]);
+      setExaResults([]);
+      setDeleteCloudConfirmation("");
+      setDeleteCloudAcknowledged(false);
+
+      if (deleteLocalWithCloud) {
+        setDeletionMessage("The cloud account was deleted. Removing this browser’s local workspace…");
+        try {
+          await destroyLocalVault();
+          window.location.replace("/");
+          return;
+        } catch {
+          setDeletionMessage("The cloud account was deleted, but this browser’s local vault could not be fully removed. Use the separate local-data removal form below and contact support if the issue continues.");
+        }
+      } else {
+        setDeletionMessage("The cloud account and associated cloud records were deleted. The encrypted local workspace in this browser remains. You can remove it separately below.");
+      }
+    } catch {
+      setDeletionMessage("The cloud account could not be deleted. No local data was removed. Confirm that you are signed in and try again, or email privacy support.");
+    } finally {
+      setDeletionBusy(false);
+    }
+  };
+
+  const handleLocalDataDeletion = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (localDeleteConfirmation !== "DELETE LOCAL DATA" || !localDeleteAcknowledged) return;
+    setDeletionBusy(true);
+    setDeletionMessage("Removing this browser’s encrypted workspace…");
+    try {
+      await destroyLocalVault();
+      window.location.replace("/");
+      return;
+    } catch {
+      setDeletionMessage("This browser’s local data could not be fully removed. Keep this tab open, retry once, and contact privacy support if it continues.");
+    } finally {
+      setDeletionBusy(false);
+    }
+  };
+
   const handleCloudSearch = async () => {
+    setExaResults([]);
+    setDiscoverySummary(null);
+    setDiscoveryState('idle');
     setCloudBusy(true);
     try {
       if (!profile.state.trim() || !profile.graduationYear.trim()) {
@@ -651,23 +1028,21 @@ function App() {
       // The Edge Function accepts only broad search filters and rate-limits requests.
       setExaResults([]);
       setDiscoverySummary(null);
-      setDiscoveryWarnings([]);
       setDiscoveryState('loading');
-      setCloudMessage("Searching selected categories and up to two result pages per query. Only state, graduation year, and category choices are sent to SearXNG…");
+      setCloudMessage('Searching the selected categories. Only your state, graduation year, and category choices are used for matching…');
       const run = await runLiveScholarshipDiscovery(
         { state: profile.state, graduationYear: profile.graduationYear },
         selectedDiscoveryCategories,
       );
       setExaResults(run.results);
       setDiscoverySummary(run.summary);
-      setDiscoveryWarnings(run.warnings);
       setDiscoveryState(run.results.length ? 'results' : 'empty');
       setCloudMessage(run.results.length
-        ? `Research completed: ${run.results.length} unique leads from ${run.summary.rawResultCount} search results. Every lead still needs official sponsor verification.`
+        ? `Found ${run.results.length} scholarship leads. Review each official sponsor page before relying on its details.`
         : "Search completed but found no usable public scholarship leads. Try a different category later.");
     } catch (error) {
       setDiscoveryState('error');
-      setCloudMessage(error instanceof Error ? error.message : "Live scholarship search failed. Try again.");
+      setCloudMessage(getDiscoveryErrorMessage(error));
     } finally {
       setCloudBusy(false);
     }
@@ -682,7 +1057,7 @@ function App() {
       setCloudMessage('Scholarship details saved to your private cloud workspace. No student profile or eligibility result was uploaded.');
       setNotice('Scholarship sponsor details saved to your cloud workspace.');
     } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : 'Could not save the scholarship to the cloud.');
+      setCloudMessage('Could not save this scholarship to your account. Check your connection and try again.');
     } finally { setCloudBusy(false); }
   };
   const addLiveResult = (row: LiveScholarship) => {
@@ -701,12 +1076,13 @@ function App() {
       evidenceUrl: row.source_evidence_url || '', lastCheckedDate: row.last_checked_date || '',
       sourceAuthority: row.source_authority || 'unverified-lead',
       evidenceText: row.excerpt || '', discoverySourceUrl: row.discovery_source_url || undefined,
-      discoverySourceLabel: `SearXNG research · ${(row.discovery_categories || [row.discovery_category]).join(', ')}`, discoveredOn: row.discovered_at?.slice(0,10),
+      discoverySourceLabel: `Live web research · ${(row.discovery_categories || [row.discovery_category]).join(', ')}`, discoveredOn: row.discovered_at?.slice(0,10),
       recordCreatedAt: new Date().toISOString(),
       notes: 'Saved from a live search. Run sponsor-rule extraction and review every requirement before using an eligibility result.',
       criteria: {},
     };
-    saveItems([saved,...items]); setNotice('Live scholarship lead added to your tracker. Sponsor rules remain unverified.');
+    if (!saveItems([saved,...items])) return;
+    setNotice('Live scholarship lead added to your tracker. Sponsor rules remain unverified.');
   };
   const openAdd = (candidate?: Scholarship, editing = false) => {
     setDraft(candidate ? {
@@ -717,24 +1093,29 @@ function App() {
       sourceReviewConfirmed: false,
     } : emptyScholarship());
     setEditingId(editing && candidate ? candidate.id : null);
+    setShowAddValidation(false);
     setShowAdd(true);
   };
   const add = () => {
-    if (!draft.name.trim() || !draft.provider.trim()) { setNotice('Add at least a scholarship name and provider.'); return; }
+    if (!draft.name.trim() || !draft.provider.trim()) {
+      setShowAddValidation(true);
+      return;
+    }
+    setShowAddValidation(false);
     if (editingId) {
       const previous = items.find((item) => item.id === editingId);
       const { sourceReviewConfirmed, ...draftRecord } = draft;
       const safeDraftRecord = sanitizeScholarshipSourceUrls(draftRecord);
       const withHistory = appendSourceEvidenceHistory(previous ?? {}, { ...safeDraftRecord, id: editingId });
       const updated = invalidateSourceReviewIfChanged(previous ?? {}, withHistory, sourceReviewConfirmed === true);
-      saveItems(items.map((item) => item.id === editingId ? updated : item));
+      if (!saveItems(items.map((item) => item.id === editingId ? updated : item))) return;
       setNotice('Scholarship rules updated. Eligibility was recalculated against your profile.');
     } else {
       const draftRecord = { ...draft };
       delete draftRecord.sourceReviewConfirmed;
       const safeDraftRecord = sanitizeScholarshipSourceUrls(draftRecord);
       const saved = { ...safeDraftRecord, id: crypto.randomUUID(), recordCreatedAt: new Date().toISOString(), lastCheckedDate: draft.sourceVerified ? (draft.lastCheckedDate || localToday()) : draft.lastCheckedDate };
-      saveItems([saved, ...items]);
+      if (!saveItems([saved, ...items])) return;
       setNotice('Scholarship added. Run the eligibility check to see which requirements pass or need attention.');
     }
     setShowAdd(false);
@@ -786,9 +1167,9 @@ function App() {
     if (!prepScholarship) return;
     const confirmed = window.confirm('Record ' + prepScholarship.name + ' as submitted on ' + formatDate(localToday()) + '? This updates Scholarship Scout only; it does not send an application to the sponsor.');
     if (!confirmed) return;
-    saveItems(items.map((item) => item.id === prepScholarship.id
+    if (!saveItems(items.map((item) => item.id === prepScholarship.id
       ? { ...item, applicationStatus: 'Submitted', submittedAt: localToday() }
-      : item));
+      : item))) return;
     setNotice('Submission recorded locally. Scholarship Scout did not send your application.');
   };
   const deadlineOverview = useMemo(() => items
@@ -817,47 +1198,24 @@ function App() {
       const rank = (item: Scholarship) => item.sourceStatus === 'verified' ? 0 : item.sourceStatus === 'needs-review' ? 1 : 2;
       return rank(a.item) - rank(b.item) || (a.item.deadline || '9999-12-31').localeCompare(b.item.deadline || '9999-12-31');
     }), [profile]);
-  const queryGroups = useMemo(() => {
-    const year = profile.graduationYear.trim();
-    const level = profile.grade.trim() || 'student';
-    const location = [profile.county, profile.state].map((value) => value.trim()).filter(Boolean).join(' ');
-    const compact = (value: string) => value.replace(/[\r\n,;]+/g, ' ').replace(/\s+/g, ' ').trim();
-    const topicTerms = [profile.plannedMajor, profile.interests, profile.academicStrengths, profile.careerInterests, profile.awardsHonors, profile.searchKeywords].map(compact).filter(Boolean).join(' ').slice(0, 180);
-    const collegeTerms = [profile.plannedCollege, profile.preferredCollegeLocation, profile.enrollmentPlan].map(compact).filter(Boolean).join(' ').slice(0, 160);
-    const schoolTerms = [profile.school, profile.district].map(compact).filter(Boolean).join(' ');
-    const searches = [
-      { title: 'Local and nearby scholarships', query: `${location ? '"' + location + '" ' : ''}local student scholarships community foundations ${level} ${year} official sponsor` },
-      { title: 'State scholarship programs', query: `${profile.state ? profile.state + ' ' : ''}state scholarships education grants student financial aid ${year} official sponsor` },
-      { title: 'National scholarships', query: `national scholarships for ${level} ${year} official foundations sponsors` },
-      { title: 'Academic and subject interests', query: `${topicTerms || 'academic merit and student achievement'} scholarships ${level} ${location} ${year} official sponsor` },
-      { title: 'Community service and leadership', query: `student scholarships community service leadership volunteer ${location} ${year} official sponsor` },
-      { title: 'School and district resources', query: `${schoolTerms ? '"' + schoolTerms + '" ' : ''}school district counselor scholarship financial aid resources ${year} official` },
-      { title: 'College and enrollment options', query: `${collegeTerms ? '"' + collegeTerms + '" ' : ''}incoming college scholarships students ${year} official` },
-      { title: 'General scholarships', query: `general scholarships broad eligibility students ${year} official sponsor` },
-    ];
-    return searches;
-  }, [profile.graduationYear, profile.grade, profile.county, profile.state, profile.plannedMajor, profile.interests, profile.academicStrengths, profile.careerInterests, profile.awardsHonors, profile.searchKeywords, profile.plannedCollege, profile.preferredCollegeLocation, profile.enrollmentPlan, profile.district, profile.school]);
-  const navGroups = [
-    { title: 'START', items: [
-      { tab: 'Overview', label: 'Overview', description: 'Your scholarship home', icon: '⌂' },
+  const queryGroups = useMemo(() => buildManualSearchQueries(), []);
+  const navGroups: { title: string; items: { tab: string; label: string; description: string; icon: GlyphName; count?: boolean }[] }[] = [
+    { title: 'WORKSPACE', items: [
+      { tab: 'Overview', label: 'Overview', description: 'Your scholarship home', icon: 'home' },
     ]},
-    { title: 'FIND OPPORTUNITIES', items: [
-      { tab: 'Discovery', label: 'Find scholarships', description: 'Browse scholarship resources', icon: '⌕' },
-      { tab: 'Cloud Search', label: 'Live web search', description: 'Search public scholarship pages', icon: '☁' },
+    { title: 'DISCOVER', items: [
+      { tab: 'Discovery', label: 'Find scholarships', description: 'Manual and live scholarship search', icon: 'search' },
     ]},
-    { title: 'STAY ORGANIZED', items: [
-      { tab: 'Scholarships', label: 'My scholarships', description: 'Saved awards and deadlines', icon: '▤', count: true },
-      { tab: 'Application prep', label: 'Application checklist', description: 'Prepare each application', icon: '☑' },
+    { title: 'TRACK', items: [
+      { tab: 'Scholarships', label: 'My scholarships', description: 'Awards, deadlines, and applications', icon: 'book', count: true },
     ]},
-    { title: 'YOUR DETAILS', items: [
-      { tab: 'Eligibility filters', label: 'My profile', description: 'Enter your own matching details', icon: '♙' },
-    ]},
-    { title: 'PREFERENCES', items: [
-      { tab: 'Settings', label: 'Settings', description: 'Appearance and account access', icon: '⚙' },
+    { title: 'YOUR SETUP', items: [
+      { tab: 'Eligibility filters', label: 'My profile', description: 'Personalize search and eligibility', icon: 'user' },
+      { tab: 'Settings', label: 'Settings', description: 'Appearance, privacy, and account', icon: 'settings' },
     ]},
   ];
-  const currentPage = navGroups.flatMap(group => group.items).find(item => item.tab === tab)?.label ?? tab;
-  const profileTags = [profile.state, profile.county, profile.citizenship, `Class of ${profile.graduationYear}`, profile.grade, profile.plannedMajor].filter(Boolean);
+  const activeNavTab = tab === 'Cloud Search' ? 'Discovery' : tab === 'Application prep' ? 'Scholarships' : tab;
+  const currentPage = navGroups.flatMap(group => group.items).find(item => item.tab === activeNavTab)?.label ?? activeNavTab;
   const profileReadiness = getProfileReadiness(profile);
   const tracked = (id: string) => items.some((item) => item.id === id || item.name === DISCOVERED_WITH_EVIDENCE.find((x) => x.id === id)?.name);
   const selectedAssessment = selected ? assessEligibility(selected, profile) : null;
@@ -891,37 +1249,25 @@ function App() {
     },
   }));
   const activeCriterionEntries = Object.entries(draft.criteria).filter(([key, value]) =>
-    key !== 'applicationFee' && value !== undefined && value !== null && value !== '' &&
-    value !== 'any' && value !== false && (!Array.isArray(value) || value.length > 0)
+    key !== 'applicationFee' && !isInactiveCriterionValue(value)
   );
-
-  const renderWorkspacePage = () => {
-    switch (tab) {
-    case "Overview":
-      return <OverviewPage model={{ applicationCounts, assessments, candidateAssessments, deadlineOverview, deadlinesDueSoon, exportLocalBackup, formatDate, importLocalBackup, items, openAdd, overdueDeadlines, profile, profileReadiness, profileTags, setSelected, setTab, tracked }} />;
-    case "Settings":
-      return <SettingsPage model={{ authCooldownSeconds, cloudBusy, cloudEmail, cloudMessage, cloudUser, compactView, handleCheckCloudSession, handleCloudSignIn, handleCloudSignOut, isOnline, setCloudEmail, setCompactView, setTheme, supabaseConfigured, theme }} />;
-    case "Discovery":
-      return <DiscoveryPage model={{ candidateAssessments, googleSearch, openAdd, queryGroups, setTab, SOURCES, tracked }} />;
-    case "Cloud Search":
-      return <CloudSearchPage model={{ addLiveResult, cloudBusy, cloudMessage, cloudUser, discoveryState, discoverySummary, discoveryWarnings, exaResults, handleCloudSearch, isLiveDiscoveryCategorySupported, isOnline, items, liveResults, profile, selectedDiscoveryCategories, setSelectedDiscoveryCategories, setTab, supabaseConfigured }} />;
-    case "Scholarships":
-      return <ScholarshipsPage model={{ APPLICATION_STATUSES, applicationStatusFilter, archiveFilter, assessments, clearTrackerFilters, duplicateSuggestions, exportTrackerReport, filter, filtered, formatDate, getDeadlineMilestones, hasFilteredEmptyState, items, openAdd, query, setApplicationStatusFilter, setArchiveFilter, setFilter, setQuery, setSelected, setTrackerSortBy, statuses, summarizeEligibilityAssessment, trackerSortBy }} />;
-    case "Eligibility filters":
-      return <EligibilityFiltersPage model={{ profileDraft, profileReadiness, profileSaveStatus, saveProfile }} />;
-    case "Application prep":
-      return <ApplicationPrepPage model={{ APPLICATION_CHECKLIST_STEPS, applicationProgress, countApplicationWords, createWorkspaceItemId, formatDate, items, markPrepScholarshipSubmitted, prepScholarship, prepSummary, prepWorkspace, RECOMMENDATION_STATUSES, saveApplicationTask, savePrepWorkspace, setPrepScholarshipId, setTab }} />;
-      default:
-        return null;
-    }
-  };
 
   return <div className="shell" data-theme={theme} data-compact={compactView ? 'true' : 'false'}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <aside className="sidebar">
-      <span className="sidebar-hover-indicator" aria-hidden="true" />
+    <aside className={'sidebar' + (desktopSidebarCollapsed ? ' is-collapsed' : '')} data-collapsed={desktopSidebarCollapsed ? 'true' : 'false'}>
       <div className="sidebar-header">
-        <div className="logo"><span className="logo-mark">S</span><span>scholarship<span className="logo-light"> scout</span><small>SCHOLARSHIP WORKSPACE</small></span></div>
+        <div className="logo"><BrandMark className="logo-mark"/><span>scholarship<span className="logo-light"> scout</span><small>SCHOLARSHIP WORKSPACE</small></span></div>
+        <button
+          type="button"
+          className="sidebar-collapse-toggle"
+          aria-label={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!desktopSidebarCollapsed}
+          aria-controls="primary-navigation"
+          onClick={() => setDesktopSidebarCollapsed((collapsed) => !collapsed)}
+          title={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <NavGlyph name={desktopSidebarCollapsed ? 'chevron-right' : 'chevron-left'} />
+        </button>
         <button
           type="button"
           className="mobile-nav-toggle"
@@ -930,7 +1276,7 @@ function App() {
           aria-controls="primary-navigation"
           onClick={() => setMobileNavOpen((open) => !open)}
         >
-          <span aria-hidden="true">{mobileNavOpen ? '×' : '☰'}</span>
+          <NavGlyph name={mobileNavOpen ? 'close' : 'menu'} />
           {mobileNavOpen ? 'Close' : 'Menu'}
         </button>
       </div>
@@ -938,8 +1284,8 @@ function App() {
       <nav id="primary-navigation" className="primary-nav" data-open={mobileNavOpen ? 'true' : 'false'} aria-label="Main navigation">
         {navGroups.map(group => <div className="nav-group" key={group.title} role="group" aria-label={group.title}>
           <div className="nav-group-title">{group.title}</div>
-          {group.items.map(item => <button type="button" key={item.tab} className={'nav-item ' + (tab === item.tab ? 'active' : '')} onClick={() => { setTab(item.tab); setMobileNavOpen(false); }} aria-current={tab === item.tab ? 'page' : undefined} aria-label={item.label} title={item.label}>
-            <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+          {group.items.map(item => <button type="button" key={item.tab} className={'nav-item ' + (activeNavTab === item.tab ? 'active' : '')} onClick={() => { setTab(item.tab); setMobileNavOpen(false); }} aria-current={activeNavTab === item.tab ? 'page' : undefined} aria-label={item.label} title={item.label}>
+            <span className="nav-icon"><NavGlyph name={item.icon} /></span>
             <span className="nav-copy"><b>{item.label}</b><small>{item.description}</small></span>
             {'count' in item && item.count && <span className="nav-count">{items.length}</span>}
           </button>)}
@@ -947,49 +1293,365 @@ function App() {
       </nav>
       <div className="side-bottom">
         <div className="secure"><span aria-hidden="true">◈</span><div><b>Private workspace</b><small>Saved on this device</small></div></div>
-        <div className="version">SCHOLARSHIP SCOUT · ALPHA 0.8</div>
       </div>
     </aside>
 
     <main className="main" id="main-content" tabIndex={-1}>
+      {alert && <div className="app-alert" role="alert"><span>{alert}</span><button type="button" aria-label="Dismiss important alert" onClick={() => setAlert('')}>Dismiss</button></div>}
       <header className="topbar">
         <div className="breadcrumb"><span className="breadcrumb-root">WORKSPACE</span><span>/</span><b>{currentPage}</b></div>
         <div className="top-right">
           <span className="local-pill"><i/> {cloudUser ? cloudUser.is_anonymous ? 'Anonymous session' : 'Signed in' : supabaseConfigured ? 'Cloud available' : 'Cloud setup needed'}</span>
-          <div className="avatar" aria-hidden="true">S</div>
+          <div className="avatar" aria-hidden="true"><BrandMark className="logo-mark avatar-mark"/></div>
         </div>
       </header>
       {!isOnline && <div className="offline-notice" role="status" aria-live="polite"><b>You are offline.</b> Local changes still work and stay on this device; cloud sign-in and live search are unavailable until connection returns.</div>}
 
-      {renderWorkspacePage()}
+      {tab === 'Overview' && <div className="page">
+        <div className="welcome"><div><div className="eyebrow">YOUR SCHOLARSHIP WORKSPACE</div><h1>Make your next opportunity count.</h1><p>Find scholarships that fit your story, verify the details, and keep every application organized.</p></div><button className="primary" onClick={() => setTab('Discovery')}>⌕ Find scholarships</button></div>
+        <div className="panel profile-overview-readiness">
+          <div className="panel-heading"><div><h3>Profile readiness</h3><p className="muted">Coverage for personalized searches, not an eligibility decision.</p></div><span className="source-tag">{profileReadiness.core.completedCount}/{profileReadiness.core.totalCount} core details</span></div>
+          <div className="profile-readiness-meter"><strong>{profileReadiness.core.percent}%</strong><progress max={100} value={profileReadiness.core.percent} aria-label="Core profile completeness"/></div>
+          <p className="profile-readiness-caption">{profileReadiness.core.missing.length ? `Add: ${profileReadiness.core.missing.slice(0, 2).map((field) => field.label).join(', ')}${profileReadiness.core.missing.length > 2 ? ', and more' : ''}.` : 'Core location and education details are filled in. Sponsor-specific requirements still need review.'}</p>
+          <button className="text-button" onClick={() => setTab('Eligibility filters')}>Review profile details →</button>
+        </div>
+        <div className="section-head"><div><h2>Your pipeline</h2><p>Eligibility is calculated from the criteria recorded for each scholarship.</p></div><div className="section-actions"><button className="secondary" onClick={exportLocalBackup}>↓ Export encrypted backup</button><label className="secondary backup-import">↑ Import backup<input type="file" accept="application/json,.json" onChange={event=>{void importLocalBackup(event.target.files?.[0]);event.currentTarget.value='';}}/></label><button className="text-button" onClick={() => setTab('Scholarships')}>View all →</button></div></div>
+        <div className="stats">{[
+          {label:'Tracked scholarships',value:items.filter(item=>!item.archived).length,sub:'Active records in your workspace',icon:'book-stack'},
+          {label:'Eligible',value:[...assessments.values()].filter(x=>x.status==='Eligible').length,sub:'All recorded rules passed',icon:'check-circle'},
+          {label:'Need information',value:[...assessments.values()].filter(x=>x.status==='Needs information').length,sub:'At least one unknown condition',icon:'info'},
+          {label:'Deadline milestones in 7 days',value:deadlinesDueSoon,sub:overdueDeadlines ? `${overdueDeadlines} past due · date-only estimates` : 'Date-only estimates; check sponsor cutoff',icon:'calendar-clock'}
+        ].map(x=><div className="stat" key={x.label}><div className="stat-top"><span>{x.label}</span><b><NavGlyph name={x.icon as GlyphName}/></b></div><strong>{x.value}</strong><small>{x.sub}</small></div>)}</div>
+        <div className="panel application-pipeline-summary">
+          <div className="panel-heading"><div><h3>Application progress</h3><p className="muted">Your manual workflow status, separate from scholarship eligibility.</p></div><button className="text-button" onClick={()=>setTab('Scholarships')}>Manage tracker →</button></div>
+          <div className="application-pipeline-grid">
+            <div><b>{applicationCounts.inProgress}</b><small>Preparing</small></div>
+            <div><b>{applicationCounts.ready}</b><small>Ready</small></div>
+            <div><b>{applicationCounts.submitted}</b><small>Submitted</small></div>
+            <div><b>{applicationCounts.awarded}</b><small>Awarded</small></div>
+          </div>
+        </div>
+        <div className="panel deadline-watch"><div className="panel-heading"><div><h3>Deadline watch</h3><p className="muted">The nearest dates in your tracker.</p></div><span className="source-tag">{deadlineOverview.length} opening/deadline dates shown</span></div>{deadlineOverview.length ? <div className="deadline-list">{deadlineOverview.map(({item,milestone})=><button type="button" className="deadline-item" key={`${item.id}-${milestone.key}`} onClick={()=>setSelected(item)}><span><b>{item.name}</b><small>{milestone.label} · {item.provider} · {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : milestone.key === 'opening' ? formatDate(item.openDate) : 'Deadline not confirmed')}</small></span><DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></button>)}</div> : <p className="muted">Add confirmed calendar dates to see them here. Unpublished and unknown deadlines are not guessed.</p>}<small className="deadline-footnote">Date-only countdown. A sponsor-stated time zone is used when recorded; cutoff times are never inferred.</small></div>
+        <div className="section-head"><div><h2>Recent discoveries</h2><p>Opportunities with upcoming deadlines that need sponsor-level review.</p></div><button className="text-button" onClick={()=>setTab('Discovery')}>Open discovery →</button></div>
+        {candidateAssessments.length ? <div className="candidate-grid">{candidateAssessments.slice(0,2).map(({item,assessment})=><CandidateCard key={item.id} item={item} assessment={assessment} added={tracked(item.id)} onAdd={()=>openAdd(item)}/>)}</div> : <div className="panel recent-discoveries-empty"><b>No recent discoveries yet</b><p>Run a scholarship search to find opportunities that may fit your profile.</p><button type="button" className="secondary" onClick={()=>setTab('Discovery')}>Find scholarships</button></div>}
+      </div>}
 
-      {}
+      {tab === 'Settings' && <div className="page narrow">
+        <div className="page-heading"><div><div className="eyebrow">WORKSPACE PREFERENCES</div><h1>Settings</h1><p>Manage how Scholarship Scout looks and how you connect your cloud account. Your profile and tracker stay local unless you choose to save sponsor records to the cloud.</p></div></div>
+        <section className="panel settings-section">
+          <div className="panel-heading"><div><h3>Encrypted local vault</h3><p className="muted">Your profile, tracker, application drafts, and sign-in session are encrypted in this browser. The vault locks after 15 minutes without activity.</p></div><span className="source-tag">PROTECTED</span></div>
+          <button type="button" className="secondary" onClick={async () => {
+            try {
+              await stopSupabaseAutoRefreshForVaultLock().catch(() => undefined);
+              await lockLocalVault();
+              window.location.reload();
+            } catch (reason) {
+              setAlert(reason instanceof Error ? reason.message : 'The local vault could not be locked. Keep this tab open and retry.');
+            }
+          }}>Lock vault now</button>
+        </section>
+        <section className="panel settings-section">
+          <div className="panel-heading"><div><h3>Appearance</h3><p className="muted">Choose the theme used across your workspace.</p></div><span className="source-tag">DISPLAY</span></div>
+          <div className="settings-choice-row">
+            <button type="button" className="theme-toggle" onClick={() => chooseTheme('dark')} aria-label="Use dark mode" aria-pressed={theme === 'dark'}><span aria-hidden="true">☾</span><span>Dark mode</span></button>
+            <button type="button" className="theme-toggle" onClick={() => chooseTheme('light')} aria-label="Use light mode" aria-pressed={theme === 'light'}><span aria-hidden="true">☀</span><span>Light mode</span></button>
+          </div>
+          <p className="muted settings-footnote">Your current selection is saved in this browser.</p>
+        </section>
+        <section className="panel settings-section">
+          <div className="panel-heading"><div><h3>Layout density</h3><p className="muted">Choose how much space cards and sections use.</p></div><span className="source-tag">LAYOUT</span></div>
+          <button type="button" className="compact-toggle" onClick={() => setCompactView(current => !current)} aria-label={compactView ? 'Switch to comfortable layout' : 'Switch to compact layout'} aria-pressed={compactView}>{compactView ? 'Comfortable view' : 'Compact view'}</button>
+          <p className="muted settings-footnote">{compactView ? 'Compact spacing is enabled.' : 'Comfortable spacing is enabled.'}</p>
+        </section>
+        <section className="panel settings-section">
+          <div className="panel-heading"><div><h3>Legal & privacy</h3><p className="muted">Read the current Terms of Service and full Privacy Notice, including data handling and service limitations.</p></div><span className="source-tag">LEGAL</span></div>
+          <button type="button" className="secondary" onClick={() => window.dispatchEvent(new Event('scholarship-scout:review-legal'))}>Review Terms of Service & Privacy Notice</button>
+        </section>
+        <section className="panel settings-section">
+          <div className="panel-heading"><div><h3>Account & cloud access</h3><p className="muted">Live scholarship search is public and does not require an account. Email sign-in is only needed to save sponsor records to your cloud account if you prefer an emailed link; Google sign-in is also available. Your student profile, essays, and local tracker remain on this device.</p></div><span className={`status ${cloudUser ? 'status-eligible' : supabaseConfigured ? 'status-likely-eligible' : 'status-not-eligible'}`}>{cloudUser ? cloudUser.is_anonymous ? 'Anonymous account' : 'Signed in' : supabaseConfigured ? 'Public search configured' : 'Setup needed'}</span></div>
+          {cloudUser ? <div className="settings-account-state">
+            <p><b>{cloudUser.is_anonymous ? 'Anonymous browser session' : 'Connected account'}</b><span>{cloudUser.is_anonymous ? 'No email attached · private to this browser' : cloudUser.email || 'Signed-in account'}</span></p>
+            {cloudUser.is_anonymous ? <p className="cloud-config-note">Link a Google account to keep access to these cloud sponsor records across devices. Your student profile, essays, and application workspace remain on this device.</p> : null}
+            <div className="settings-account-actions">
+              {cloudUser.is_anonymous && <button type="button" className="google-sign-in-button" disabled={!supabaseConfigured || cloudBusy || !isOnline} onClick={() => void handleGoogleSignIn()}><span className="google-sign-in-mark" aria-hidden="true">G</span>Link Google account</button>}
+              <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCheckCloudSession()}>Check session status</button>
+              {!cloudUser.is_anonymous && <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCloudSignOut()}>Sign out</button>}
+            </div>
+          </div> : <div className="settings-account-state">
+            <p><b>No account connected</b><span>Public live search works without signing in.</span></p>
+            <p className="muted">Sign in only when you want to save sponsor records to your cloud account. Your student profile and essays are never uploaded by the search feature.</p>
+            <form className="cloud-auth-form settings-auth-form" onSubmit={handleCloudSignIn}>
+            <label className="field" htmlFor="cloud-email"><span>Email for sign-in link</span><input id="cloud-email" name="email" type="email" autoComplete="email" required value={cloudEmail} onChange={e=>setCloudEmail(e.target.value)} placeholder="you@example.com"/></label>
+            <button className="primary" type="submit" disabled={!supabaseConfigured || cloudBusy || !isOnline || !cloudEmail.trim() || authCooldownSeconds > 0}>{cloudBusy ? 'Sending…' : authCooldownSeconds > 0 ? `Try again in ${authCooldownSeconds}s` : 'Send sign-in link'}</button>
+            </form>
+            <button type="button" className="google-sign-in-button" disabled={!supabaseConfigured || cloudBusy || !isOnline} onClick={() => void handleGoogleSignIn()}><span className="google-sign-in-mark" aria-hidden="true">G</span>Continue with Google</button>
+          </div>}
+          {!supabaseConfigured && <p className="cloud-config-note" role="status">Cloud services are unavailable in this version. Your local profile, scholarship tracker, and application workspace remain available on this device.</p>}
+          {cloudMessage && <p className="cloud-message" role="status" aria-live="polite">{cloudMessage}</p>}
+        </section>
 
-      {}
+        <section className="panel settings-section" aria-labelledby="privacy-request-title">
+          <div className="panel-heading">
+            <div><h3 id="privacy-request-title">Privacy request</h3><p className="muted">Request access, correction, deletion, an applicable opt-out, or an appeal. Scholarship Scout prepares an email for you to review and send.</p></div>
+            <span className="source-tag">PRIVACY</span>
+          </div>
+          <form className="privacy-request-form" onSubmit={handlePrivacyRequest}>
+            <label className="field" htmlFor="privacy-request-type">
+              <span>What would you like to request?</span>
+              <select id="privacy-request-type" name="requestType" value={privacyRequestType} onChange={(event) => { setPrivacyRequestType(event.target.value); setPrivacyRequestHref(""); setPrivacyRequestMessage(""); }}>
+                {PRIVACY_REQUEST_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="field" htmlFor="privacy-request-requester">
+              <span>Who is submitting this request?</span>
+              <select id="privacy-request-requester" name="requesterType" value={privacyRequestRequesterType} onChange={(event) => { setPrivacyRequestRequesterType(event.target.value); setPrivacyRequestHref(""); setPrivacyRequestMessage(""); }}>
+                {PRIVACY_REQUESTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="field" htmlFor="privacy-request-email">
+              <span>Email address for our response</span>
+              <input id="privacy-request-email" name="replyEmail" type="email" autoComplete="email" maxLength={254} required value={privacyRequestEmail} onChange={(event) => { setPrivacyRequestEmail(event.target.value); setPrivacyRequestHref(""); setPrivacyRequestMessage(""); }} placeholder="you@example.com" />
+            </label>
+            {privacyRequestType === "appeal" && (
+              <label className="field" htmlFor="privacy-request-reference">
+                <span>Reference for the earlier privacy request</span>
+                <input id="privacy-request-reference" name="previousRequestReference" type="text" maxLength={100} required value={privacyRequestReference} onChange={(event) => { setPrivacyRequestReference(event.target.value); setPrivacyRequestHref(""); setPrivacyRequestMessage(""); }} placeholder="Enter the reference from the earlier response" />
+              </label>
+            )}
+            <label className="field privacy-request-details" htmlFor="privacy-request-details">
+              <span>Describe what you are requesting</span>
+              <textarea id="privacy-request-details" name="details" rows={5} minLength={10} maxLength={2000} required value={privacyRequestDetails} onChange={(event) => { setPrivacyRequestDetails(event.target.value); setPrivacyRequestHref(""); setPrivacyRequestMessage(""); }} placeholder="Describe the information or action involved. Do not include passwords, sign-in links, vault passphrases, or unnecessary student records." />
+              <span className="privacy-form-counter">{privacyRequestDetails.length}/2000 characters</span>
+            </label>
+            <p className="privacy-form-note">Do not include passwords, sign-in links, access tokens, vault or backup passphrases, government ID numbers, or unnecessary student records. This form does not save or send your details to Scholarship Scout. It opens your email app with a draft addressed to the privacy contact.</p>
+            <div className="privacy-form-actions">
+              <button type="submit" className="secondary" disabled={!privacyRequestDetails.trim() || !privacyRequestEmail.trim() || (privacyRequestType === "appeal" && !privacyRequestReference.trim())}>Prepare email</button>
+              {privacyRequestHref && <a className="primary privacy-mail-link" href={privacyRequestHref} onClick={() => setPrivacyRequestMessage("Your email app should open. Review the draft and press Send; the request is not received until then.")}>Open email draft</a>}
+            </div>
+            {privacyRequestMessage && <p className="cloud-message" role="status" aria-live="polite">{privacyRequestMessage}</p>}
+            <p className="muted settings-footnote">Privacy contact: levi.haidar@outlook.com. A parent or legal guardian may submit for a minor where applicable law permits. Preparing a draft does not submit a request.</p>
+          </form>
+        </section>
 
-      {}
+        <section className="panel settings-section" aria-labelledby="account-deletion-title">
+          <div className="panel-heading">
+            <div><h3 id="account-deletion-title">Delete account and data</h3><p className="muted">Permanently remove a signed-in cloud account and its associated cloud records. Local workspace data is handled separately.</p></div>
+            <span className="source-tag">DESTRUCTIVE</span>
+          </div>
+          {cloudUser ? <>
+            <div className="deletion-warning" role="note">
+              <b>This cannot be undone.</b>
+              <p>Deleting this account permanently removes its linked cloud profile, scholarship sources, saved scholarship records, and eligibility records. It does not delete downloaded backups or the local workspace on other devices or browser profiles.</p>
+              <p>The deletion process revokes refresh-token sessions on all devices. Previously issued access tokens may remain valid until their scheduled expiry, but they cannot be refreshed. The account and its cloud records cannot be restored.</p>
+            </div>
+            <form className="deletion-form" onSubmit={handleCloudAccountDeletion}>
+              <label className="acknowledgement-check">
+                <input type="checkbox" checked={deleteCloudAcknowledged} onChange={(event) => setDeleteCloudAcknowledged(event.target.checked)} />
+                <span>I understand that deleting this cloud account permanently removes its account-linked cloud data.</span>
+              </label>
+              <label className="acknowledgement-check">
+                <input type="checkbox" checked={deleteLocalWithCloud} onChange={(event) => setDeleteLocalWithCloud(event.target.checked)} />
+                <span>Also erase the encrypted workspace and app-owned sign-in data in this browser. I understand other devices and separately downloaded backups are not affected.</span>
+              </label>
+              <label className="field" htmlFor="delete-cloud-confirmation">
+                <span>Type DELETE MY ACCOUNT to confirm</span>
+                <input id="delete-cloud-confirmation" name="confirmation" type="text" autoComplete="off" spellCheck={false} value={deleteCloudConfirmation} onChange={(event) => setDeleteCloudConfirmation(event.target.value)} />
+              </label>
+              <button type="submit" className="danger-button" disabled={deletionBusy || cloudBusy || !deleteCloudAcknowledged || deleteCloudConfirmation !== "DELETE MY ACCOUNT"}>{deletionBusy ? "Deleting…" : "Permanently delete cloud account"}</button>
+            </form>
+          </> : <p className="muted">No cloud account is connected in this browser. You can still remove the local workspace below.</p>}
+          <div className="local-deletion-divider">
+            <h4>Remove local data from this browser</h4>
+            <p className="muted">This permanently erases the encrypted profile, tracker, application drafts, and stored sign-in session from this browser profile. It does not remove cloud records, downloaded backups, or local data on another device.</p>
+            <form className="deletion-form" onSubmit={handleLocalDataDeletion}>
+              <label className="acknowledgement-check">
+                <input type="checkbox" checked={localDeleteAcknowledged} onChange={(event) => setLocalDeleteAcknowledged(event.target.checked)} />
+                <span>I understand this permanently erases the current browser’s local Scholarship Scout workspace.</span>
+              </label>
+              <label className="field" htmlFor="delete-local-confirmation">
+                <span>Type DELETE LOCAL DATA to confirm</span>
+                <input id="delete-local-confirmation" name="localConfirmation" type="text" autoComplete="off" spellCheck={false} value={localDeleteConfirmation} onChange={(event) => setLocalDeleteConfirmation(event.target.value)} />
+              </label>
+              <button type="submit" className="danger-button" disabled={deletionBusy || localDeleteConfirmation !== "DELETE LOCAL DATA" || !localDeleteAcknowledged}>{deletionBusy ? "Removing…" : "Permanently remove local data"}</button>
+            </form>
+          </div>
+          {deletionMessage && <p className="cloud-message" role="status" aria-live="polite">{deletionMessage}</p>}
+        </section>
+      </div>}
 
-      {}
+      {tab === 'Discovery' && <div className="page">
+        <div className="page-heading"><div><div className="eyebrow">FIND OPPORTUNITIES</div><h1>Find scholarships</h1><p>Search broad scholarship topics or research public scholarship pages. Your profile and application data stay on this device.</p></div></div>
+        <WorkspaceSubnav label="Scholarship search method" active={tab} options={[{ value: 'Discovery', label: 'Browse search links' }, { value: 'Cloud Search', label: 'Live web discovery' }]} onChange={setTab}/>
+        <div className="filter-intro"><b>Search without sharing profile details</b><p>These suggested Google searches use generic scholarship terms only. They do not include your profile, school, grades, activities, location, or application data. Google receives the generic query and ordinary connection information only when you choose to open a link. Automated public-page research is separate and sends only your state, graduation year, and selected category IDs.</p></div>
 
-      {}
+        <div className="section-head"><div><h2>Run broad scholarship searches</h2><p>Each link uses generic search terms and does not read your profile.</p></div></div>
+        <div className="search-grid">{queryGroups.map((item)=><div className="search-card" key={item.title}><div className="search-card-icon">⌕</div><div><b>{item.title}</b><p>{item.query}</p></div><a href={googleSearch(item.query)} target="_blank" rel="noreferrer">Search ↗</a></div>)}</div>
+        <div className="section-head"><div><h2>Trusted scholarship sources</h2><p>Use official sources first; some portals may contain third-party listings.</p></div></div>
+        <div className="source-grid">{SOURCES.map((source)=><div className="source-card" key={source.name}><span>{source.group}</span><b>{source.name}</b><p>{source.detail}</p><a href={source.url} target="_blank" rel="noreferrer">Open source ↗</a></div>)}</div>
+        <div className="safety-note"><b>Scholarship safety check</b><p>Do not pay an application or processing fee to receive a scholarship. Be cautious of guaranteed awards or requests for bank/card details. Verify the sponsor independently before sharing information. <a href="https://consumer.ftc.gov/articles/how-avoid-scholarship-and-financial-aid-scams" target="_blank" rel="noreferrer">FTC guidance ↗</a></p></div>
+      </div>}
 
-      {}
+      {tab === 'Cloud Search' && <div className="page">
+        <div className="page-heading"><div><div className="eyebrow">FIND OPPORTUNITIES</div><h1>Find scholarships</h1><p>Research public scholarship pages, review potential awards, and optionally save sponsor details to your private account.</p></div></div>
+        <WorkspaceSubnav label="Scholarship search method" active={tab} options={[{ value: 'Discovery', label: 'Browse search links' }, { value: 'Cloud Search', label: 'Live web discovery' }]} onChange={setTab}/>
+        <div className="cloud-run-row"><div><p className="muted">Public search works without signing in or creating an account. Only your state, graduation year, and selected categories are sent to the search service.</p></div><button className="primary" disabled={cloudBusy || !isOnline || !supabaseConfigured || selectedDiscoveryCategories.length === 0} onClick={()=>void handleCloudSearch()}>{cloudBusy ? 'Researching…' : 'Run research'}</button></div>
+        <div className="panel discovery-category-picker" role="group" aria-labelledby="research-categories-title">
+          <div className="panel-heading"><div><h3 id="research-categories-title">Research categories</h3><p className="muted">Choose up to four categories for each search.</p></div><span className="source-tag">{selectedDiscoveryCategories.length}/4 selected</span></div>
+          <div className="discovery-category-grid">{DISCOVERY_CATEGORY_OPTIONS.map((category)=><label className="discovery-category-option" key={category.id}>
+            <input type="checkbox" checked={selectedDiscoveryCategories.includes(category.id)} disabled={!selectedDiscoveryCategories.includes(category.id) && (!isLiveDiscoveryCategorySupported(category.id) || selectedDiscoveryCategories.length >= 4)} onChange={(event)=>setSelectedDiscoveryCategories((current)=>event.target.checked ? (current.length < 4 && isLiveDiscoveryCategorySupported(category.id) ? [...current, category.id] : current) : current.filter((id)=>id !== category.id))}/>
+            <span><b>{category.label}</b><small>{category.description}{!isLiveDiscoveryCategorySupported(category.id) ? ' Not available yet.' : ''}</small></span>
+          </label>)}</div>
+          {!profile.state.trim() || !profile.graduationYear.trim() ? <p className="cloud-config-note">Add your state and expected graduation year in My Profile before running live search.</p> : null}
+        </div>
+        {cloudMessage && <p className="cloud-message" role="status" aria-live="polite">{cloudMessage}</p>}
+        {discoveryState === 'loading' && <div className="cloud-loading" aria-hidden="true">Researching…</div>}
+        {discoveryState === 'empty' && <div className="panel cloud-empty" role="status" aria-live="polite"><b>No scholarship matches were found for this search.</b><p>Your search completed, but no usable public leads matched the selected categories. Try different categories or run the search again.</p><button type="button" className="secondary" onClick={()=>void handleCloudSearch()}>Try search again</button></div>}
+        {discoveryState === 'error' && <div className="panel cloud-empty" role="alert"><b>Scholarship search could not be completed.</b><p>Review the search status message above for details, then retry the search.</p><button type="button" className="secondary" disabled={cloudBusy || !isOnline || !supabaseConfigured || selectedDiscoveryCategories.length === 0} onClick={()=>void handleCloudSearch()}>Retry search</button></div>}
+        {discoverySummary && <p className="cloud-config-note">{discoverySummary.uniqueResults} scholarship leads found. Verify eligibility, award details, and deadlines on each official sponsor page.</p>}
+        {exaResults.length>0 && <section aria-labelledby="live-search-results-title"><div className="section-head"><div><h2 id="live-search-results-title">Live scholarship results</h2><p>Ranked and deduplicated research leads. Sponsor, award, deadline, and eligibility remain unverified until you review the official page.</p></div><span className="source-tag">{exaResults.length} leads</span></div>
+          <div className="cloud-results" role="list" aria-label="Live scholarship search results">{exaResults.map((row)=><CloudResultCard key={row.id} item={row} tracked={items.some(x=>x.backendOpportunityId===row.id||x.sourceUrl===row.source_url)} onTrack={()=>addLiveResult(row)}/>)}</div>
+        </section>}
+        {cloudUser && !cloudBusy && liveResults.length === 0 && <div className="panel cloud-empty" role="status" aria-live="polite"><b>No saved cloud records yet.</b><p>Review a live lead and choose whether to save its sponsor details to your account.</p></div>}
+        {cloudUser && liveResults.length>0 && <section aria-labelledby="saved-cloud-results-title"><div className="section-head"><div><h2 id="saved-cloud-results-title">Saved cloud records</h2><p>Sponsor details saved to your private account.</p></div><span className="source-tag">{liveResults.length} records</span></div>
+          <div className="cloud-results" role="list" aria-label="Saved scholarship records">{liveResults.map((row)=><CloudResultCard key={row.id} item={row} tracked={items.some(x=>x.backendOpportunityId===row.id||x.sourceUrl===row.source_url)} onTrack={()=>addLiveResult(row)}/>)}</div>
+        </section>}
+      </div>}
+
+      {tab === 'Scholarships' && <div className="page">
+        <div className="page-heading"><div><div className="eyebrow">MY SCHOLARSHIPS</div><h1>My scholarships</h1><p>Track saved opportunities, deadlines, source reviews, and your application progress.</p></div><div className="tracker-heading-actions"><button className="secondary" onClick={exportTrackerReport}>↓ Export CSV report</button><button className="primary" onClick={()=>openAdd()}>＋ Add scholarship</button></div></div>
+        <WorkspaceSubnav label="Scholarship management view" active={tab} options={[{ value: 'Scholarships', label: 'Tracker' }, { value: 'Application prep', label: 'Application preparation' }]} onChange={setTab}/>
+        <div className="toolbar tracker-toolbar">
+          <input aria-label="Search tracked scholarships" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search names, sponsors, or tags…"/>
+          <select aria-label="Eligibility status filter" value={filter} onChange={e=>setFilter(e.target.value)}><option value="All">Any eligibility</option>{statuses.map(s=><option key={s}>{s}</option>)}</select>
+          <select aria-label="Application status filter" value={applicationStatusFilter} onChange={e=>setApplicationStatusFilter(e.target.value)}><option value="All">All application statuses</option>{APPLICATION_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
+          <select aria-label="Archive filter" value={archiveFilter} onChange={e=>setArchiveFilter(e.target.value as 'active'|'archived'|'all')}><option value="active">Active records</option><option value="archived">Archived records</option><option value="all">All records</option></select>
+          <select aria-label="Sort tracker records" value={trackerSortBy} onChange={e=>setTrackerSortBy(e.target.value as typeof trackerSortBy)}>
+            <option value="deadline">Sort: Deadline</option><option value="priority">Sort: Priority</option><option value="award">Sort: Award amount</option><option value="applicationStatus">Sort: Application status</option><option value="eligibility">Sort: Eligibility</option><option value="name">Sort: Name</option>
+          </select>
+        </div>
+        {duplicateSuggestions.length > 0 && <div className="panel duplicate-review"><div className="panel-heading"><div><h3>Duplicate suggestions to review</h3><p className="muted">Exact, strong, and possible title matches with the same sponsor and deadline year. Suggestions only; Scout will not merge or delete records.</p></div><span className="source-tag">{duplicateSuggestions.length} pairs</span></div><div className="duplicate-list">{duplicateSuggestions.slice(0,5).map((pair)=><div className="duplicate-row" key={`${pair.firstId}-${pair.secondId}`}><div className="duplicate-names"><span className="source-tag">{pair.matchLabel}</span><b>{pair.firstName}</b><span>and</span><b>{pair.secondName}</b><small>{pair.sponsor} · Deadline year {pair.deadlineYear} · {pair.titleSimilarity}% title similarity</small><small>{pair.reasons.join(' · ')}</small></div><div className="duplicate-actions"><button className="text-button" onClick={()=>setSelected(items[pair.firstIndex])}>Review first</button><button className="text-button" onClick={()=>setSelected(items[pair.secondIndex])}>Review second</button></div></div>)}</div>{duplicateSuggestions.length > 5 && <small className="deadline-footnote">Showing the five strongest suggestions. The remaining {duplicateSuggestions.length - 5} pairs are also retained for review.</small>}</div>}
+        <div className="table-card"><div className="table-title"><b>Tracked opportunities</b><span>{filtered.length} shown · eligibility and application status are tracked separately</span></div>{filtered.length===0 && items.length===0 ? <Empty onAdd={()=>openAdd()}/> : hasFilteredEmptyState ? <FilteredEmpty onClear={clearTrackerFilters}/> : <div className="table-wrap"><table><thead><tr><th>OPPORTUNITY</th><th>AWARD AMOUNT</th><th>DEADLINE</th><th>URGENCY</th><th>APPLICATION</th><th>PRIORITY</th><th>ELIGIBILITY</th><th>SOURCE REVIEW</th><th scope="col">DETAILS</th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td data-label="Opportunity"><button type="button" className="tracker-open" aria-label={'Review ' + item.name} onClick={()=>setSelected(item)}>{item.name}</button><small>{item.provider}</small>{item.tags?.length ? <small>{item.tags.join(' · ')}</small> : null}</td><td data-label="Award amount"><b>{item.award || 'Amount not recorded'}</b></td><td data-label="Deadline">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : milestone.key === "opening" ? formatDate(item.openDate) : "Date not confirmed")}</small>)}</td><td data-label="Urgency">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: <DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></small>)}</td><td data-label="Application"><ApplicationStatusPill status={item.applicationStatus || 'Not started'}/></td><td data-label="Priority"><PriorityPill priority={item.priority || 'Medium'}/></td><td data-label="Eligibility"><StatusPill status={summarizeEligibilityAssessment(assessments.get(item.id)).status as Status}/></td><td data-label="Source review"><SourceStatusPill item={item}/></td><td data-label="Details"><button type="button" className="secondary tracker-details" aria-label={"Open details for " + item.name} onClick={() => setSelected(item)}>›</button></td></tr>)}</tbody></table></div>}</div>
+        <p className="footnote">“Eligible” means every structured rule entered in Scout passed and the official source review was marked complete. It is not an award guarantee; sponsor decisions and unentered requirements may still apply.</p>
+      </div>}
+
+      {tab === 'Eligibility filters' && <div className="page narrow">
+        <div className="page-heading"><div><div className="eyebrow">PERSONAL MATCHING PROFILE</div><h1>Your profile</h1><p>These details guide scholarship discovery and eligibility checks. Update anything that is missing or outdated.</p></div></div>
+        <div className="filter-intro"><b>How the filters work</b><p>Location, citizenship, school year, GPA, and class rank are hard eligibility comparisons when a sponsor specifies them. Activities, service, work, and interests help find strong matches. Financial need and other sensitive factors are not inferred; unknown conditions are flagged.</p></div>
+        <div className="panel profile-readiness-panel">
+          <div className="panel-heading"><div><h3>Profile readiness</h3><p className="muted">Complete the core details first. The rest are optional ways to improve discovery.</p></div><span className="source-tag">{profileReadiness.core.completedCount}/{profileReadiness.core.totalCount} core details</span></div>
+          <div className="profile-readiness-meter"><strong>{profileReadiness.core.percent}%</strong><progress max={100} value={profileReadiness.core.percent} aria-label="Core profile completeness"/></div>
+          <div className="profile-readiness-columns">
+            <div><b>Core details</b><p>{profileReadiness.core.completedCount} of {profileReadiness.core.totalCount} entered</p>{profileReadiness.core.missing.length ? <ul className="profile-readiness-list">{profileReadiness.core.missing.map((field) => <li key={field.key}><b>{field.label}:</b> {field.reason}</li>)}</ul> : <p className="profile-ready-message">Core location and education details are present.</p>}</div>
+            <div><b>Optional matching details</b><p>{profileReadiness.supporting.completedCount} of {profileReadiness.supporting.totalCount} entered</p>{profileReadiness.supporting.missing.length ? <ul className="profile-readiness-list">{profileReadiness.supporting.missing.slice(0, 4).map((field) => <li key={field.key}><b>{field.label}:</b> {field.reason}</li>)}</ul> : <p className="profile-ready-message">Helpful matching details are filled in.</p>}</div>
+          </div>
+          <small className="profile-readiness-note">These indicators do not change eligibility results. Citizenship, financial need, organization membership, and other sponsor-specific qualifications remain unknown unless you explicitly confirm them.</small>
+        </div>
+        <div className={`profile-storage-state ${profileSaveStatus === 'unavailable' ? 'is-unavailable' : 'is-saved'}`} role="status" aria-live="polite">
+          {profileSaveStatus === 'unavailable' ? 'Could not save your latest profile change in this browser. Export an encrypted backup before closing or reloading.' : profileSaveStatus === 'draft' ? 'Your unfinished profile is saved as a draft in this browser’s encrypted vault and is not used for eligibility calculations until valid. No account sign-in is required.' : profileSaveStatus === 'saved' ? 'Profile changes saved in this browser’s encrypted vault. No account sign-in is required.' : 'Profile drafts stay in this browser’s encrypted vault. Sign-in is only needed for optional cloud scholarship records.'}
+        </div>
+        <div className="form-card">
+          <div className="form-section"><div className="section-title-row"><div><h3>Geographic and citizenship filters</h3><p>Useful for state, county, local, and national scholarships. School name and district are optional.</p></div><span className="source-tag">LOCATION</span></div><div className="form-grid"><Field label="State of residence" value={profileDraft.state} onChange={v=>saveProfile({...profileDraft,state:v})}/><Field label="County" value={profileDraft.county} onChange={v=>saveProfile({...profileDraft,county:v})}/><Field label="Citizenship" value={profileDraft.citizenship} onChange={v=>saveProfile({...profileDraft,citizenship:v})}/><Field label="School name (optional)" value={profileDraft.school} onChange={v=>saveProfile({...profileDraft,school:v})} placeholder="Enter your school name"/><Field label="State where your school is located" value={profileDraft.schoolState} onChange={v=>saveProfile({...profileDraft,schoolState:v})} placeholder="Texas"/></div></div>
+          <div className="form-section"><div className="section-title-row"><div><h3>Education plans</h3><p>Separates current senior eligibility from future college enrollment.</p></div><span className="source-tag">LOCATION</span></div><div className="form-grid"><Field label="Age (optional)" value={profileDraft.age} onChange={v=>saveProfile({...profileDraft,age:v})} type="number"/><Field label="Current education level" value={profileDraft.grade} onChange={v=>saveProfile({...profileDraft,grade:v})}/><Field label="Expected graduation year" value={profileDraft.graduationYear} onChange={v=>saveProfile({...profileDraft,graduationYear:v})}/><Field label="Planned college" value={profileDraft.plannedCollege} onChange={v=>saveProfile({...profileDraft,plannedCollege:v})}/><Field label="State where your intended college is located" value={profileDraft.plannedCollegeState} onChange={v=>saveProfile({...profileDraft,plannedCollegeState:v})} placeholder="Texas"/><Field label="Intended major" value={profileDraft.plannedMajor} onChange={v=>saveProfile({...profileDraft,plannedMajor:v})}/></div><Field label="College status" value={profileDraft.collegeStatus} onChange={v=>saveProfile({...profileDraft,collegeStatus:v})} placeholder="e.g. incoming planned, full-time confirmed, part-time confirmed"/><Field label="Long-term education/career goal" value={profileDraft.degreeGoal} onChange={v=>saveProfile({...profileDraft,degreeGoal:v})}/></div>
+          <div className="form-section"><div className="section-title-row"><div><h3>Academic filters</h3><p>Official transcript values override résumé estimates.</p></div><span className="source-tag">OFFICIAL TRANSCRIPT</span></div><div className="form-grid"><Field label="GPA" value={profileDraft.gpa} onChange={v=>saveProfile({...profileDraft,gpa:v})}/><Field label="GPA type and scale" value={profileDraft.gpaType} onChange={v=>saveProfile({...profileDraft,gpaType:v})}/><Field label="Official class standing" value={profileDraft.classRank} onChange={v=>saveProfile({...profileDraft,classRank:v})}/><Field label="State credits earned" value={profileDraft.credits} onChange={v=>saveProfile({...profileDraft,credits:v})}/><Field label="ACT composite" value={profileDraft.act} onChange={v=>saveProfile({...profileDraft,act:v})}/><Field label="SAT score" value={profileDraft.sat} onChange={v=>saveProfile({...profileDraft,sat:v})}/><Field label="AP courses" value={profileDraft.apCourses} onChange={v=>saveProfile({...profileDraft,apCourses:v})}/><Field label="Dual-credit courses" value={profileDraft.dualCreditCourses} onChange={v=>saveProfile({...profileDraft,dualCreditCourses:v})}/></div><small className="profile-search-hint">ACT scores must be 1–36 and SAT scores 400–1600. GPA must be numeric; a maximum is applied only when you enter a numeric GPA scale.</small><label className="field"><span>Academic honors and distinctions</span><textarea value={profileDraft.academicHonors} onChange={e=>saveProfile({...profileDraft,academicHonors:e.target.value})}/></label><Field label="Graduation program, achievement level, and endorsement" value={profileDraft.programNotes} onChange={v=>saveProfile({...profileDraft,programNotes:v})}/><div className="rank-warning"><b>Official transcript rank</b><Field label="Rank source and date / clarification" value={profileDraft.rankDetails} onChange={v=>saveProfile({...profileDraft,rankDetails:v})}/></div><div className="rank-warning"><b>Texas Grant notation — confirm before use</b><p>This transcript notation should be confirmed with the school or financial-aid office; it is not treated as automatic qualification for every Texas grant or scholarship.</p><Field label="Transcript's Texas Grant notation" value={profileDraft.texasGrantNotation} onChange={v=>saveProfile({...profileDraft,texasGrantNotation:v})}/></div></div>
+          <div className="form-section"><div className="section-title-row"><div><h3>Activities and scholarship strengths</h3><p>Used for leadership, service, career-interest, and special-interest matching.</p></div><span className="source-tag">EXPERIENCE + INTERESTS</span></div><Field label="Academic and career interests" value={profileDraft.interests} onChange={v=>saveProfile({...profileDraft,interests:v})}/><label className="field"><span>Clubs, leadership, and extracurriculars</span><textarea value={profileDraft.activities} onChange={e=>saveProfile({...profileDraft,activities:e.target.value})}/></label><div className="form-grid"><Field label="Community service hours" value={profileDraft.serviceHours} onChange={v=>saveProfile({...profileDraft,serviceHours:v})}/><Field label="Languages" value={profileDraft.languages} onChange={v=>saveProfile({...profileDraft,languages:v})}/></div><label className="field"><span>Service experience</span><textarea value={profileDraft.service} onChange={e=>saveProfile({...profileDraft,service:e.target.value})}/></label><div className="form-grid"><Field label="Employment" value={profileDraft.employment} onChange={v=>saveProfile({...profileDraft,employment:v})}/><Field label="Certifications" value={profileDraft.certifications} onChange={v=>saveProfile({...profileDraft,certifications:v})}/></div></div>
+          <div className="form-section">
+            <div className="section-title-row"><div><h3>Extra search keywords</h3><p>Add broad topics not already covered by your profile to refine manual search links.</p></div><span className="source-tag">OPTIONAL SEARCH CONTEXT</span></div>
+            <label className="field"><span>Extra scholarship search keywords</span><textarea value={profileDraft.searchKeywords} onChange={e=>saveProfile({...profileDraft,searchKeywords:e.target.value})} placeholder="Broad topics or award categories you want included in search links"/></label>
+            <p className="profile-search-hint">These keywords can appear in Google searches after you click a search link. Do not enter your name, email, phone number, street address, account details, or other private information.</p>
+          </div>
+          <div className="form-section">
+            <div className="section-title-row"><div><h3>School and district information</h3><p>Add your district to help find school-based awards. School name and school location are listed above.</p></div><span className="source-tag">OPTIONAL</span></div>
+            <div className="form-grid">
+              <Field label="School district (optional)" value={profileDraft.district} onChange={v=>saveProfile({...profileDraft,district:v})} placeholder="Enter your school district"/>
+            </div>
+          </div>
+          <div className="form-section"><div className="section-title-row"><div><h3>Optional matching detail</h3><p>Only use these when the scholarship's specific rules require them.</p></div><span className="source-tag">NEEDS CONFIRMATION</span></div><label className="field"><span>First-generation college student status</span><select value={profileDraft.firstGeneration} onChange={e=>saveProfile({...profileDraft,firstGeneration:e.target.value})}><option>Not confirmed — verify sponsor definition and family education details before matching</option><option>Yes — I meet the sponsor's definition</option><option>No</option><option>Unsure — needs review</option></select></label></div>
+          <div className="privacy-note">◈ <span><b>Privacy-conscious profile.</b><br/>Contact details, street address, government identifiers, health information, and household financial details are excluded from automated matching. Profile data is stored in this browser only.</span></div>
+        </div>
+      </div>}
+
+      {tab === 'Application prep' && <div className="page narrow">
+        <div className="page-heading"><div><div className="eyebrow">MY SCHOLARSHIPS</div><h1>My scholarships</h1><p>Prepare each saved opportunity, organize required materials, and keep your drafts together on this device.</p></div></div>
+        <WorkspaceSubnav label="Scholarship management view" active={tab} options={[{ value: 'Scholarships', label: 'Tracker' }, { value: 'Application prep', label: 'Application preparation' }]} onChange={setTab}/>
+        {!prepScholarship ? <div className="panel prep-panel"><h2>Start an application workspace</h2><p className="muted">Add a scholarship to your tracker before preparing its application.</p><button className="secondary" onClick={()=>setTab('Scholarships')}>Open scholarship tracker</button></div> : <>
+          <section className="panel prep-panel">
+            <div className="prep-icon">✎</div><h2>{prepScholarship.name}</h2><p>{prepScholarship.provider} · {prepScholarship.award || 'Award amount not listed'} · Deadline: {prepScholarship.deadline ? formatDate(prepScholarship.deadline) : prepScholarship.deadlineText || 'Not listed'}</p>
+            <label className="field"><span>Scholarship workspace</span><select value={prepScholarship.id} onChange={event=>setPrepScholarshipId(event.target.value)}>{items.map(item=><option key={item.id} value={item.id}>{item.name} — {item.provider}</option>)}</select></label>
+            <div className="application-progress"><div><b>{prepSummary.completed} of {prepSummary.total} preparation items complete</b><strong>{prepSummary.percent}%</strong></div><progress max={100} value={prepSummary.percent}/><small>{prepSummary.requiredDocuments} required documents · {prepSummary.readyDocuments} ready · {prepSummary.pendingRecommendations} recommendation requests pending · {prepSummary.overLimitEssays} essays over word limit</small></div>
+            <h3>Core preparation checklist</h3>
+            {APPLICATION_CHECKLIST_STEPS.map((step,index)=><label className="check-row" key={step}><input type="checkbox" checked={Boolean(applicationProgress[prepScholarship.id]?.[index])} onChange={event=>saveApplicationTask(prepScholarship.id,index,event.target.checked)}/><span>{step}</span></label>)}
+            <small className="deadline-footnote">Progress, prompts, draft text, recommendation details, and document notes are stored locally in this browser and included only in your encrypted backup. They are not sent to cloud sponsor records.</small>
+          </section>
+          <div className="prep-section-grid">
+            <section className="panel prep-section">
+              <div className="prep-section-heading"><div><h3>Custom checklist</h3><p>Add steps specific to this scholarship.</p></div><span className="source-tag">{prepWorkspace.customTasks.filter(task=>task.completed).length}/{prepWorkspace.customTasks.length}</span></div>
+              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;savePrepWorkspace({...prepWorkspace,customTasks:[...prepWorkspace.customTasks,{id:createWorkspaceItemId(),title,completed:false,dueDate:String(data.get('dueDate')??'')}]});form.reset();}}>
+                <input name="title" aria-label="New checklist task" placeholder="Add a task…" maxLength={160} required/><input type="date" name="dueDate" aria-label="Task due date"/><button type="submit" className="secondary">Add task</button>
+              </form>
+              {prepWorkspace.customTasks.length===0?<p className="muted">No custom tasks yet.</p>:prepWorkspace.customTasks.map(task=><div className="prep-list-row" key={task.id}><label className="check-row"><input type="checkbox" checked={task.completed} onChange={event=>savePrepWorkspace({...prepWorkspace,customTasks:prepWorkspace.customTasks.map(row=>row.id===task.id?{...row,completed:event.target.checked}:row)})}/><span>{task.title}<small>{task.dueDate ? 'Due ' + formatDate(task.dueDate) : 'No due date'}</small></span></label><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,customTasks:prepWorkspace.customTasks.filter(row=>row.id!==task.id)})}>Remove</button></div>)}
+            </section>
+            <section className="panel prep-section">
+              <div className="prep-section-heading"><div><h3>Essay prompts and drafts</h3><p>Keep the exact prompt and check your word count.</p></div><span className="source-tag">{prepWorkspace.essays.length} prompts</span></div>
+              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;const limit=Number(data.get('wordLimit')??0);savePrepWorkspace({...prepWorkspace,essays:[...prepWorkspace.essays,{id:createWorkspaceItemId(),title,prompt:String(data.get('prompt')??''),wordLimit:Number.isInteger(limit)&&limit>0?Math.min(limit,10000):0,draft:''}]});form.reset();}}>
+                <input name="title" aria-label="Essay title" placeholder="Prompt title…" maxLength={160} required/><input name="wordLimit" type="number" min="1" max="10000" aria-label="Word limit" placeholder="Word limit"/><button type="submit" className="secondary">Add prompt</button>
+              </form>
+              {prepWorkspace.essays.length===0?<p className="muted">No essay prompts saved yet.</p>:prepWorkspace.essays.map(essay=>{const words=countApplicationWords(essay.draft);const over=essay.wordLimit>0&&words>essay.wordLimit;return <div className="prep-entry-card" key={essay.id}>
+                <div className="prep-section-heading"><b>{essay.title}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.filter(row=>row.id!==essay.id)})}>Remove</button></div>
+                <label className="field"><span>Essay title</span><input value={essay.title} maxLength={160} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,title:event.target.value}:row)})}/></label>
+                <label className="field"><span>Exact sponsor prompt</span><textarea rows={3} maxLength={5000} value={essay.prompt} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,prompt:event.target.value}:row)})}/></label>
+                <label className="field"><span>Word limit (leave blank when there is none)</span><input type="number" min="1" max="10000" value={essay.wordLimit||''} onChange={event=>{const value=Number(event.target.value);savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,wordLimit:Number.isInteger(value)&&value>0?Math.min(value,10000):0}:row)})}}/></label>
+                <label className="field"><span>Draft — keep your own voice and experiences</span><textarea rows={6} maxLength={20000} value={essay.draft} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,draft:event.target.value}:row)})}/></label>
+                <small className={over?'prep-word-count is-over':'prep-word-count'}>{words} words{essay.wordLimit>0?' / ' + essay.wordLimit:' · no word limit entered'}{over?' · over limit':''}</small>
+              </div>;})}
+            </section>
+            <section className="panel prep-section">
+              <div className="prep-section-heading"><div><h3>Recommendation requests</h3><p>Track who you asked and when a letter is due.</p></div><span className="source-tag">{prepWorkspace.recommenders.filter(person=>person.status==='Received').length}/{prepWorkspace.recommenders.length} received</span></div>
+              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const name=String(data.get('name')??'').trim();if(!name)return;savePrepWorkspace({...prepWorkspace,recommenders:[...prepWorkspace.recommenders,{id:createWorkspaceItemId(),name,role:String(data.get('role')??''),status:'Not requested',requestedAt:'',dueDate:String(data.get('dueDate')??''),receivedAt:'',notes:''}]});form.reset();}}>
+                <input name="name" aria-label="Recommender name" placeholder="Name…" maxLength={120} required/><input name="role" aria-label="Relationship or role" placeholder="Teacher, counselor…" maxLength={120}/><input type="date" name="dueDate" aria-label="Recommendation due date"/><button type="submit" className="secondary">Add person</button>
+              </form>
+              {prepWorkspace.recommenders.length===0?<p className="muted">No recommendation requests added.</p>:prepWorkspace.recommenders.map(person=><div className="prep-entry-card" key={person.id}>
+                <div className="prep-section-heading"><b>{person.name}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.filter(row=>row.id!==person.id)})}>Remove</button></div>
+                <div className="form-grid"><label className="field"><span>Name</span><input value={person.name} maxLength={120} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,name:event.target.value}:row)})}/></label><label className="field"><span>Role</span><input value={person.role} maxLength={120} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,role:event.target.value}:row)})}/></label><label className="field"><span>Status</span><select value={person.status} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,status:event.target.value as typeof person.status}:row)})}>{RECOMMENDATION_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label><label className="field"><span>Requested on</span><input type="date" value={person.requestedAt} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,requestedAt:event.target.value}:row)})}/></label><label className="field"><span>Due date</span><input type="date" value={person.dueDate} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,dueDate:event.target.value}:row)})}/></label><label className="field"><span>Received on</span><input type="date" value={person.receivedAt} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,receivedAt:event.target.value}:row)})}/></label></div>
+                <label className="field"><span>Notes</span><textarea rows={2} maxLength={1000} value={person.notes} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,notes:event.target.value}:row)})}/></label>
+              </div>)}
+            </section>
+            <section className="panel prep-section">
+              <div className="prep-section-heading"><div><h3>Required documents and deadlines</h3><p>Choose which suggested materials this sponsor actually requires.</p></div><span className="source-tag">{prepSummary.readyDocuments}/{prepSummary.requiredDocuments} ready</span></div>
+              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;savePrepWorkspace({...prepWorkspace,documents:[...prepWorkspace.documents,{id:createWorkspaceItemId(),title,required:data.get('required')==='on',ready:false,dueDate:String(data.get('dueDate')??''),notes:''}]});form.reset();}}>
+                <input name="title" aria-label="Document name" placeholder="Add a document…" maxLength={160} required/><input type="date" name="dueDate" aria-label="Document due date"/><label className="check-field"><input type="checkbox" name="required" defaultChecked/><span>Required</span></label><button type="submit" className="secondary">Add document</button>
+              </form>
+              {prepWorkspace.documents.length===0?<p className="muted">No document rows. Add the materials listed by the sponsor.</p>:prepWorkspace.documents.map(document=><div className="prep-document-row" key={document.id}>
+                <div className="prep-document-title"><b>{document.title}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.filter(row=>row.id!==document.id)})}>Remove</button></div>
+                <div className="prep-document-controls"><label className="check-field"><input type="checkbox" checked={document.required} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,required:event.target.checked}:row)})}/><span>Required</span></label><label className="check-field"><input type="checkbox" checked={document.ready} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,ready:event.target.checked}:row)})}/><span>Ready</span></label><label className="field"><span>Due date</span><input type="date" value={document.dueDate} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,dueDate:event.target.value}:row)})}/></label></div>
+                <label className="field"><span>Notes</span><input maxLength={1000} value={document.notes} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,notes:event.target.value}:row)})}/></label>
+              </div>)}
+              <small className="deadline-footnote">Suggested materials are not assumed to be required. Confirm the exact document list and due dates on the sponsor's official application page.</small>
+            </section>
+            <section className="panel prep-section">
+              <div className="prep-section-heading"><div><h3>Final application review</h3><p>Complete this check before recording a submission.</p></div></div>
+              {prepWorkspace.finalReview.map(item=><label className="check-row" key={item.id}><input type="checkbox" checked={item.done} onChange={event=>savePrepWorkspace({...prepWorkspace,finalReview:prepWorkspace.finalReview.map(row=>row.id===item.id?{...row,done:event.target.checked}:row)})}/><span>{item.label}</span></label>)}
+            </section>
+            <section className="panel prep-section prep-submission">
+              <div className="prep-section-heading"><div><h3>Submission</h3><p>Scholarship Scout does not submit applications for you.</p></div></div>
+              {!['Submitted','Awarded','Rejected'].includes(prepScholarship.applicationStatus||'Not started') && <button type="button" className="primary" onClick={markPrepScholarshipSubmitted}>Record as submitted</button>}
+              <small className="deadline-footnote">Submission status and decision dates are maintained in the scholarship tracker.</small>
+            </section>
+          </div>
+        </>}
+
+      </div>}
 
       <footer className="page-footer">
-        <div>Scholarship Scout <span>·</span> Personal scholarship assistant <span>·</span> Alpha 0.7</div>
-        <div className="local-health" role="status" aria-live="polite">
-          Local diagnostics active · {reliabilityEvents.length} recent client issues
-          {reliabilityEvents.length > 0 && <button type="button" className="text-button" onClick={() => { clearReliabilityEvents(); setReliabilityEvents([]); }}>Clear local diagnostics</button>}
-        </div>
-        <small>Diagnostic history stays on this device. No telemetry is sent.</small>
+        <div>Scholarship Scout <span>·</span> Personal scholarship assistant</div>
       </footer>
     </main>
 
     {showAdd && <div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setShowAdd(false)}}><div className="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title" tabIndex={-1}>
-      <div className="modal-head"><div><div className="eyebrow">{editingId ? 'EDIT OPPORTUNITY' : 'NEW OPPORTUNITY'}</div><h2 id="add-dialog-title">{editingId ? 'Update scholarship rules' : 'Add scholarship rules'}</h2></div><button className="close" aria-label="Close scholarship form" onClick={()=>setShowAdd(false)}>×</button></div>
+      <div className="modal-head"><div><div className="eyebrow">{editingId ? 'EDIT OPPORTUNITY' : 'NEW OPPORTUNITY'}</div><h2 id="add-dialog-title">{editingId ? 'Update scholarship rules' : 'Add scholarship rules'}</h2></div><button type="button" className="close" aria-label="Close scholarship form" onClick={()=>setShowAdd(false)}>×</button></div>
       <p className="muted">Enter the sponsor’s mandatory criteria. Scout will compare these structured rules with your profile; it will not guess missing conditions from promotional text.</p>
+      <form id="scholarship-editor-form" onSubmit={event => { event.preventDefault(); add(); }} onInvalidCapture={() => setShowAddValidation(true)}>
       <div className="modal-fields">
-        <Field label="Scholarship name *" value={draft.name} onChange={v=>setDraft({...draft,name:v})}/><Field label="Provider *" value={draft.provider} onChange={v=>setDraft({...draft,provider:v})}/>
+        <Field id="scholarship-name" label="Scholarship name *" value={draft.name} onChange={v=>setDraft({...draft,name:v})} required error={showAddValidation && !draft.name.trim() ? 'Enter a scholarship name.' : undefined}/><Field id="scholarship-provider" label="Provider *" value={draft.provider} onChange={v=>setDraft({...draft,provider:v})} required error={showAddValidation && !draft.provider.trim() ? 'Enter the scholarship provider.' : undefined}/>
         <div className="form-grid"><Field label="Award amount / details (exact sponsor wording)" value={draft.award} onChange={v=>setDraft({...draft,award:v})} placeholder="Copy the amount and qualifiers as published"/><Field label="Application opening date (only if confirmed)" value={draft.openDate || ""} onChange={v=>setDraft({...draft,openDate:v})} type="date"/><Field label="Opening date time zone (only if stated)" value={draft.openDateTimezone || ""} onChange={v=>setDraft({...draft,openDateTimezone:v})} placeholder="e.g. America/Chicago"/><Field label="Priority deadline date" value={draft.priorityDeadline || ""} onChange={v=>setDraft({...draft,priorityDeadline:v})} type="date"/><Field label="Final deadline date" value={draft.deadline} onChange={v=>setDraft({...draft,deadline:v})} type="date"/></div>
         <label className="field"><span>Exact public sponsor excerpt supporting the award</span><textarea value={draft.awardEvidenceText || ''} onChange={e=>setDraft({...draft,awardEvidenceText:e.target.value})} placeholder="Copy the sentence or table text that states the award amount and conditions."/></label>
         <Field label="Exact official page URL for the award excerpt" value={draft.awardEvidenceUrl || ''} onChange={v=>setDraft({...draft,awardEvidenceUrl:v})} placeholder="https://official-sponsor.example/award-rules#section"/>
@@ -1060,7 +1722,8 @@ function App() {
         <CheckField label="I reviewed the current official rules and recorded the supporting evidence above" checked={draft.sourceVerified} onChange={v=>setDraft({...draft,sourceVerified:v,lastCheckedDate:v?localToday():'',sourceReviewConfirmed:v})}/>
         <label className="field"><span>Additional notes</span><textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Documents, recommendations, essays, or questions…"/></label>
       </div>
-      <div className="modal-actions"><button className="secondary" onClick={()=>setShowAdd(false)}>Cancel</button><button className="primary" onClick={add}>{editingId ? 'Save rule changes' : 'Save & check eligibility'}</button></div>
+      </form>
+      <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setShowAdd(false)}>Cancel</button><button type="submit" form="scholarship-editor-form" className="primary">{editingId ? 'Save rule changes' : 'Save & check eligibility'}</button></div>
     </div></div>}
 
     {selected && selectedAssessment && <div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><div className="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="selected-dialog-title" tabIndex={-1}>
@@ -1093,7 +1756,7 @@ function App() {
         {selected.tags?.length ? <div className="application-tag-list">{selected.tags.map((tag)=><span key={tag}>{tag}</span>)}</div> : null}
       </div>
       {selected.notes && <div className="detail-notes"><b>Notes</b><p>{selected.notes}</p></div>}
-      <div className="modal-actions">{cloudUser && <button className="secondary" disabled={cloudBusy} onClick={()=>void handleCloudSave(selected)}>Save sponsor details to cloud</button>}<button className="secondary" onClick={()=>{const updated={...selected,archived:!selected.archived};saveItems(items.map(x=>x.id===selected.id?updated:x));setSelected(updated);setNotice(updated.archived?'Scholarship archived. Its history remains in your tracker.':'Scholarship restored to active records.')}}>{selected.archived ? 'Restore from archive' : 'Archive scholarship'}</button><button className="secondary" onClick={()=>{saveItems(items.filter(x=>x.id!==selected.id));setSelected(null)}}>Remove from tracker</button><button className="secondary" onClick={()=>{const item=selected;setSelected(null);openAdd(item,true)}}>Edit criteria / application</button><button className="primary" onClick={()=>setSelected(null)}>Done</button></div>
+      <div className="modal-actions">{cloudUser && <button className="secondary" disabled={cloudBusy} onClick={()=>void handleCloudSave(selected)}>Save sponsor details to cloud</button>}<button className="secondary" onClick={()=>{const updated={...selected,archived:!selected.archived};if(!saveItems(items.map(x=>x.id===selected.id?updated:x)))return;setSelected(updated);setNotice(updated.archived?'Scholarship archived. Its history remains in your tracker.':'Scholarship restored to active records.')}}>{selected.archived ? 'Restore from archive' : 'Archive scholarship'}</button><button className="secondary" onClick={()=>{if(!saveItems(items.filter(x=>x.id!==selected.id)))return;setSelected(null)}}>Remove from tracker</button><button className="secondary" onClick={()=>{const item=selected;setSelected(null);openAdd(item,true)}}>Edit criteria / application</button><button className="primary" onClick={()=>setSelected(null)}>Done</button></div>
     </div></div>}
 
     {backupDialogMode !== 'closed' && <div className="overlay" onMouseDown={event=>{if(event.target===event.currentTarget)closeBackupDialog();}}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="backup-dialog-title" tabIndex={-1}>
@@ -1103,7 +1766,7 @@ function App() {
         <label className="field"><span>Backup password (12 characters minimum)</span><input type="password" value={backupPassword} onChange={event=>setBackupPassword(event.target.value)} autoComplete="new-password" minLength={12} maxLength={1024} required/></label>
         <label className="field"><span>Confirm backup password</span><input type="password" value={backupPasswordConfirm} onChange={event=>setBackupPasswordConfirm(event.target.value)} autoComplete="new-password" minLength={12} maxLength={1024} required/></label>
         <div className="modal-actions"><button type="button" className="secondary" onClick={closeBackupDialog} disabled={backupBusy}>Cancel</button><button type="submit" className="primary" disabled={backupBusy}>{backupBusy ? 'Encrypting…' : 'Encrypt & download'}</button></div>
-      </form> : backupPendingRestore ? <form onSubmit={event=>{event.preventDefault();confirmRestoreLocalBackup();}}>
+      </form> : backupPendingRestore ? <form onSubmit={event=>{event.preventDefault();void confirmRestoreLocalBackup();}}>
         <p className="muted">This restore replaces the current local profile, tracker, checklists, and application workspaces on this device. This cannot be undone unless you have another backup.</p>
         <p><b>Backup preview:</b> {Object.keys((backupPendingRestore.data as {profile?:Record<string,unknown>}).profile || {}).length} profile fields, {((backupPendingRestore.data as {scholarships?:unknown[]}).scholarships || []).length} scholarships, {Object.keys((backupPendingRestore.data as {applicationProgress?:Record<string,unknown>}).applicationProgress || {}).length} checklists, and {Object.keys((backupPendingRestore.data as {applicationWorkspace?:Record<string,unknown>}).applicationWorkspace || {}).length} workspaces.</p>
         {!backupPendingRestore.encrypted && <p className="risk-flag">This backup is not encrypted. Only import it if you trust the file and its source.</p>}
@@ -1118,20 +1781,99 @@ function App() {
   </div>;
 }
 
+function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tracked:boolean;onTrack:()=>void}) {
+  const rules = item.extracted_rules as {
+    eligibility_requirements?:Array<{requirement?:string;mandatory?:boolean;evidence?:string;needs_human_confirmation?:boolean}>;
+    uncertainties?:string[]; short_source_summary?:string; application_fee?:boolean|null;
+    application_documents?:string[]; application_steps?:string[];
+  }|undefined;
+  return <article className="cloud-result-card" role="listitem">
+    <div className="candidate-top"><span className="status status-needs-information">{item.verification_state === 'human_verified' ? 'Sponsor-reviewed record' : item.verification_state === 'needs_human_review' ? 'Needs sponsor review' : 'Unverified lead'}</span><span>{(item.discovery_categories || [item.discovery_category]).map((category)=>category.replace(/_/g,' ')).join(' · ')}</span></div>
+    <h3>{item.title}</h3><p className="candidate-provider">{item.provider || 'Sponsor not confirmed'} · {item.source_domain || (()=>{try{return new URL(item.source_url).hostname.replace(/^www[.]/,'')}catch{return 'Source domain unavailable'}})()}</p>
+    <div className="cloud-result-meta"><span>{item.award_text || 'Award not extracted'}</span><span>{item.open_date ? `Opens ${item.open_date}` : "Opening date not confirmed"}</span><span>{item.deadline ? `Deadline ${item.deadline}` : "Deadline not confirmed"}</span></div>
+    <p className="candidate-description">{rules?.short_source_summary || item.excerpt || 'Open the source page and review the official sponsor rules.'}</p>
+    {item.relevance_score !== undefined && <div className="research-relevance"><b>Research relevance: {item.relevance_score}</b>{item.relevance_reasons?.length ? <small>{item.relevance_reasons.join(' · ')}</small> : null}</div>}
+    <small className="candidate-source">Discovery date: {item.discovered_at ? new Date(item.discovered_at).toLocaleString() : 'Not recorded'} · Cloud record created: {item.record_created_at ? new Date(item.record_created_at).toLocaleString() : 'Date not recorded'} · Sponsor rules last checked: {item.source_checked_at || 'Not recorded'}</small>
+    {sanitizePublicHttpsUrl(item.source_evidence_url || '') && <p><a className="source-link" href={sanitizePublicHttpsUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noreferrer">Open supporting rules / evidence ↗</a></p>}
+    {rules?.eligibility_requirements?.length ? <div className="extracted-rules"><b>Extracted sponsor rules — provisional</b>{rules.eligibility_requirements.map((rule,index)=><div key={index}><span>{rule.mandatory?'Required':'Selection / preference'}{rule.needs_human_confirmation?' · Confirm with sponsor':''}</span><p>{rule.requirement}</p>{rule.evidence&&<small>Evidence: {rule.evidence}</small>}</div>)}</div>:null}
+    {rules?.uncertainties?.length ? <div className="uncertainty-list"><b>Still unclear</b><ul>{rules.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
+    {rules?.application_documents?.length ? <div className="extracted-rules"><b>Application documents</b><ul>{rules.application_documents.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
+    {rules?.application_steps?.length ? <div className="extracted-rules"><b>Application steps</b><ol>{rules.application_steps.map((item,index)=><li key={index}>{item}</li>)}</ol></div>:null}
+    {rules?.application_fee === true ? <div className="risk-flag">⚠ The sponsor-page extraction indicates an application fee. Verify directly with the sponsor and do not pay to apply.</div>:null}
+    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.source_url) && <a href={sanitizePublicHttpsUrl(item.source_url) || undefined} target="_blank" rel="noreferrer">Open source page ↗</a>}<button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
+    <small className="candidate-source">Cloud records are not automatically refreshed. Re-check the current official sponsor page before relying on any detail.</small>
+  </article>;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessment:EligibilityAssessment;added:boolean;onAdd:()=>void}) {
+  const summary = summarizeEligibilityAssessment(assessment);
+  return <div className="candidate-card">
+    <div className="candidate-top"><StatusPill status={summary.status as Status}/><SourceStatusPill item={item}/></div>
+    <div className="candidate-deadline">{item.deadlineText && item.deadlineText !== item.deadline ? item.deadlineText : (item.deadline ? formatDate(item.deadline) : item.deadlineNotPublished ? 'No deadline published by sponsor' : 'Deadline not confirmed')} {item.deadlineTimezone ? `· ${item.deadlineTimezone}` : ''}</div>
+    <h3>{item.name}</h3><p className="candidate-provider">{item.provider}</p><div className="candidate-award">{item.award || 'Award details not published'}</div>
+    <p className="candidate-description">{item.notes}</p>
+    <div className="candidate-match"><b>Profile check</b><span>{summary.passed.length} pass · {summary.unknown.length} unknown · {summary.failed.length} fail</span></div>
+    <small className="candidate-source">{summary.caveat}</small>
+    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.sourceUrl) && <a href={sanitizePublicHttpsUrl(item.sourceUrl) || undefined} target="_blank" rel="noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
+    <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
+  </div>;
+}
+function Field({label,value,onChange,placeholder,type='text',id,required=false,error}:{label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string;id?:string;required?:boolean;error?:string}) {
+  const errorId = id ? `${id}-error` : undefined;
+  return <label className={'field' + (error ? ' field-invalid' : '')}>
+    <span>{label}</span>
+    <input id={id} type={type} value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)} required={required} aria-required={required || undefined} aria-invalid={error ? 'true' : undefined} aria-describedby={error ? errorId : undefined}/>
+    {error && errorId ? <small id={errorId} className="field-error" role="alert">{error}</small> : null}
+  </label>;
+}
+function WorkspaceSubnav({label,active,options,onChange}:{label:string;active:string;options:{value:string;label:string}[];onChange:(value:string)=>void}) {
+  return <div className="workspace-subnav" role="group" aria-label={label}>
+    {options.map(option=><button type="button" key={option.value} className={active === option.value ? 'is-active' : ''} aria-pressed={active === option.value} onClick={()=>onChange(option.value)}>{option.label}</button>)}
+  </div>;
+}
+function SelectField({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[][]}) { return <label className="field"><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>; }
+function CheckField({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}) { return <label className="check-field"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span>{label}</span></label>; }
+const STATUS_CLASS_MAP: Record<string, string> = {
+  'Eligible': 'eligible',
+  'Rules match — source unverified': 'rules-match-unverified',
+  'Needs information': 'needs-information',
+  'Ineligible': 'ineligible',
+  'Expired': 'expired',
+};
+function StatusPill({status}:{status:Status}) {
+  return <span className={'status status-' + (STATUS_CLASS_MAP[status] || 'unknown')}>{status}</span>;
+}
+function ApplicationStatusPill({status}:{status:ApplicationStatus}) { return <span className={'application-status-pill application-status-'+status.toLowerCase().replace(/ /g,'-')}>{status}</span>; }
+function PriorityPill({priority}:{priority:TrackerPriority}) { return <span className={'priority-pill priority-'+priority.toLowerCase()}>{priority}</span>; }
+function SourceStatusPill({item}:{item:Scholarship}) {
+  const freshness = getOfficialSourceFreshness(item);
+  const label = freshness === 'fresh' ? 'Fresh' : freshness === 'stale' ? 'Stale' : 'Unverified';
+  const tone = freshness === 'fresh' ? 'verified' : 'needs-review';
+  return <span className={'source-status source-status-'+tone} aria-label={'Official source freshness: '+label}>{label}</span>;
+}
+function DeadlineUrgencyPill({deadline,timeZone,openDate,openDateTimezone,deadlineTime}:{deadline?:string;timeZone?:string;openDate?:string;openDateTimezone?:string;deadlineTime?:string}) {
+  const urgency = getDeadlineUrgency(deadline, new Date(), timeZone, openDate, openDateTimezone, deadlineTime);
+  const explanation = openDate
+    ? "Opening date is evaluated as a date-only sponsor window" + (openDateTimezone ? " in " + openDateTimezone : "") + "; the deadline is not treated as overdue before the opportunity opens."
+    : timeZone
+      ? "Date-only estimate using the sponsor-stated time zone (" + timeZone + "); no cutoff time is inferred."
+      : "Date-only estimate; no sponsor time zone or cutoff time is inferred.";
+  return <span className={`deadline-urgency deadline-urgency-${urgency.status}`} title={explanation}>{urgency.label}</span>;
+}
+function EvidenceCompletenessList({item}:{item:Scholarship}) {
+  const review = getEvidenceCompleteness(item);
+  return <div className="evidence-completeness"><div className="panel-heading"><div><b>Sponsor evidence completeness</b><small>{review.completedCount} of {review.totalCount} source checks complete. This is not a personal eligibility result.</small></div><span className={review.complete ? 'source-status source-status-verified' : 'source-status source-status-needs-review'}>{review.complete ? 'Complete' : 'Needs review'}</span></div><ul>{review.checks.map((check)=><li key={check.label}><span className={check.complete ? 'evidence-check-done' : 'evidence-check-missing'}>{check.complete ? '✓' : '•'}</span>{check.label}</li>)}</ul></div>;
+}
+function EligibilityMatchSummary({assessment}:{assessment:EligibilityAssessment}) {
+  const summary = summarizeEligibilityAssessment(assessment);
+  const groups = [
+    { title: 'Matches recorded rules', items: summary.passed, tone: 'pass' },
+    { title: 'Does not meet', items: summary.failed, tone: 'fail' },
+    { title: 'Still needs confirmation', items: summary.unknown, tone: 'unknown' },
+    { title: 'Preferred qualifications (informational)', items: summary.preferred, tone: 'unknown' },
+  ].filter((group) => group.items.length > 0);
+  return <div className="match-summary"><div className="match-summary-heading"><b>{summary.headline}</b><span>{summary.passed.length} mandatory passed · {summary.failed.length} mandatory not met · {summary.unknown.length} mandatory unknown · {summary.preferred.length} preferred informational</span></div>{groups.length ? groups.map((group)=><section className={`match-summary-group match-summary-${group.tone}`} key={group.title}><h4>{group.title}</h4><ul>{group.items.map((item)=><li key={item.label}><b>{item.label}</b>{item.importance === 'preferred' && <small>{item.outcome === 'pass' ? 'Preferred match' : item.outcome === 'fail' ? 'Preferred not met — not disqualifying' : 'Preferred — confirmation pending'}</small>}<span>{item.detail || 'No additional detail recorded.'}</span>{item.evidence?.state === 'linked' ? <div className="criterion-evidence"><small>Source excerpt: {item.evidence.excerpt}</small>{sanitizePublicHttpsUrl(item.evidence.sourceUrl) && <a className="source-link" href={sanitizePublicHttpsUrl(item.evidence.sourceUrl) || undefined} target="_blank" rel="noreferrer">Open criterion source ↗</a>}</div> : item.criterionKey ? <small className="criterion-evidence-missing">Criterion evidence is not linked yet; confirm this rule on the sponsor's official page.</small> : null}</li>)}</ul></section>) : <p className="muted">Add structured sponsor criteria to compare this scholarship.</p>}<small>{summary.caveat} Sponsor decisions and requirements not recorded in Scout may still apply.</small></div>;
+}
+function Empty({onAdd}:{onAdd:()=>void}) { return <div className="empty"><div>▤</div><b>No scholarships in this view</b><p>Add an opportunity from discovery or enter its sponsor criteria.</p><button className="secondary" onClick={onAdd}>＋ Add scholarship</button></div>; }
+function FilteredEmpty({onClear}:{onClear:()=>void}) { return <div className="empty" role="status"><div>⌕</div><b>No scholarships match these filters</b><p>Saved opportunities are available, but your search or selected filters hide them.</p><button type="button" className="secondary" onClick={onClear}>Clear filters</button></div>; }
 export default App;

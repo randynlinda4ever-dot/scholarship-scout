@@ -112,6 +112,46 @@ test("maps a scholarship to the existing schema without student profile or free-
   }]);
 });
 
+test("omits inactive any-valued criteria and their stale importance/evidence metadata", () => {
+  const row = buildCloudScholarshipRow({
+    name: "Inactive Criteria Award",
+    provider: "AATSP",
+    award: "$1,000",
+    deadline: "2027-05-01",
+    sourceUrl: "https://www.aatspshh.org/award",
+    evidenceUrl: "https://www.aatspshh.org/rules",
+    sourceAuthority: "official-program",
+    lastCheckedDate: new Date().toISOString().slice(0, 10),
+    sourceVerified: true,
+    evidenceText: "Official sponsor award rules.",
+    awardEvidenceText: "The sponsor awards $1,000.",
+    awardEvidenceUrl: "https://www.aatspshh.org/rules#award",
+    criteria: {
+      schoolState: " ANY ",
+      ageRange: {},
+      requiresShhMembership: false,
+      majorKeywords: [" "],
+    },
+    criteriaImportance: {
+      schoolState: "mandatory",
+      ageRange: "mandatory",
+      requiresShhMembership: "mandatory",
+      majorKeywords: "mandatory",
+    },
+    criteriaEvidence: {
+      schoolState: {
+        excerpt: "No school-state restriction.",
+        sourceUrl: "https://www.aatspshh.org/rules#school-state",
+      },
+    },
+  }, "user-1");
+
+  assert.deepEqual(row.eligibility.criteria, {});
+  assert.deepEqual(row.eligibility.criteria_importance, {});
+  assert.deepEqual(row.eligibility.criteria_evidence, {});
+  assert.equal(row.verification_status, "verified");
+});
+
 test("keeps structured criteria unverified when criterion-level sponsor evidence is missing", () => {
   const row = buildCloudScholarshipRow({
     name: "Evidence Gap Award",
@@ -202,6 +242,24 @@ test("cloud matching refuses records with missing or invalid deadline identity",
     sponsor: "Example Foundation",
     deadline: "2027-02-30",
   }), null);
+});
+
+test("cloud writes reject impossible calendar dates but preserve real leap days", () => {
+  for (const deadline of ["2027-02-29", "2027-02-30", "2027-13-01", "2027-04-31"]) {
+    const row = buildCloudScholarshipRow({
+      name: "Synthetic Calendar Date Award",
+      sourceUrl: "https://example.org/award",
+      deadline,
+    }, "synthetic-user");
+    assert.equal(row.deadline, null, deadline);
+  }
+
+  const leapDay = buildCloudScholarshipRow({
+    name: "Synthetic Leap Day Award",
+    sourceUrl: "https://example.org/leap-day",
+    deadline: "2028-02-29",
+  }, "synthetic-user");
+  assert.equal(leapDay.deadline, "2028-02-29");
 });
 
 test("cloud matching refuses ambiguous multiple candidates instead of updating the first row", () => {

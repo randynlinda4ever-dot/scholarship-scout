@@ -1,3 +1,5 @@
+import { MAX_TRACKER_RECORDS } from "./trackerManagement.js";
+
 export const APPLICATION_CHECKLIST_STEPS = Object.freeze([
   "Review official eligibility rules and deadline",
   "Gather required transcript and academic information",
@@ -9,16 +11,20 @@ export const APPLICATION_CHECKLIST_STEPS = Object.freeze([
 
 const INVALID_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
+function getSafeStepCount(stepCount) {
+  return Number.isInteger(stepCount) && stepCount >= 0
+    ? Math.min(stepCount, 50)
+    : APPLICATION_CHECKLIST_STEPS.length;
+}
+
 export function normalizeApplicationProgress(value, validScholarshipIds, stepCount = APPLICATION_CHECKLIST_STEPS.length) {
   const normalized = {};
   if (!value || typeof value !== "object" || Array.isArray(value)) return normalized;
 
   const allowedIds = Array.isArray(validScholarshipIds) ? new Set(validScholarshipIds) : null;
-  const safeStepCount = Number.isInteger(stepCount) && stepCount >= 0
-    ? Math.min(stepCount, 50)
-    : APPLICATION_CHECKLIST_STEPS.length;
+  const safeStepCount = getSafeStepCount(stepCount);
 
-  for (const [scholarshipId, savedSteps] of Object.entries(value).slice(0, 500)) {
+  for (const [scholarshipId, savedSteps] of Object.entries(value).slice(0, MAX_TRACKER_RECORDS)) {
     if (!scholarshipId || scholarshipId.length > 200 || INVALID_KEYS.has(scholarshipId)) continue;
     if (allowedIds && !allowedIds.has(scholarshipId)) continue;
     if (!Array.isArray(savedSteps)) continue;
@@ -33,9 +39,7 @@ export function normalizeApplicationProgress(value, validScholarshipIds, stepCou
 
 export function updateApplicationProgress(progress, scholarshipId, stepIndex, checked, stepCount = APPLICATION_CHECKLIST_STEPS.length) {
   const normalized = normalizeApplicationProgress(progress, undefined, stepCount);
-  const safeStepCount = Number.isInteger(stepCount) && stepCount >= 0
-    ? Math.min(stepCount, 50)
-    : APPLICATION_CHECKLIST_STEPS.length;
+  const safeStepCount = getSafeStepCount(stepCount);
 
   if (
     typeof scholarshipId !== "string" ||
@@ -56,8 +60,12 @@ export function updateApplicationProgress(progress, scholarshipId, stepIndex, ch
 }
 
 export function getApplicationProgressSummary(progress, scholarshipId, stepCount = APPLICATION_CHECKLIST_STEPS.length) {
-  const normalized = normalizeApplicationProgress(progress, undefined, stepCount);
-  const steps = normalized[scholarshipId] ?? Array(stepCount).fill(false);
+  const safeStepCount = getSafeStepCount(stepCount);
+  const normalized = normalizeApplicationProgress(progress, undefined, safeStepCount);
+  const steps = typeof scholarshipId === "string" &&
+    Object.prototype.hasOwnProperty.call(normalized, scholarshipId)
+    ? normalized[scholarshipId]
+    : Array(safeStepCount).fill(false);
   const completed = steps.filter(Boolean).length;
   const total = steps.length;
   return {

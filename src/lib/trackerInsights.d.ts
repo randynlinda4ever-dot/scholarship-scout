@@ -18,8 +18,8 @@ export type PotentialDuplicate = {
   reasons: string[];
 };
 export type DeadlineMilestone = {
-  key: "priority" | "final";
-  label: "Priority deadline" | "Final deadline";
+  key: "opening" | "priority" | "final";
+  label: "Application opens" | "Priority deadline" | "Final deadline";
   deadline: string;
   deadlineText: string;
   deadlineTime: string;

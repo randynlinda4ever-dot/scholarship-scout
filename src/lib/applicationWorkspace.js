@@ -1,3 +1,5 @@
+import { MAX_TRACKER_RECORDS } from "./trackerManagement.js";
+
 export const APPLICATION_DOCUMENT_TEMPLATES = Object.freeze([
   "Official transcript",
   "Résumé / activities list",
@@ -20,7 +22,6 @@ export const RECOMMENDATION_STATUSES = Object.freeze([
 ]);
 
 const INVALID_KEYS = new Set(["__proto__", "prototype", "constructor"]);
-const MAX_SCHOLARSHIPS = 500;
 const MAX_TASKS = 50;
 const MAX_ESSAYS = 20;
 const MAX_RECOMMENDERS = 20;
@@ -151,7 +152,7 @@ export function normalizeApplicationWorkspace(value, validScholarshipIds) {
   const normalized = {};
   if (!isRecord(value)) return normalized;
   const allowedIds = Array.isArray(validScholarshipIds) ? new Set(validScholarshipIds) : null;
-  for (const [scholarshipId, entry] of Object.entries(value).slice(0, MAX_SCHOLARSHIPS)) {
+  for (const [scholarshipId, entry] of Object.entries(value).slice(0, MAX_TRACKER_RECORDS)) {
     if (!scholarshipId || scholarshipId.length > 200 || INVALID_KEYS.has(scholarshipId)) continue;
     if (allowedIds && !allowedIds.has(scholarshipId)) continue;
     if (!isRecord(entry)) continue;
@@ -201,35 +202,53 @@ export function getApplicationWorkspaceSummary(workspace, applicationSteps = [])
 }
 
 export function isValidApplicationWorkspace(value, validScholarshipIds) {
-  if (!isRecord(value) || Object.keys(value).length > MAX_SCHOLARSHIPS) return false;
+  if (!isRecord(value) || Object.keys(value).length > MAX_TRACKER_RECORDS) return false;
   const allowedIds = new Set(validScholarshipIds);
+  const validRowId = (id) => typeof id === "string" &&
+    id.trim().length > 0 && id.trim().length <= 80 && !INVALID_KEYS.has(id.trim());
+  const validText = (text, maxLength, required = false) =>
+    typeof text === "string" && text.trim().length <= maxLength &&
+    (!required || text.trim().length > 0);
+
   for (const [scholarshipId, entry] of Object.entries(value)) {
     if (!scholarshipId || scholarshipId.length > 200 || INVALID_KEYS.has(scholarshipId) ||
         !allowedIds.has(scholarshipId) || !isRecord(entry)) return false;
     const schemas = [
-      ["customTasks", MAX_TASKS, (row) => safeId(row.id) && trimText(row.title, MAX_TASK_TITLE) &&
+      ["customTasks", MAX_TASKS, (row) => validRowId(row.id) && validText(row.title, MAX_TASK_TITLE, true) &&
         typeof row.completed === "boolean" && (row.dueDate === "" || validDateOnly(row.dueDate) === row.dueDate)],
-      ["essays", MAX_ESSAYS, (row) => safeId(row.id) && trimText(row.title, MAX_ESSAY_TITLE) &&
-        typeof row.prompt === "string" && row.prompt.length <= MAX_ESSAY_PROMPT &&
+      ["essays", MAX_ESSAYS, (row) => validRowId(row.id) && validText(row.title, MAX_ESSAY_TITLE, true) &&
+        validText(row.prompt, MAX_ESSAY_PROMPT) &&
         Number.isInteger(row.wordLimit) && row.wordLimit >= 0 && row.wordLimit <= 10000 &&
         typeof row.draft === "string" && row.draft.length <= MAX_ESSAY_DRAFT],
-      ["recommenders", MAX_RECOMMENDERS, (row) => safeId(row.id) && trimText(row.name, MAX_CONTACT_NAME) &&
-        typeof row.role === "string" && typeof row.notes === "string" &&
+      ["recommenders", MAX_RECOMMENDERS, (row) => validRowId(row.id) && validText(row.name, MAX_CONTACT_NAME, true) &&
+        validText(row.role, MAX_CONTACT_NAME) && validText(row.notes, MAX_NOTES) &&
         RECOMMENDATION_STATUSES.includes(row.status) &&
         ["requestedAt", "dueDate", "receivedAt"].every((key) => row[key] === "" || validDateOnly(row[key]) === row[key])],
-      ["documents", MAX_DOCUMENTS, (row) => safeId(row.id) && trimText(row.title, MAX_TASK_TITLE) &&
+      ["documents", MAX_DOCUMENTS, (row) => validRowId(row.id) && validText(row.title, MAX_TASK_TITLE, true) &&
         typeof row.required === "boolean" && typeof row.ready === "boolean" &&
-        typeof row.notes === "string" && (row.dueDate === "" || validDateOnly(row.dueDate) === row.dueDate)],
+        validText(row.notes, MAX_NOTES) && (row.dueDate === "" || validDateOnly(row.dueDate) === row.dueDate)],
     ];
     for (const [key, maxLength, validateRow] of schemas) {
       if (entry[key] !== undefined) {
-        if (!Array.isArray(entry[key]) || entry[key].length > maxLength ||
-            entry[key].some((row) => !isRecord(row) || !validateRow(row))) return false;
+        if (!Array.isArray(entry[key]) || entry[key].length > maxLength) return false;
+        const seenIds = new Set();
+        for (const row of entry[key]) {
+          if (!isRecord(row) || !validateRow(row)) return false;
+          const id = row.id.trim();
+          if (seenIds.has(id)) return false;
+          seenIds.add(id);
+        }
       }
     }
     if (entry.finalReview !== undefined) {
-      if (!Array.isArray(entry.finalReview) || entry.finalReview.length > FINAL_APPLICATION_REVIEW_ITEMS.length ||
-          entry.finalReview.some((row) => !isRecord(row) || !safeId(row.id) || typeof row.done !== "boolean")) return false;
+      if (!Array.isArray(entry.finalReview) || entry.finalReview.length > FINAL_APPLICATION_REVIEW_ITEMS.length) return false;
+      const seenReviewIds = new Set();
+      for (const row of entry.finalReview) {
+        if (!isRecord(row) || typeof row.id !== "string" ||
+            !/^review-[1-5]$/.test(row.id) || typeof row.done !== "boolean" ||
+            seenReviewIds.has(row.id)) return false;
+        seenReviewIds.add(row.id);
+      }
     }
   }
   return true;

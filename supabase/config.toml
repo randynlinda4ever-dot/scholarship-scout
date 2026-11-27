@@ -6,3 +6,7 @@ verify_jwt = false
 
 [functions.scholarship-verify]
 verify_jwt = true
+
+# Destructive account actions must always require a valid signed-in user token.
+[functions.account-delete]
+verify_jwt = true

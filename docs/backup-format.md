@@ -40,9 +40,9 @@ The logical restore validator enforces a 2 MiB JSON payload limit, at most 500 s
 
 ## Storage limitations
 
-Browser localStorage does not offer a transaction spanning multiple keys. The helper snapshots the prior values, writes the new records, and restores the snapshots if a write fails. It reports separately whether rollback succeeded. If rollback fails, the UI warns the user to keep the tab open and export the current state before reloading.
+The app uses a synchronous Storage-compatible vault adapter backed by an in-memory Map and encrypted IndexedDB persistence. This helper snapshots the prior values, applies the batch to the in-memory map, and restores the snapshots if a synchronous write fails. Encrypted persistence is queued asynchronously; an IndexedDB failure raises a visible warning and the app blocks a safe lock while the latest change remains unsaved.
 
-This is a best-effort compensated transaction, not a database-grade atomic commit. The app must not claim that localStorage can guarantee atomic multi-key replacement under every browser or storage failure.
+This is a best-effort in-memory compensated transaction followed by queued encrypted persistence, not a database-grade atomic commit. The app must not claim that IndexedDB persistence can never fail or that a write is durable until the queued encrypted save completes.
 
 ## Tests
 

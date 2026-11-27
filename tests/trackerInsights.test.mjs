@@ -77,6 +77,14 @@ test("does not suggest duplicates for weakly related titles or missing deadline 
   assert.deepEqual(pairs, []);
 });
 
+test("flags a deadline earlier than a future opening date for review", () => {
+  const now = new Date("2026-11-10T12:00:00.000Z");
+  assert.deepEqual(
+    getDeadlineUrgency("2027-01-10", now, "America/Chicago", "2027-02-01", "America/Chicago"),
+    { status: "unknown", daysRemaining: null, label: "Opening/deadline range needs review" },
+  );
+});
+
 test("same-day sponsor cutoffs use the explicit IANA zone and never infer a zone", () => {
   const before = new Date("2026-11-10T22:59:00.000Z");
   const after = new Date("2026-11-10T23:01:00.000Z");

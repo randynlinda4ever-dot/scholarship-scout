@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { MAX_TRACKER_RECORDS } from "../src/lib/trackerManagement.js";
 import {
   APPLICATION_DOCUMENT_TEMPLATES,
   FINAL_APPLICATION_REVIEW_ITEMS,
@@ -112,6 +113,14 @@ test("calculates completion from checklist steps and only required application m
   assert.equal(summary.percent, 40);
   assert.equal(summary.wordCount, 3);
   assert.equal(summary.overLimitEssays, 1);
+});
+
+test("preserves workspace entries beyond the former 500-record cutoff", () => {
+  const ids = Array.from({ length: 600 }, (_, index) => `s-${index}`);
+  const source = Object.fromEntries(ids.map((id) => [id, {}]));
+  const normalized = normalizeApplicationWorkspace(source, ids);
+  assert.equal(MAX_TRACKER_RECORDS, 2000);
+  assert.equal(Object.keys(normalized).length, 600);
 });
 
 test("bounds workspace size and text fields", () => {

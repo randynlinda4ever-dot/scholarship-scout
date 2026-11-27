@@ -4,6 +4,7 @@ import { buildCloudScholarshipRow, findExistingCloudScholarshipMatch, mapCloudSc
 import { rankAndDeduplicateLiveResults } from "./discoveryPipeline.js";
 import { pickLiveDiscoveryProfile } from "./liveDiscoveryProfile.js";
 import { createCloudScholarshipId } from "./cloudRecordId.js";
+import { getDiscoveryClientId } from "./discoveryClientIdentity.js";
 
 export type LiveScholarship = {
   id: string;
@@ -94,7 +95,7 @@ async function requireUser() {
   const client = await requireClient();
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) {
-    throw new Error("Sign in with your email before saving scholarship records to your cloud account.");
+    throw new Error("Sign in before saving scholarship records to your cloud account.");
   }
   return { client, user: data.user };
 }
@@ -105,6 +106,40 @@ export async function sendMagicLink(email: string) {
   const { error } = await client.auth.signInWithOtp({
     email,
     options: { emailRedirectTo },
+  });
+  if (error) throw error;
+}
+
+export async function signInWithGoogle(): Promise<void> {
+  const client = await requireClient();
+  const { error } = await client.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: getMagicLinkRedirectUrl(),
+      scopes: "openid email profile",
+      queryParams: { prompt: "select_account" },
+    },
+  });
+  if (error) throw error;
+}
+
+/**
+ * Convert the current anonymous browser account into a Google-backed account
+ * without changing its auth.users id or ownership of existing cloud rows.
+ */
+export async function linkGoogleIdentity(): Promise<void> {
+  const client = await requireClient();
+  const { data, error: userError } = await client.auth.getUser();
+  if (userError || !data.user?.is_anonymous) {
+    throw new Error("Google can only be linked from an active anonymous cloud session.");
+  }
+  const { error } = await client.auth.linkIdentity({
+    provider: "google",
+    options: {
+      redirectTo: getMagicLinkRedirectUrl(),
+      scopes: "openid email profile",
+      queryParams: { prompt: "select_account" },
+    },
   });
   if (error) throw error;
 }
@@ -125,6 +160,29 @@ export async function signOutCloudUser() {
 }
 
 /**
+ * Permanently deletes only the currently authenticated account. The server
+ * derives the user id from the verified session; no user id is accepted here.
+ */
+export async function deleteCloudAccount(): Promise<void> {
+  const { client } = await requireUser();
+  const { data, error } = await client.functions.invoke("account-delete", {
+    body: { confirmation: "DELETE_MY_ACCOUNT" },
+  });
+
+  if (error || data?.success !== true) {
+    throw new Error("Your cloud account could not be deleted. Check your connection and try again, or contact privacy support.");
+  }
+
+  // The server has already removed the account. Clear this browser's session
+  // independently so the deleted identity is not retained by the client.
+  try {
+    await client.auth.signOut({ scope: "local" });
+  } catch {
+    // The local vault cleanup step also removes the stored sign-in session.
+  }
+}
+
+/**
  * Lists only scholarship opportunity records owned by the signed-in account.
  * Student profile and student-specific eligibility tables are intentionally not read.
  */
@@ -137,6 +195,7 @@ export async function listCloudScholarships(): Promise<LiveScholarship[]> {
       .eq("owner_id", user.id)
       .not("official_url", "is", null)
       .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
       .range(from, to),
     "Your cloud scholarship records could not be loaded.",
   );
@@ -159,6 +218,7 @@ export async function saveCloudScholarship(item: Record<string, unknown>): Promi
       .select("id,title,sponsor,deadline")
       .eq("owner_id", user.id)
       .eq("official_url", payload.official_url)
+      .order("id", { ascending: true })
       .range(from, to),
     "Could not check for an existing cloud scholarship record.",
   );
@@ -187,8 +247,10 @@ export async function runLiveScholarshipDiscovery(
 ): Promise<LiveDiscoveryRun> {
   const client = await requireClient();
   const safeProfile = pickLiveDiscoveryProfile(profile);
+  const clientId = getDiscoveryClientId();
   const { data, error } = await client.functions.invoke("scholarship-discover", {
     body: { profile: safeProfile, categories },
+    ...(clientId ? { headers: { "x-scout-client-id": clientId } } : {}),
   });
   if (error) {
     const context = (error as { context?: unknown }).context;

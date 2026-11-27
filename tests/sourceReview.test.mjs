@@ -65,6 +65,29 @@ test("does not change an unchanged record or an already unverified record", () =
   assert.deepEqual(invalidateSourceReviewIfChanged(unverified, { ...unverified, notes: "Changed" }), { ...unverified, notes: "Changed" });
 });
 
+test("keeps a source review when equivalent nested evidence objects have different key order", () => {
+  const reviewed = {
+    ...verified,
+    criteria: { state: "TX", majorKeywords: ["history", "arts"] },
+    criteriaEvidence: {
+      state: { excerpt: "Texas residents only.", sourceUrl: "https://example.org/rules" },
+      majorKeywords: { excerpt: "History and arts applicants may apply.", sourceUrl: "https://example.org/rules" },
+    },
+  };
+  const reordered = {
+    ...reviewed,
+    criteria: { majorKeywords: ["history", "arts"], state: "TX" },
+    criteriaEvidence: {
+      majorKeywords: { sourceUrl: "https://example.org/rules", excerpt: "History and arts applicants may apply." },
+      state: { sourceUrl: "https://example.org/rules", excerpt: "Texas residents only." },
+    },
+  };
+
+  const updated = invalidateSourceReviewIfChanged(reviewed, reordered);
+  assert.equal(updated.sourceVerified, true);
+  assert.equal(updated.lastCheckedDate, reviewed.lastCheckedDate);
+});
+
 test("preserves the previous sponsor and supporting evidence URLs when either URL changes", async () => {
   const { appendSourceEvidenceHistory } = await import("../src/lib/sourceReview.js");
   const updated = appendSourceEvidenceHistory(verified, {

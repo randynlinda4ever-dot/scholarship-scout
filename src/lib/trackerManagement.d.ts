@@ -7,6 +7,7 @@ export const APPLICATION_STATUSES: readonly [
   "Rejected"
 ];
 export const TRACKER_PRIORITIES: readonly ["Low", "Medium", "High"];
+export const MAX_TRACKER_RECORDS: number;
 export type ApplicationStatus = typeof APPLICATION_STATUSES[number];
 export type TrackerPriority = typeof TRACKER_PRIORITIES[number];
 export type TrackerRecord = {

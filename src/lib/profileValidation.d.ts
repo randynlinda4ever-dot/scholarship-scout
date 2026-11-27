@@ -4,8 +4,8 @@ export interface ProfileValidationResult {
 }
 
 /**
- * Validate only profile fields changed by the user. Blank optional values are
- * accepted; invalid values return actionable messages.
+ * Validate changed profile fields, including ISO country, U.S. state, and citizenship selections.
+ * Blank optional values remain accepted; invalid values return actionable messages.
  */
 export function validateProfileChanges(
   previous?: Record<string, unknown>,

@@ -76,4 +76,22 @@ Keep SC-246 OPEN at P0 until all of the following are evidenced:
 2. Use an authorized Supabase Dashboard/CLI path to reconcile the two existing server-side secrets without exposing either value.
 3. Run and archive fresh authenticated gateway and Supabase synthetic checks against the current function version.
 
-**Final status: SC-246 remains OPEN / P0. Owner authorization is recorded. No infrastructure mutation or completion is claimed.**
+## Subsequent verification update — 2026-11-27
+
+The named tunnel and gateway are now running on the current laptop. The tunnel UUID is `4a3825df-5302-49af-86fc-c71d07934eea`, with hostname `discovery-gateway.scholarship-scout.org` routed to the authenticated Node gateway on `127.0.0.1:8787`; SearXNG remains private on `127.0.0.1:8888`.
+
+The canonical Edge Function implementation has been deployed as version 16. It imports the shared adaptive search helper, uses the no-cost per-isolate limiter plus the gateway's process-wide request ceiling, trims the gateway bearer secret, rejects redirects without following them, and emits safe network failure classifications. The targeted edge suite was run against the exact canonical helper in an isolated temporary test directory: **38 passed, 0 failed, 0 skipped**. This is not the full application suite.
+
+### Current production blocker
+
+A synthetic production request against v16 still returns HTTP 502. The function's structured log identifies the configured gateway hostname as `plugin-loan-anybody-drilling.trycloudflare.com`, an old ephemeral Quick Tunnel hostname, rather than the current named-tunnel hostname. The failure classification is `network_dns_error`. This explains why local SearXNG and the named public tunnel work while Supabase cannot resolve its configured destination.
+
+The required server-side URL value is `https://discovery-gateway.scholarship-scout.org`. The gateway token must also be reset to the current local token file value. Neither secret has been changed in this pass because the connected Supabase integration has no secret-write action and the local CLI is not authenticated. Supabase CLI 3.4.0 is available through `npx`; `secrets list` confirmed that no access token is configured. A local script, `C:\Users\levih\searxng-local\gateway\set-supabase-discovery-secrets.ps1`, was prepared to set only the two required server-side secrets from the local token file and verify secret names without printing values. It requires a one-time `npx supabase login` with a token scoped for `edge_functions_secrets_write`.
+
+### Search benchmark
+
+The six-query golden fixture was run directly against local SearXNG (not through the Supabase function): 6/6 HTTP 200, 160 raw results, 145 unique URLs, 15 duplicate URLs (9.4%), median latency 575 ms, p95 latency 1,091 ms. Four of nine curated expected-source anchors appeared. This indicates acceptable local response stability but only moderate anchor recall; search ranking and query expansion still need improvement. Separately, one authenticated request through the named Cloudflare gateway returned 15 results in 1,101 ms.
+
+All local services remain running: Docker Desktop/SearXNG, Node gateway, and cloudflared tunnel. No service was retired.
+
+**Current status: SC-246 remains OPEN / P0. Production discovery is not yet restored. The remaining blocker is updating and verifying the two Supabase Edge Function secrets, then rerunning the synthetic production check and benchmark through the complete path.**

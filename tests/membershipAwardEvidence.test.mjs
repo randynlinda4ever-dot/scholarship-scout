@@ -43,6 +43,40 @@ test("organization membership and good-standing activity text are not medal evid
   assert.equal(result.failed, 0);
 });
 
+test("negative medal statements cannot count a year as an earned medal", () => {
+  const result = assess(
+    { requiredNseMedalYears: [2025, 2026] },
+    { nseMedalYears: "No medal in 2025, but earned a medal in 2026" },
+  );
+  assert.equal(result.checks.find((item) => item.label === "NSE/NPE medal — 2025")?.outcome, "fail");
+  assert.equal(result.checks.find((item) => item.label === "NSE/NPE medal — 2026")?.outcome, "pass");
+});
+
+test("confirmed medal wording is not mistaken for a pending confirmation", () => {
+  const result = assess(
+    { requiredNseMedalYears: [2025, 2026] },
+    { nseMedalYears: "Confirmed medals in 2025 and 2026" },
+  );
+  assert.deepEqual(
+    result.checks.filter((item) => item.label.startsWith("NSE/NPE medal")).map((item) => item.outcome),
+    ["pass", "pass"],
+  );
+});
+
+test("negative qualifiers override a leading yes or confirmed membership status", () => {
+  const cases = [
+    [{ requiresShhMembership: true }, { shhMembershipStatus: "Confirmed but inactive" }, "SHH membership"],
+    [{ requiresSpanishAchievement: true }, { spanishAchievementStatus: "Yes, but not confirmed" }, "Spanish achievement"],
+    [{ requiresNseRegistration2027: true }, { nseRegistered2027: "Yes, but not registered" }, "NSE/NPE 2026/27 participation"],
+    [{ requiresFourHMembership: true }, { fourHMembershipStatus: "Confirmed but inactive" }, "4-H membership"],
+    [{ requiresFirstGeneration: true }, { firstGeneration: "Yes, but not first-generation" }, "First-generation status"],
+  ];
+  for (const [criteria, profile, label] of cases) {
+    const result = assess(criteria, profile);
+    assert.equal(result.checks.find((item) => item.label === label)?.outcome, "unknown", label);
+  }
+});
+
 test("confirmed membership does not establish a separately required Spanish achievement", () => {
   const result = assess(
     { requiresShhMembership: true, requiresSpanishAchievement: true },

@@ -7,7 +7,7 @@ const CRITERIA_FIELDS = [
   "requiresFinancialNeed", "requiresFirstGeneration", "applicationFee",
 ];
 
-import { deriveSourceStatus, getOfficialSourceFreshness, hasAwardEvidence, normalizeSourceCheckDate, resolveSourceAuthority, sanitizePublicHttpsUrl } from "./evidence.js";
+import { deriveSourceStatus, getOfficialSourceFreshness, hasAwardEvidence, isInactiveCriterionValue, normalizeSourceCheckDate, resolveSourceAuthority, sanitizePublicHttpsUrl } from "./evidence.js";
 
 function hasValidDeadlineIdentity(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -44,7 +44,7 @@ function safeCriteria(criteria = {}) {
   const result = {};
   for (const key of CRITERIA_FIELDS) {
     const value = criteria?.[key];
-    if (value === undefined || value === null || value === "") continue;
+    if (isInactiveCriterionValue(value)) continue;
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       result[key] = value;
     } else if (Array.isArray(value) && value.every((entry) => typeof entry === "string" || typeof entry === "number")) {
@@ -73,9 +73,7 @@ function safeCriteria(criteria = {}) {
 function safeCriteriaImportance(criteria = {}, importance = {}) {
   const result = {};
   for (const key of [...CRITERIA_FIELDS, "otherRequirement"]) {
-    if (criteria?.[key] === undefined || criteria?.[key] === null || criteria?.[key] === "" ||
-      criteria?.[key] === false || criteria?.[key] === "any" ||
-      (Array.isArray(criteria?.[key]) && criteria[key].length === 0)) continue;
+    if (isInactiveCriterionValue(criteria?.[key])) continue;
     if (importance?.[key] === "preferred" || importance?.[key] === "mandatory") {
       result[key] = importance[key];
     }
@@ -87,9 +85,7 @@ function safeCriteriaEvidence(criteria = {}, evidence = {}) {
   const result = {};
   for (const key of CRITERIA_FIELDS) {
     const criterion = criteria?.[key];
-    if (criterion === undefined || criterion === null || criterion === "" ||
-      criterion === false || criterion === "any" ||
-      (Array.isArray(criterion) && criterion.length === 0)) continue;
+    if (isInactiveCriterionValue(criterion)) continue;
     const entry = evidence?.[key];
     const excerpt = cleanText(entry?.excerpt, 1000);
     const sourceUrl = cleanText(entry?.sourceUrl, 2048);
@@ -141,7 +137,7 @@ export function buildCloudScholarshipRow(item, ownerId) {
     award_min: null,
     award_max: null,
     currency: awardCurrencyBasis || "UNSPECIFIED",
-    deadline: /^\d{4}-\d{2}-\d{2}$/.test(cleanText(item?.deadline, 10)) ? item.deadline : null,
+    deadline: hasValidDeadlineIdentity(item?.deadline) ? item.deadline : null,
     eligibility: {
       criteria,
       criteria_importance: criteriaImportance,

@@ -23,10 +23,35 @@ const SOURCE_CRITICAL_FIELDS = [
   "criteriaEvidence",
 ];
 
-const sameValue = (left, right) => {
+function deepEqualValue(left, right, seen) {
   if (Object.is(left, right)) return true;
+  if (left === null || right === null ||
+      typeof left !== "object" || typeof right !== "object") return false;
+  if (left instanceof Date || right instanceof Date) {
+    return left instanceof Date && right instanceof Date &&
+      left.getTime() === right.getTime();
+  }
+  if (Object.getPrototypeOf(left) !== Object.getPrototypeOf(right)) return false;
+
+  if (seen.has(left)) return seen.get(left) === right;
+  seen.set(left, right);
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((value, index) => deepEqualValue(value, right[index], seen));
+  }
+
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key, index) =>
+    key === rightKeys[index] && deepEqualValue(left[key], right[key], seen)
+  );
+}
+
+const sameValue = (left, right) => {
   try {
-    return JSON.stringify(left) === JSON.stringify(right);
+    return deepEqualValue(left, right, new WeakMap());
   } catch {
     return false;
   }

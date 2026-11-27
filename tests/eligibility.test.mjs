@@ -41,6 +41,12 @@ test("prefers the exact class-rank fraction over a rounded percentage band", () 
   assert.equal(profileRankPercent({ classRank: "Top 8.5%" }), 8.5);
 });
 
+test("rejects impossible class-rank fractions instead of scoring them as top-ranked", () => {
+  for (const classRank of ["0 of 100", "101 of 100", "1 of 0", "0 of 100, top 1%"]) {
+    assert.equal(profileRankPercent({ classRank }), null, classRank);
+  }
+});
+
 test("passes matching objective rules but retains unverified-source state", () => {
   const assessment = assessEligibility({
     criteria: { state: "Texas", educationLevel: "high-school-senior", graduationYear: 2027, minGpa: 3.5, topPercentMax: 10, minAct: 30, majorKeywords: ["environmental science"] },
@@ -102,6 +108,72 @@ test("keeps an ACT-or-SAT match unknown when the only remaining route has an inv
 
   assert.equal(assessment.checks.find((item) => item.label === "ACT or SAT threshold").outcome, "unknown");
   assert.equal(assessment.failed, 0);
+});
+
+test("requires a valid ACT or SAT score before passing a test-score requirement", () => {
+  const criteria = { requiresTestScore: true };
+  const invalid = assessEligibility({
+    criteria,
+    sourceUrl: sponsorSourceUrl,
+    criteriaEvidence: criterionEvidenceFor(criteria),
+  }, { ...profile, act: "999", sat: "399" }, new Date("2026-11-09T12:00:00"));
+  assert.equal(invalid.checks.find((item) => item.label === "Standardized test score").outcome, "unknown");
+
+  const validAct = assessEligibility({
+    criteria,
+    sourceUrl: sponsorSourceUrl,
+    criteriaEvidence: criterionEvidenceFor(criteria),
+  }, { ...profile, act: "36", sat: "" }, new Date("2026-11-09T12:00:00"));
+  assert.equal(validAct.checks.find((item) => item.label === "Standardized test score").outcome, "pass");
+});
+
+test("rejects non-integer ACT thresholds and non-ten-point SAT scores or thresholds", () => {
+  const invalidSatScoreCriteria = { minSat: 1400 };
+  const invalidSatScore = assessEligibility({
+    criteria: invalidSatScoreCriteria,
+    sourceUrl: sponsorSourceUrl,
+    criteriaEvidence: criterionEvidenceFor(invalidSatScoreCriteria),
+  }, { ...profile, sat: "1455" }, new Date("2026-11-09T12:00:00"));
+  assert.equal(invalidSatScore.checks.find((item) => item.label === "SAT minimum").outcome, "unknown");
+
+  const invalidSatThresholdCriteria = { minSat: 1401 };
+  const invalidSatThreshold = assessEligibility({
+    criteria: invalidSatThresholdCriteria,
+    sourceUrl: sponsorSourceUrl,
+    criteriaEvidence: criterionEvidenceFor(invalidSatThresholdCriteria),
+  }, { ...profile, sat: "1600" }, new Date("2026-11-09T12:00:00"));
+  assert.equal(invalidSatThreshold.checks.find((item) => item.label === "SAT minimum").outcome, "unknown");
+
+  const invalidActThresholdCriteria = { minAct: 28.5 };
+  const invalidActThreshold = assessEligibility({
+    criteria: invalidActThresholdCriteria,
+    sourceUrl: sponsorSourceUrl,
+    criteriaEvidence: criterionEvidenceFor(invalidActThresholdCriteria),
+  }, { ...profile, act: "36" }, new Date("2026-11-09T12:00:00"));
+  assert.equal(invalidActThreshold.checks.find((item) => item.label === "ACT minimum").outcome, "unknown");
+});
+
+test("malformed sponsor criteria cannot bypass eligibility checks or crash assessment", () => {
+  const cases = [
+    [{ requiresTestScore: "false" }, { act: "36" }, "Standardized test score"],
+    [{ educationLevel: "graduate" }, { grade: "High school senior" }, "Education level"],
+    [{ citizenship: "permanent-resident" }, { citizenship: "U.S. citizen" }, "Citizenship"],
+    [{ ageRange: [18, 22] }, { age: "18" }, "Age range"],
+    [{ majorKeywords: "engineering" }, { plannedMajor: "Engineering" }, "Field of study"],
+    [{ enrollmentStatuses: "full-time" }, { collegeStatus: "Full-time" }, "Enrollment status alternatives"],
+    [{ requiredNseMedalYears: { year: 2025 } }, { nseMedalYears: "2025" }, "NSE/NPE medal"],
+    [{ requiredMembership: ["NHS"] }, { activities: "NHS member in good standing" }, "Organization membership"],
+    [{ otherRequirement: { text: "must be a senior" } }, { grade: "High school senior" }, "Additional sponsor requirements"],
+    [{ requiresFirstGeneration: "false" }, { firstGeneration: "Yes" }, "First-generation status"],
+  ];
+  for (const [criteria, profilePatch, label] of cases) {
+    const assessment = assessEligibility({
+      criteria,
+      sourceUrl: sponsorSourceUrl,
+      criteriaEvidence: criterionEvidenceFor(criteria),
+    }, { ...profile, ...profilePatch }, new Date("2026-11-09T12:00:00"));
+    assert.equal(assessment.checks.find((item) => item.label === label)?.outcome, "unknown", label);
+  }
 });
 
 test("detects a hard GPA mismatch", () => {
@@ -379,7 +451,7 @@ test("matches complete multi-word organization names across punctuation boundari
     criteria,
     sourceUrl: sponsorSourceUrl,
     criteriaEvidence: criterionEvidenceFor(criteria),
-  }, { ...profile, activities: "ART-CLUB; good standing" }, new Date("2026-11-09T12:00:00"));
+  }, { ...profile, activities: "ART-CLUB membership in good standing" }, new Date("2026-11-09T12:00:00"));
 
   assert.equal(assessment.checks.find((item) => item.label === "Organization membership").outcome, "pass");
 });
@@ -390,8 +462,18 @@ test("does not treat an explicit lack of good standing as a membership pass", ()
     criteria,
     sourceUrl: sponsorSourceUrl,
     criteriaEvidence: criterionEvidenceFor(criteria),
-  }, { ...profile, activities: "Art Club; not in good standing" }, new Date("2026-11-09T12:00:00"));
+  }, { ...profile, activities: "Art Club, not in good standing" }, new Date("2026-11-09T12:00:00"));
 
+  assert.equal(assessment.checks.find((item) => item.label === "Organization membership").outcome, "unknown");
+});
+
+test("good standing for a different organization cannot verify the required membership", () => {
+  const criteria = { requiredMembership: "Art Club" };
+  const assessment = assessEligibility({
+    criteria,
+    sourceUrl: sponsorSourceUrl,
+    criteriaEvidence: criterionEvidenceFor(criteria),
+  }, { ...profile, activities: "Art Club; National Honor Society in good standing" }, new Date("2026-11-09T12:00:00"));
   assert.equal(assessment.checks.find((item) => item.label === "Organization membership").outcome, "unknown");
 });
 

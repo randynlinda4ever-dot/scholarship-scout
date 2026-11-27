@@ -26,3 +26,22 @@ test("rejects insecure non-local callback origins", () => {
     pathname: "/",
   }), /HTTPS/);
 });
+
+test("keeps scheme-relative-looking callback paths on the initiating origin", () => {
+  const callback = new URL(getMagicLinkRedirectUrl({
+    origin: "https://scholarship-scout.org",
+    pathname: "//attacker.example",
+  }));
+  assert.equal(callback.origin, "https://scholarship-scout.org");
+});
+
+test("allows only plain HTTP on the exact localhost development host", () => {
+  assert.equal(getMagicLinkRedirectUrl({
+    origin: "http://localhost:5173",
+    pathname: "/scout",
+  }), "http://localhost:5173/scout");
+  assert.throws(() => getMagicLinkRedirectUrl({
+    origin: "ftp://localhost",
+    pathname: "/",
+  }), /HTTPS/);
+});

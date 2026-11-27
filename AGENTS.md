@@ -1,5 +1,8 @@
 # Agent collaboration guide
 
+Shared GitHub repository: https://github.com/randynlinda4ever-dot/scholarship-scout
+Canonical source: https://app.agentgrid.io/artifacts/Y9kTsZ0-vazOq3AnWspbAw. Read `GITHUB_REPOSITORY.md` for branch, review, privacy, and synchronization rules. AgentGrid remains authoritative; GitHub is a collaboration mirror, not an automatically synchronized remote.
+
 Scholarship Scout is a React 18 + TypeScript application using Vite, Supabase Auth, a public Supabase Edge Function for bounded scholarship discovery, and a self-hosted SearXNG gateway.
 
 ## Read first
@@ -28,16 +31,19 @@ Check the current artifact revision before editing and re-read files if another 
 - Keep passed, failed, and unknown eligibility outcomes distinct. Missing information must not be treated as an automatic failure.
 - Never auto-submit a scholarship application, send a sponsor email, or upload essays or student documents.
 
-## Current backend facts
+## Current backend facts — checked 2026-11-27
 
-- The active Supabase database has four RLS-protected public tables. The app's cloud CRUD is limited to `public.scholarships`.
-- The Supabase project `wjrwvempgjvoxlioodse` was rechecked as ACTIVE_HEALTHY on 2026-11-25. The deployed `scholarship-discover` Edge Function is ACTIVE at version 10 with `verify_jwt=false`; its inspected inline source hash is `5ebc47c217ffdaf9234df5ce12fa4860f671e0641febca218a87aee6a98bc328`. This does not make cloud CRUD or other functions public.
-- The latest inspected function-edge traffic contained seven HTTP 502 POSTs tagged version 9, latest `2026-11-25T15:04:10.559Z`; no version-10 invocation appeared in that result. Treat those failures as v9 evidence, not proof of a fresh v10 failure. No fresh v10 synthetic POST was performed in this audit.
-- The live v10 inline function uses a fixed `buildSearchJobs` / `runBoundedSearches` plan. The AgentGrid implementation snapshot used for the source comparison was revision `9eb1e1a99f70f2389a9d4875c48d802d1e5fa6c2`; its wrapper imports a shared helper with adaptive search, bounded retry, a short-lived complete-result cache, and detailed failure-reason codes. The dedicated SC-246 report and status-document refresh were committed as documentation-only revision `bd50d06fc873f4d28cbae60b74af0e2f5465030d`; those edits did not change the product source. The sources are not semantically equivalent; coordinate deployment parity through SC-247.
-- Required server-side secret names are `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN`. Their values were not read. Current secret presence/configuration was not verifiable through the connected Supabase tools. A previous Quick Tunnel HTTP 200 with 15 synthetic results is historical evidence only; a stable named tunnel and fresh end-to-end request remain unverified.
-- Treat deployed-version observations as distinct from committed source and tests. Tests of committed code do not independently verify the live deployment.
-- `supabase/legacy/202611090001_scholarship_scout.sql` is an incompatible historical migration. Do not move it back into the active migrations folder or apply it to the existing project.
-- Anonymous Sign-Ins and CAPTCHA still require project-owner configuration. Do not change Supabase settings, database schema, RLS, secrets, or deployments without explicit owner approval.
+- The canonical product source is the AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`. Resolve its latest committed revision from AgentGrid history before every edit. AgentGrid is the source of truth; do not use Vercel as a substitute source or deploy target.
+- The existing Supabase project is `wjrwvempgjvoxlioodse`. Supabase reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=false`; that setting applies only to public discovery and does not make cloud CRUD or other functions public.
+- The current Supabase function response returns an entrypoint that instantiates `createPublicRateLimiter()`, the in-memory per-isolate limiter. Its shared helper does include adaptive search, a short-lived cache, and bounded retries. The current canonical AgentGrid wrapper instead imports `createUpstashRateLimiter` and `getDiscoveryRateLimitConfig` from `supabase/functions/_shared/discovery-rate-limit.mjs`, passes the shared limiter to the handler, and allows `x-scout-client-id` through CORS. The deployed file set does not show that canonical wrapper/module. Source parity is not established; never infer it from the function version.
+- Supabase metadata reports version 19 while the returned `entrypoint_path` has an internal `_16` suffix. Record this as a provenance discrepancy; it does not prove which historical revision is running. The returned `ezbr_sha256` metadata value is `824617afc4a5b8886424ecd6ad624c302fd3d2ccf2c5fe9993ac1fb59080f2af`; do not mislabel it as a recomputed source-file hash.
+- An earlier upstream failure at `2026-11-27T02:48:55.575Z` returned four `network_dns_error` failures against `plugin-loan-anybody-drilling.trycloudflare.com`. A later read-only production smoke check used synthetic Texas/2027/local inputs, returned 40 leads, and was corroborated by a Supabase discovery `POST 200` at `2026-11-27T05:09:06.848Z`. This is one successful request, not sustained-uptime evidence.
+- Required gateway secrets are `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN`. Canonical distributed limiting additionally requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Their presence and values were not verified; never print or guess them. The connected Supabase integration does not expose secret read/write actions.
+- Do not deploy the canonical wrapper until the gateway and Upstash secrets are verified, the source diff is reviewed, and a rollback path is documented. The canonical rate limiter fails closed with HTTP 503 when shared storage is unavailable; do not weaken it.
+- The current database advisors report leaked-password protection disabled (a warning; current sign-in is magic-link based), missing covering indexes on `eligibility_checks.scholarship_id` and `scholarships.source_id`, and two currently unused indexes. Health advisors report no findings. Do not change auth settings or indexes without verifying the relevant product requirements and query patterns.
+- Keep student profiles, eligibility, essays, and application-preparation data local. The discovery payload remains limited to state, graduation year, and selected category IDs. Preserve RLS and owner-scoped cloud scholarship CRUD.
+- `supabase/legacy/202611090001_scholarship_scout.sql` is an incompatible historical migration. Never apply it.
+- See [the current runtime audit](docs/runtime-audit-2026-11-27.md) for evidence, verification limits, and prioritized next work.
 
 ## Development checks
 

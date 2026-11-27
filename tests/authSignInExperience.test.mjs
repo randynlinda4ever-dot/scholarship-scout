@@ -2,8 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { AUTH_EMAIL_COOLDOWN_SECONDS, getAuthCooldownRemainingSeconds, isAuthRateLimitError, isExpiredAuthLinkError } from "../src/lib/authCooldown.js";
-import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
-const app = await readWorkspaceSource();
+const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 const api = await readFile(new URL("../src/lib/scholarshipApi.ts", import.meta.url), "utf8");
 const client = await readFile(new URL("../src/lib/supabaseClient.ts", import.meta.url), "utf8");
 

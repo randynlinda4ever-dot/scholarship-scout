@@ -5,6 +5,7 @@ import {
   decryptBackup,
   encryptBackup,
   isEncryptedBackupEnvelope,
+  MAX_ENCRYPTED_BACKUP_FILE_BYTES,
 } from '../src/lib/backupCrypto.js';
 
 globalThis.crypto ??= webcrypto;
@@ -43,6 +44,11 @@ test('wrong passwords and ciphertext tampering are rejected', async () => {
 test('unsupported formats and weak passwords are rejected', async () => {
   await assert.rejects(encryptBackup(payload, 'too short'));
   await assert.rejects(decryptBackup({ format: 'other', version: 1 }, 'a long memorable backup password'));
+});
+
+test('encrypted backup file limit includes base64 overhead beyond the plaintext cap', () => {
+  assert.equal(MAX_ENCRYPTED_BACKUP_FILE_BYTES, 3 * 1024 * 1024);
+  assert.ok(MAX_ENCRYPTED_BACKUP_FILE_BYTES > 2 * 1024 * 1024);
 });
 
 async function createVersionOneEnvelope(value, passphrase) {

@@ -89,7 +89,10 @@ test("an invalid opening date or explicit opening timezone stays Unknown and nev
 test("an opening date without a published deadline still appears as a not-open tracker milestone", () => {
   const milestones = getDeadlineMilestones({ openDate: "2027-03-01", openDateTimezone: "America/Chicago" });
   assert.equal(milestones.length, 1);
+  assert.equal(milestones[0].key, "opening");
+  assert.equal(milestones[0].label, "Application opens");
   assert.equal(milestones[0].deadline, "");
+  assert.equal(milestones[0].timeZone, "America/Chicago");
   assert.equal(getDeadlineUrgency("", new Date("2027-01-01T12:00:00.000Z"), "", "2027-03-01", "America/Chicago").status, "not-open");
   const priorityOnly = getDeadlineMilestones({ priorityDeadline: "2027-04-30", openDate: "2027-03-01" });
   assert.equal(priorityOnly.length, 1);

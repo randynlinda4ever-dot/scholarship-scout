@@ -69,6 +69,21 @@ test("requires criterion-specific sponsor evidence when structured eligibility r
   assert.equal(withEvidence.missing.includes("Criterion-specific sponsor evidence"), false);
 });
 
+test("ignores case-insensitive any and empty structured criteria when checking sponsor evidence", () => {
+  const review = getEvidenceCompleteness({
+    ...completeRecord,
+    criteria: {
+      schoolState: " ANY ",
+      ageRange: {},
+      minActOrSat: { act: null },
+      requiresShhMembership: false,
+      majorKeywords: [" "],
+    },
+    criteriaEvidence: {},
+  }, new Date("2026-11-10T12:00:00"));
+  assert.equal(review.checks.find((item) => item.label === "Criterion-specific sponsor evidence").complete, true);
+});
+
 test("identifies missing sponsor evidence fields and stale verification separately", () => {
   const review = getEvidenceCompleteness({
     ...completeRecord,

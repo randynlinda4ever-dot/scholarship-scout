@@ -5,6 +5,7 @@ import {
   clearReliabilityEvents,
   installReliabilityMonitoring,
   readReliabilityEvents,
+  recordReliabilityEvent,
   RELIABILITY_EVENT_TYPES,
   RELIABILITY_STORAGE_KEY,
 } from "../src/lib/reliabilityMonitor.js";
@@ -77,6 +78,28 @@ test("global listeners store generic local event categories and can be removed",
   assert.doesNotMatch(storage.value, /message|stack|url|reason|private content/i);
   cleanup();
   assert.equal(handlers.size, 0);
+});
+
+test("handles a SecurityError thrown by the global localStorage getter", () => {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get() { throw new Error("SecurityError"); },
+  });
+
+  try {
+    assert.deepEqual(readReliabilityEvents(), []);
+    assert.doesNotThrow(() => recordReliabilityEvent("runtime_error", {
+      now: () => new Date("2026-11-10T18:00:00.000Z"),
+    }));
+    assert.doesNotThrow(() => clearReliabilityEvents());
+  } finally {
+    if (originalDescriptor) {
+      Object.defineProperty(globalThis, "localStorage", originalDescriptor);
+    } else {
+      delete globalThis.localStorage;
+    }
+  }
 });
 
 test("does not fail application behavior when reliability storage is unavailable", () => {

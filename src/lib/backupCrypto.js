@@ -1,5 +1,7 @@
 export const BACKUP_ENVELOPE_FORMAT = "scholarship-scout-encrypted-backup";
 export const BACKUP_ENVELOPE_VERSION = 2;
+// A 2 MiB plaintext backup expands to roughly 2.67 MiB when base64-encoded.
+export const MAX_ENCRYPTED_BACKUP_FILE_BYTES = 3 * 1024 * 1024;
 const LEGACY_BACKUP_ENVELOPE_VERSION = 1;
 const PBKDF2_ITERATIONS = 600_000;
 const MIN_PBKDF2_ITERATIONS = 600_000;

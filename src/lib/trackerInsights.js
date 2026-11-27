@@ -23,7 +23,7 @@ export function getDeadlineMilestones(record = {}) {
       timeZone: String(record.priorityDeadlineTimezone ?? "").trim(),
     });
   }
-  if (finalDeadline || finalDeadlineText || (openDate && !hasPriorityMilestone)) {
+  if (finalDeadline || finalDeadlineText) {
     milestones.push({
       key: "final",
       label: "Final deadline",
@@ -31,6 +31,15 @@ export function getDeadlineMilestones(record = {}) {
       deadlineText: finalDeadlineText,
       deadlineTime: String(record.finalDeadlineTime ?? record.deadlineTime ?? "").trim(),
       timeZone: String(record.finalDeadlineTimezone ?? record.deadlineTimezone ?? "").trim(),
+    });
+  } else if (openDate && !hasPriorityMilestone) {
+    milestones.push({
+      key: "opening",
+      label: "Application opens",
+      deadline: "",
+      deadlineText: "",
+      deadlineTime: "",
+      timeZone: String(record.openDateTimezone ?? "").trim(),
     });
   }
   return milestones;
@@ -110,6 +119,9 @@ export function getDeadlineUrgency(deadline, now = new Date(), timeZone = "", op
   }
   if (openDate) {
     if (!isValidDateKey(openDate)) return { status: "unknown", daysRemaining: null, label: "Opening date needs review" };
+    if (isValidDateKey(deadline) && deadline < openDate) {
+      return { status: "unknown", daysRemaining: null, label: "Opening/deadline range needs review" };
+    }
     const openingToday = calendarDateKey(now, openDateTimezone);
     if (!openingToday) return { status: "unknown", daysRemaining: null, label: "Opening date time zone needs review" };
     if (openDate > openingToday) {
@@ -118,9 +130,6 @@ export function getDeadlineUrgency(deadline, now = new Date(), timeZone = "", op
       const daysUntilOpen = Math.round((Date.UTC(openYear, openMonth - 1, openDay) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / DAY_MS);
       return { status: "not-open", daysRemaining: daysUntilOpen, label: `Opens in ${daysUntilOpen} ${daysUntilOpen === 1 ? "day" : "days"}` };
     }  }  if (!isValidDateKey(deadline)) return { status: "unknown", daysRemaining: null, label: "Deadline not confirmed" };
-  if (openDate && deadline < openDate) {
-    return { status: "unknown", daysRemaining: null, label: "Opening/deadline range needs review" };
-  }
   const todayKey = calendarDateKey(now, timeZone);
   if (!todayKey) return { status: "unknown", daysRemaining: null, label: "Deadline time zone needs review" };
   const [year, month, day] = deadline.split("-").map(Number);

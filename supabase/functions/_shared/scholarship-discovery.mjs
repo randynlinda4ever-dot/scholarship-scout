@@ -2,9 +2,8 @@ const MAX_CATEGORIES = 4;
 const MAX_SEARCH_PAGE = 2;
 const MAX_RESULTS = 40;
 const SEARCH_CONCURRENCY = 4;
+const MAX_SEARCH_CONCURRENCY = 8;
 const MAX_BODY_BYTES = 8192;
-const PUBLIC_RATE_LIMIT_WINDOW_MS = 60_000;
-const PUBLIC_RATE_LIMIT_MAX_REQUESTS = 2;
 const DISCOVERY_CACHE_TTL_MS = 30_000;
 const DISCOVERY_CACHE_MAX_ENTRIES = 100;
 const MIN_UNIQUE_RESULTS_PER_CATEGORY = 8;
@@ -14,6 +13,8 @@ const MAX_RETRY_DELAY_MS = 1_000;
 const MAX_TOTAL_SEARCH_BUDGET_MS = 22_000;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 import { normalizeUsState, stateMatchesText } from "./us-states.mjs";
+import { createPublicRateLimiter } from "./discovery-rate-limit.mjs";
+export { createPublicRateLimiter, createUpstashRateLimiter, getPublicClientAddress } from "./discovery-rate-limit.mjs";
 export const ALLOWED_CATEGORIES = Object.freeze([
   "local", "school_resources", "regional", "state", "academic", "humanities",
   "leadership", "community_service", "language", "employment", "arts",
@@ -43,100 +44,15 @@ const CATEGORY_VARIATIONS = {
   national: ["national scholarships open to students across the United States", "national student scholarship programs, official foundations and sponsors"],
   general: ["general student scholarships with broad eligibility requirements", "broad eligibility scholarships for students, official sponsor application pages"],
 };
-export function getPublicClientAddress(req) {
-  // Cloudflare overwrites cf-connecting-ip at its edge. Never trust x-real-ip.
-  const address = req.headers.get("cf-connecting-ip")?.trim() ?? "";
-  if (!address || address.length > 128 || !/^[a-f0-9:.]+$/i.test(address)) return null;
-  return address.toLowerCase();
-}
-
-// Local/test fallback only. Production injects createUpstashRateLimiter.
-export function createPublicRateLimiter({ now = () => Date.now(), maxBuckets = 5000 } = {}) {
-  const buckets = new Map();
-  return (req) => {
-    const address = getPublicClientAddress(req);
-    if (!address) return { allowed: false, unattributed: true, retryAfterSeconds: 0 };
-    const current = now();
-    let bucket = buckets.get(address);
-    if (bucket && current - bucket.windowStartedAt >= PUBLIC_RATE_LIMIT_WINDOW_MS) {
-      buckets.delete(address);
-      bucket = null;
-    }
-    if (!bucket) {
-      if (buckets.size >= maxBuckets) {
-        // Reclaim only expired entries; never evict an active client's window.
-        for (const [key, entry] of buckets) {
-          if (current - entry.windowStartedAt >= PUBLIC_RATE_LIMIT_WINDOW_MS) buckets.delete(key);
-          if (buckets.size < maxBuckets) break;
-        }
-      }
-      if (buckets.size >= maxBuckets) return { allowed: false, retryAfterSeconds: 1 };
-      bucket = { windowStartedAt: current, count: 0 };
-      buckets.set(address, bucket);
-    }
-    if (bucket.count >= PUBLIC_RATE_LIMIT_MAX_REQUESTS) {
-      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((PUBLIC_RATE_LIMIT_WINDOW_MS - (current - bucket.windowStartedAt)) / 1000)) };
-    }
-    bucket.count += 1;
-    return { allowed: true, retryAfterSeconds: 0 };
-  };
-}
-
-export function createUpstashRateLimiter({
-  url,
-  token,
-  fetchImpl = fetch,
-  maxRequests = PUBLIC_RATE_LIMIT_MAX_REQUESTS,
-  windowMs = PUBLIC_RATE_LIMIT_WINDOW_MS,
-} = {}) {
-  const endpoint = String(url ?? "").trim();
-  const secret = String(token ?? "");
-  const script = [
-    "local count = redis.call('INCR', KEYS[1])",
-    "if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end",
-    "local ttl = redis.call('PTTL', KEYS[1])",
-    "return {count, ttl}",
-  ].join("\n");
-  return async (req) => {
-    if (!endpoint || secret.length < 32) return { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 };
-    const address = getPublicClientAddress(req);
-    if (!address) return { allowed: false, unattributed: true, retryAfterSeconds: 0 };
-    try {
-      const parsedUrl = new URL(endpoint);
-      if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password || parsedUrl.port) {
-        return { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 };
-      }
-      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-      const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(address));
-      const digest = [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-      const response = await fetchImpl(parsedUrl.href, {
-        method: "POST",
-        headers: { Authorization: "Bearer " + secret, "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(["EVAL", script, "1", "scholarship-discover:rate:v1:" + digest, String(windowMs)]),
-        signal: AbortSignal.timeout(2500),
-        redirect: "error",
-      });
-      if (!response.ok) return { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 };
-      const payload = await response.json();
-      const count = Array.isArray(payload?.result) ? Number(payload.result[0]) : NaN;
-      const ttl = Array.isArray(payload?.result) ? Number(payload.result[1]) : NaN;
-      if (!Number.isSafeInteger(count) || count < 1 || !Number.isFinite(ttl) || ttl < 0) {
-        return { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 };
-      }
-      if (count > maxRequests) return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(ttl / 1000)) };
-      return { allowed: true, retryAfterSeconds: 0 };
-    } catch {
-      return { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 };
-    }
-  };
-}
 export function isSafeHttpsUrl(value) {
   if (typeof value !== "string" || value.length > 2048) return false;
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password) return false;
     const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-    if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "metadata.google.internal" || host === "metadata") return false;
+    if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
+      host === "metadata.google.internal" || host === "metadata" || host.endsWith(".internal") ||
+      host === "home.arpa" || host.endsWith(".home.arpa") || host.endsWith(".lan") || host.endsWith(".intranet")) return false;
     if (host.includes(":") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) || !host.includes(".")) return false;
     return true;
   } catch { return false; }
@@ -203,9 +119,12 @@ export async function fetchSearchPage(gatewayBase, gatewayToken, job, {
       const response = await fetchImpl(searchUrl, {
         method: "GET",
         headers: { Accept: "application/json", Authorization: `Bearer ${gatewayToken}` },
-        redirect: "error",
+        redirect: "manual",
         signal: AbortSignal.timeout(Math.max(1, Math.min(12_000, remainingMs))),
       });
+      if (response.status >= 300 && response.status < 400) {
+        return { ok: false, job, status: response.status, failureCode: "http_redirect", retryAttempts };
+      }
       const finalResponseUrl = response.url || searchUrl.href;
       if (response.redirected || !isSafeHttpsUrl(finalResponseUrl) || new URL(finalResponseUrl).href !== searchUrl.href) {
         return { ok: false, job, failureCode: "unsafe_response_url", retryAttempts };
@@ -229,8 +148,27 @@ export async function fetchSearchPage(gatewayBase, gatewayToken, job, {
       await sleepImpl(Math.ceil(requestedDelay));
       retryAttempts += 1;
     }
-  } catch {
-    return { ok: false, job, failureCode: "network_error", retryAttempts };
+  } catch (error) {
+    const errorName = String(error?.name ?? "").toLowerCase();
+    const causeCode = String(error?.cause?.code ?? error?.code ?? "").toUpperCase();
+    const safeMessage = `${String(error?.message ?? "")} ${String(error?.cause?.message ?? "")}`.toLowerCase();
+    const failureCode = errorName === "timeouterror" || safeMessage.includes("timeout") || safeMessage.includes("timed out")
+      ? "network_timeout"
+      : /^[A-Z0-9_]{2,32}$/.test(causeCode)
+      ? `network_${causeCode.toLowerCase()}`
+      : safeMessage.includes("certificate") || safeMessage.includes("tls")
+      ? "network_tls_error"
+      : safeMessage.includes("dns") || safeMessage.includes("resolve") || safeMessage.includes("lookup")
+      ? "network_dns_error"
+      : safeMessage.includes("invalid header") || safeMessage.includes("header value")
+      ? "network_invalid_header"
+      : safeMessage.includes("connect") || safeMessage.includes("socket")
+      ? "network_connect_error"
+      : safeMessage.includes("error sending request")
+      ? "network_send_error"
+      : errorName ? `network_${errorName.replace(/[^a-z0-9_]/g, "").slice(0, 24)}` : "network_error";
+    // Keep diagnostics categorical: never log request URLs, query text, or credentials.
+    return { ok: false, job, failureCode, retryAttempts };
   }
 }
 export async function runBoundedSearches(gatewayBase, gatewayToken, jobs, {
@@ -400,13 +338,21 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
   const randomUUID = deps.randomUUID ?? (() => crypto.randomUUID());
   const getEnv = deps.getEnv ?? ((key) => Deno.env.get(key));
   const corsHeaders = deps.corsHeaders ?? {};
-  const rateLimiter = deps.rateLimiter ?? createPublicRateLimiter();  const cache = deps.cache ?? createDiscoveryResultCache({ now: () => now().getTime() });
+  const rateLimiter = deps.rateLimiter ?? createPublicRateLimiter();
+  const requestedSearchConcurrency = Number(deps.searchConcurrency);
+  const searchConcurrency = Number.isInteger(requestedSearchConcurrency)
+    ? Math.max(1, Math.min(MAX_SEARCH_CONCURRENCY, requestedSearchConcurrency))
+    : SEARCH_CONCURRENCY;
+  const cache = deps.cache ?? createDiscoveryResultCache({ now: () => now().getTime() });
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   return async (req) => {
     if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
     let rateLimit;
     try { rateLimit = await rateLimiter(req); }
     catch { rateLimit = { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 }; }
+    if (!rateLimit || typeof rateLimit !== "object") {
+      rateLimit = { allowed: false, storageUnavailable: true, retryAfterSeconds: 0 };
+    }
     if (rateLimit.storageUnavailable || rateLimit.unattributed) {
       return json({ error: "The shared search rate-limit service is unavailable. Try again shortly." }, 503);
     }
@@ -415,8 +361,9 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
       response.headers.set("Retry-After", String(Math.max(1, rateLimit.retryAfterSeconds || 1)));
       return response;
     }
-    const gatewayUrl = getEnv("SEARXNG_GATEWAY_URL")?.trim() ?? "";
-    const gatewayToken = getEnv("SEARXNG_GATEWAY_TOKEN") ?? "";
+    try {
+      const gatewayUrl = getEnv("SEARXNG_GATEWAY_URL")?.trim() ?? "";
+    const gatewayToken = String(getEnv("SEARXNG_GATEWAY_TOKEN") ?? "").trim();
     if (!gatewayUrl || gatewayToken.length < 48) return json({ error: "The laptop search gateway is not configured in Supabase yet." }, 503);
     let gatewayBase;
     try {
@@ -470,7 +417,7 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     }
 
     const jobs = buildSearchJobs(state, graduationYear, categories);
-    const outcomes = await runAdaptiveSearches(gatewayBase, gatewayToken, jobs, { fetchImpl });
+    const outcomes = await runAdaptiveSearches(gatewayBase, gatewayToken, jobs, { fetchImpl, concurrency: searchConcurrency });
     const successfulQueries = outcomes.filter((outcome) => outcome.ok).length;
     const failedQueries = outcomes.length - successfulQueries;
     const retryAttempts = outcomes.reduce((total, outcome) => total + (outcome.retryAttempts || 0), 0);
@@ -486,6 +433,7 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
       .map(([code, count]) => ({ code, count }));
     if (failedQueries > 0) {
       console.warn("[scholarship-discover] upstream search failures", {
+        gatewayHost: gatewayBase.hostname,
         requestedQueries: outcomes.length,
         successfulQueries,
         failedQueries,
@@ -534,5 +482,10 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     // Never cache incomplete responses: a later request must be able to retry them.
     if (failedQueries === 0) cache.set(cacheKey, payload);
     return json(payload);
+    } finally {
+      if (typeof rateLimit.release === "function") {
+        try { await rateLimit.release(); } catch { /* the lease expires automatically */ }
+      }
+    }
   };
 }

@@ -7,7 +7,7 @@ import {
 } from "../src/lib/liveDiscoveryCapabilities.js";
 
 test("matches the expanded deployed scholarship-discover category allowlist", () => {
-  assert.equal(DEPLOYED_DISCOVERY_FUNCTION_VERSION, 9);
+  assert.equal(DEPLOYED_DISCOVERY_FUNCTION_VERSION, 19);
   for (const category of [
     "local", "school_resources", "regional", "state", "academic", "humanities",
     "leadership", "community_service", "language", "employment", "arts",

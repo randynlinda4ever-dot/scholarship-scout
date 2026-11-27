@@ -5,6 +5,7 @@ export type ScoutBackup<TProfile = Record<string, string>, TScholarship = Record
   version: 2;
   exportedAt: string;
   profile: TProfile;
+  profileDraft: TProfile;
   scholarships: TScholarship[];
   applicationProgress: Record<string, boolean[]>;
   applicationWorkspace: ApplicationWorkspace;
@@ -13,6 +14,7 @@ export type ScoutBackup<TProfile = Record<string, string>, TScholarship = Record
 export type ScoutBackupValidation<TProfile = Record<string, string>, TScholarship = Record<string, unknown>> =
   | { ok: true; value: {
       profile: TProfile;
+      profileDraft: TProfile;
       scholarships: TScholarship[];
       applicationProgress: Record<string, boolean[]>;
       applicationWorkspace: ApplicationWorkspace;
@@ -25,6 +27,7 @@ export function buildScoutBackup<TProfile extends Record<string, unknown>, TScho
   exportedAt?: Date,
   applicationProgress?: Record<string, boolean[]>,
   applicationWorkspace?: ApplicationWorkspace,
+  profileDraft?: TProfile,
 ): ScoutBackup<TProfile, TScholarship>;
 
 export function validateScoutBackup<TProfile = Record<string, string>, TScholarship = Record<string, unknown>>(

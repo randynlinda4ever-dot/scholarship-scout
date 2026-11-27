@@ -16,11 +16,12 @@ const valid = () => buildScoutBackup(
   applicationWorkspace,
 );
 
-test("backup captures profile, tracker, checklist, and workspace in version two", () => {
+test("backup captures profile, profile draft, tracker, checklist, and workspace in version two", () => {
   const backup = valid();
   assert.equal(backup.format, "scholarship-scout-backup");
   assert.equal(backup.version, 2);
   assert.deepEqual(backup.profile, profile);
+  assert.deepEqual(backup.profileDraft, profile);
   assert.deepEqual(backup.scholarships, scholarships);
   assert.deepEqual(backup.applicationProgress, applicationProgress);
   assert.deepEqual(backup.applicationWorkspace, applicationWorkspace);
@@ -39,11 +40,30 @@ test("backup contains independent snapshots rather than mutable references", () 
   assert.notEqual(backup.applicationWorkspace["s-1"].documents[0].title, "changed");
 });
 
+test("preserves an incomplete profile draft separately from the last valid profile", () => {
+  const draft = { grade: "", graduationYear: "2027" };
+  const backup = buildScoutBackup(
+    profile,
+    scholarships,
+    new Date("2026-11-10T18:00:00.000Z"),
+    applicationProgress,
+    applicationWorkspace,
+    draft,
+  );
+  const result = validateScoutBackup(backup, profileKeys);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(result.value.profile, profile);
+    assert.deepEqual(result.value.profileDraft, draft);
+  }
+});
+
 test("accepts a valid version-two backup and returns normalized data", () => {
   const result = validateScoutBackup(valid(), profileKeys);
   assert.equal(result.ok, true);
   if (result.ok) {
     assert.deepEqual(result.value.profile, profile);
+    assert.deepEqual(result.value.profileDraft, profile);
     assert.deepEqual(result.value.scholarships, scholarships);
     assert.deepEqual(result.value.applicationProgress, applicationProgress);
     assert.deepEqual(result.value.applicationWorkspace, applicationWorkspace);
@@ -78,6 +98,37 @@ test("rejects workspace records that reference unknown scholarships or contain i
   assert.equal(validateScoutBackup(malformedEssay, profileKeys).ok, false);
 });
 
+test("rejects duplicate or unsupported workspace row IDs before normalization can drop data", () => {
+  const duplicateTasks = valid();
+  duplicateTasks.applicationWorkspace["s-1"].customTasks = [
+    { id: "task-1", title: "First task", completed: false, dueDate: "" },
+    { id: " task-1 ", title: "Second task", completed: false, dueDate: "" },
+  ];
+  assert.equal(validateScoutBackup(duplicateTasks, profileKeys).ok, false);
+
+  const unknownReview = valid();
+  unknownReview.applicationWorkspace["s-1"].finalReview = [
+    { id: "review-99", done: true },
+  ];
+  assert.equal(validateScoutBackup(unknownReview, profileKeys).ok, false);
+
+  const duplicateReview = valid();
+  duplicateReview.applicationWorkspace["s-1"].finalReview = [
+    { id: "review-1", done: true },
+    { id: "review-1", done: false },
+  ];
+  assert.equal(validateScoutBackup(duplicateReview, profileKeys).ok, false);
+});
+
+test("rejects overlong workspace text instead of silently truncating imported data", () => {
+  const backup = valid();
+  backup.applicationWorkspace["s-1"].recommenders = [{
+    id: "rec-1", name: "Counselor", role: "Teacher", status: "Requested",
+    requestedAt: "", dueDate: "", receivedAt: "", notes: "n".repeat(1001),
+  }];
+  assert.equal(validateScoutBackup(backup, profileKeys).ok, false);
+});
+
 test("keeps older version-one backups valid when checklist progress and workspace are absent", () => {
   const olderBackup = { ...valid(), version: 1 };
   delete olderBackup.applicationProgress;
@@ -85,6 +136,7 @@ test("keeps older version-one backups valid when checklist progress and workspac
   const result = validateScoutBackup(olderBackup, profileKeys);
   assert.equal(result.ok, true);
   if (result.ok) {
+    assert.deepEqual(result.value.profileDraft, profile);
     assert.deepEqual(result.value.applicationProgress, {});
     assert.deepEqual(result.value.applicationWorkspace, {});
   }

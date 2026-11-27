@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { MAX_TRACKER_RECORDS } from "../src/lib/trackerManagement.js";
 import {
   APPLICATION_CHECKLIST_STEPS,
   getApplicationProgressSummary,
@@ -41,4 +42,20 @@ test("summarizes completed checklist steps and exposes the shared checklist leng
 
   assert.equal(APPLICATION_CHECKLIST_STEPS.length, 6);
   assert.deepEqual(summary, { completed: 3, total: 6, percent: 50 });
+});
+
+test("preserves checklist progress beyond the former 500-record cutoff", () => {
+  const source = Object.fromEntries(Array.from({ length: 600 }, (_, index) => [
+    `s-${index}`, [true, false, false, false, false, false],
+  ]));
+  const normalized = normalizeApplicationProgress(source);
+  assert.equal(MAX_TRACKER_RECORDS, 2000);
+  assert.equal(Object.keys(normalized).length, 600);
+});
+
+test("summary handles reserved IDs and invalid or oversized step counts safely", () => {
+  assert.deepEqual(getApplicationProgressSummary({}, "__proto__"), { completed: 0, total: 6, percent: 0 });
+  assert.deepEqual(getApplicationProgressSummary({}, "award-1", -1), { completed: 0, total: 6, percent: 0 });
+  assert.deepEqual(getApplicationProgressSummary({}, "award-1", "6"), { completed: 0, total: 6, percent: 0 });
+  assert.deepEqual(getApplicationProgressSummary({}, "award-1", 100), { completed: 0, total: 50, percent: 0 });
 });

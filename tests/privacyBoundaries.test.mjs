@@ -1,16 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const app = await readWorkspaceSource();
+const app = await read("src/App.tsx");
 const api = await read("src/lib/scholarshipApi.ts");
 const liveProfile = await read("src/lib/liveDiscoveryProfile.js");
 const discovery = await read("src/lib/discovery.js");
 const pipeline = await read("src/lib/discoveryPipeline.js");
 const cloudMapping = await read("src/lib/cloudMapping.js");
 const monitor = await read("src/lib/reliabilityMonitor.js");
+const clientIdentity = await read("src/lib/discoveryClientIdentity.js");
 
 test("public discovery sends only broad state and graduation-year filters", () => {
   assert.match(api, /pickLiveDiscoveryProfile\(profile\)/);
@@ -20,7 +20,10 @@ test("public discovery sends only broad state and graduation-year filters", () =
   assert.match(projectedFields, /graduationYear:/);
   assert.doesNotMatch(projectedFields, /\b(?:school|gpa|classRank|email|activities|citizenship)\s*:/i);
   assert.match(api, /body: \{ profile: safeProfile, categories \}/);
+  assert.match(api, /headers: \{ "x-scout-client-id": clientId \}/);
   assert.doesNotMatch(api, /body: \{[^}]*profile\s*,/);
+  assert.doesNotMatch(api, /body: \{[^}]*clientId/);
+  assert.match(clientIdentity, /globalThis\.sessionStorage/);
 });
 
 test("discovery and cloud URL paths sanitize public URLs before exposing or persisting them", () => {

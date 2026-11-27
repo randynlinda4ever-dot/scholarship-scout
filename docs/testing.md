@@ -17,6 +17,7 @@ The project contains unit tests for profile validation, discovery and URL safety
 
 - `tests/authRedirect.test.mjs` checks callback origin handling, path preservation, and HTTPS enforcement.
 - `tests/authSignInExperience.test.mjs` and `tests/cloudConnectionConfig.test.mjs` ensure email sign-in uses the current embedded app origin.
+- `tests/googleOAuth.test.mjs` covers Google OAuth setup, anonymous identity linking, limited scopes, PKCE callback detection/restoration, and the updated privacy disclosure.
 - `tests/liveDiscoveryNoLogin.test.mjs` verifies the live-search client does not create or require a Supabase user, the UI shows public results while signed out, and the Edge Function is configured for public requests with bounded inputs.
 - `tests/liveDiscoveryCapabilities.test.mjs` tracks the deployed version-9 category allow-list.
 - Cloud database reads and writes remain authenticated and use the existing owner-scoped RLS policies.
@@ -71,7 +72,7 @@ On the refreshed Windows validation workspace using Node.js 26.13.0:
 
 The local gateway was validated through the current Quick Tunnel and returned 15 results. The public Supabase function is deployed as version 8 with `verify_jwt=false`, but its `SEARXNG_GATEWAY_URL` secret still needs the current temporary tunnel hostname. End-to-end public cloud search is therefore not yet verified.
 
-The email provider is enabled and magic-link request/verification events have been observed. The current preview frame URL must also be included in Supabase Auth Redirect URLs before same-frame email sign-in can be confirmed.
+The email provider is enabled and magic-link request/verification events have been observed. The current preview frame URL must also be included in Supabase Auth Redirect URLs before same-frame email sign-in can be confirmed. Google OAuth source support is committed, but the Google provider credentials and Manual Linking setting have not been configured or verified through the connected Supabase interface. `tests/googleOAuth.test.mjs`, the full test suite, and the production build were not executed in this work session because the AgentGrid source tools do not provide a Node/npm runner. A real Google provider callback still requires live configuration and browser verification.
 
 A distributed rate limiter, CAPTCHA/bot protection, separate-browser RLS isolation checks, and a full spoken screen-reader assessment remain outstanding.
 

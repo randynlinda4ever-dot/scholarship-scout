@@ -1,5 +1,11 @@
 # Search provider contract and quality evaluation
 
+## Local SearXNG benchmark — 2026-11-27
+
+Six curated golden queries were executed against the local SearXNG JSON endpoint. All six returned HTTP 200. The run produced 160 raw results and 145 unique canonical URLs; 15 URL duplicates remained (9.4%). Median latency was 575 ms and p95 was 1,091 ms. Four of nine expected-source anchors were present.
+
+This is a baseline benchmark of local SearXNG only. It does not establish Supabase-to-gateway production reliability or source freshness. One separate authenticated Cloudflare gateway request returned 15 results in 1,101 ms. The Supabase production request still fails because the configured Edge Function gateway hostname is an obsolete Quick Tunnel hostname; see the SC-246 recovery report.
+
 **Status:** Contract and deterministic evaluation harness added; provider integration is not changed.  
 **Curated query set:** tests/fixtures/search/golden-queries.json (six public-source queries; curation date 2026-11-25).
 

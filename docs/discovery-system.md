@@ -1,57 +1,82 @@
 # Scholarship discovery system
 
-> **Current runtime status — November 25, 2026:** Supabase is ACTIVE_HEALTHY and `scholarship-discover` is ACTIVE at version 10 (`verify_jwt=false`), with inspected inline source SHA-256 `5ebc47c217ffdaf9234df5ce12fa4860f671e0641febca218a87aee6a98bc328`. The most recent inspected traffic window showed seven HTTP 502 POSTs tagged version 9, latest `2026-11-25T15:04:10.559Z`; no version-10 request appeared in that result. This is historical v9 failure evidence, not a fresh v10 result. The AgentGrid implementation snapshot used for this source-parity comparison is revision `9eb1e1a99f70f2389a9d4875c48d802d1e5fa6c2`; its shared adaptive helper is not semantically equivalent to the deployed inline function. The dedicated SC-246 report and status-document refresh were committed as documentation-only revision `bd50d06fc873f4d28cbae60b74af0e2f5465030d`; those edits did not change product source. The local gateway and named-tunnel status were not freshly checked in this pass. See [the consolidated SC-246 report](sc246-gateway-recovery-2026-11-25.md) and [the Agent 03 audit](agent-03-search-discovery-audit-2026-11-25.md).
+> **Current runtime status — November 27, 2026:** Supabase reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=false`. The returned deployed entrypoint still uses the in-memory per-isolate limiter; the canonical AgentGrid wrapper uses the separate Upstash-backed limiter, so source parity is incomplete. An earlier request failed with four upstream DNS errors, but a later synthetic production search returned 40 leads and Supabase logged POST 200 at `05:09:06.848Z`. This proves one successful request, not sustained reliability. See [the current runtime audit](runtime-audit-2026-11-27.md).
 
 ## Browser request boundary
 
-The browser calls runLiveScholarshipDiscovery after reusing the Supabase session stored for the current browser or creating an anonymous Supabase Auth user when the visitor first runs research. No email or password is required. The client sends:
+Public live discovery does not require a Supabase Auth session. The browser sends only:
 
 - State.
 - Expected graduation year.
-- Selected category IDs.
+- Selected category IDs (up to four).
 
-The search API does not send the student profile object, school, district, grades, class rank, test scores, activities, contact details, essay text, or notes.
+The search request does not include the student profile object, school, district, grades, class rank, test scores, activities, contact details, essays, recommendation notes, or application tasks. Keep this boundary unchanged.
 
-The deployed public Edge Function is currently version 10 (`verify_jwt=false` for this function only). The browser sends only state, graduation year, and selected category IDs. The function validates its JSON request and allowlisted categories, uses a fixed HTTPS gateway and server-side bearer token, and does not accept an arbitrary destination URL from the browser. The inspected v10 inline source allows at most four selected categories and a request body up to 8 KiB. It has two query variations and up to two pages per category (up to 16 upstream calls for four categories), concurrency four, up to 15 results per page, a 40-result final cap, and a 12-second upstream timeout. Its per-isolate public limiter is best-effort (two requests per 60 seconds), not distributed. No CAPTCHA or independent provider fallback is present in this function.
+## Canonical search implementation
 
-## Current deployed capabilities
+The AgentGrid source contains a shared discovery helper with:
 
-Direct Supabase inspection on November 25, 2026 found `scholarship-discover` ACTIVE at version 10, with deployed inline source SHA-256 `5ebc47c217ffdaf9234df5ce12fa4860f671e0641febca218a87aee6a98bc328`. The live v10 implementation still uses a fixed two-variation/two-page search plan for every selected category, up to 16 requests for four categories. It does not use the AgentGrid helper's adaptive stages, complete-result cache, bounded transient retry, or detailed failure-reason codes. It returns `unverified_lead` records; it does not confirm sponsor identity, award amounts, deadlines, or sponsor eligibility rules. Ranking and host signals are not sponsor verification.
+- Fourteen allowlisted discovery categories.
+- Two query variations per selected category, with bounded page expansion.
+- Adaptive staged searches that stop expanding categories once they produce enough distinct leads.
+- Bounded concurrency and per-request timeouts.
+- One bounded retry for transient upstream 429/5xx failures.
+- A short-lived cache for complete results only; incomplete responses are not cached.
+- Canonical URL/title deduplication with merged category/query/page provenance.
+- State/year relevance signals and explicit reasons.
+- Partial-result summaries and failure classifications.
+- Safe HTTPS result filtering and unverified-lead labeling.
 
-The checked-in function entrypoint imports `supabase/functions/_shared/scholarship-discovery.mjs`. The shared helper has now been optimized with staged adaptive search, a 30-second per-isolate complete-result cache, one bounded retry for transient 429/5xx responses, response-level savings/cache/retry metrics, and canonical-URL/title deduplication. These helper changes and client metadata are committed in the AgentGrid artifact, but have **not** been deployed to Supabase. The active v9 inline source and checked-in helper are not established as equivalent; the version number does not prove code parity.
+Search results are leads, not verified scholarships. Sponsor identity, award amount, deadline, eligibility rules, and sponsor-check dates remain unknown until the official sponsor source is reviewed. Ranking is not an eligibility decision.
 
-The inspected 24-hour function-edge log result contained seven HTTP 502 POSTs tagged version 9, latest `2026-11-25T15:04:10.559Z`. No version-10 invocation appeared in that result, so it does not establish the outcome of a fresh v10 request. Local SearXNG/gateway and named-tunnel health were not freshly checked in this pass. No new provider benchmark or production savings measurement was performed.
+## Canonical rate limiting
 
-## Deployed facts versus repository source
+The canonical Edge Function wrapper uses `createUpstashRateLimiter` from `supabase/functions/_shared/discovery-rate-limit.mjs`. It applies HMAC-derived client/IP keys, per-client and per-IP minute/day quotas, and per-IP/global concurrency leases. Configuration is read from bounded environment settings. The raw client address is not stored in Redis keys.
 
-The current version and deployed SHA above are facts from direct Supabase inspection. Detailed historical v8 behavior must not be attributed to v9. The adaptive algorithm, cache, retry, canonicalization, client-side dedupe, and response metrics described in this audit refer to the committed helper/client source only until a reviewed deployment is completed. Keep future documentation explicit about environment, version, and deployed source hash. Any deployment requires request/response contract review, privacy and gateway review, and fresh end-to-end smoke tests.
+The canonical wrapper requires server-side `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` secrets. Missing or unavailable shared storage fails closed with HTTP 503; quota exhaustion returns HTTP 429 with `Retry-After`. Do not replace this with a per-isolate fallback in production.
 
-## Result handling in the browser
+## Current deployed/source difference
 
-src/lib/discoveryPipeline.js:
+Supabase metadata reports version 19, but the returned deployed entrypoint imports and instantiates `createPublicRateLimiter()`, the per-isolate in-memory limiter. The deployed shared helper does include adaptive search, a complete-result cache, bounded retries, and detailed failure metrics. However, the current canonical wrapper imports the separate Upstash V2 module and passes that limiter into the handler. The returned deployed file set does not include the current separate rate-limit module or wrapper. This is a real source-parity gap; a matching or higher version number does not establish parity.
+
+The Supabase response also reports an `entrypoint_path` suffix of `_16` despite version-19 metadata. Treat that as an additional provenance discrepancy, not proof that version 16 is running. The returned `ezbr_sha256` value is metadata and has not been independently recomputed from the source files.
+
+## Current failure evidence
+
+An earlier upstream failure was logged at `2026-11-27T02:48:55.575Z`: the configured host was `plugin-loan-anybody-drilling.trycloudflare.com`; four queries were attempted, none succeeded, and all four were classified `network_dns_error`.
+
+A later read-only browser smoke check used synthetic Texas/2027/local inputs and returned 40 scholarship leads. Supabase `function_edge_logs` records a successful discovery POST at `2026-11-27T05:09:06.848Z`. No browser console/network errors were reported. This is one successful end-to-end request after the earlier DNS failure, not proof of sustained uptime or full category coverage.
+
+The named-tunnel URL `https://discovery-gateway.scholarship-scout.org` is documented but was not directly health-checked. The successful request proves the configured gateway route worked at that time, but does not identify the configured hostname or prove its stability. Supabase secret values were not read or changed, and the connected Supabase integration does not expose a secret-write operation. Upstash secret presence is also unknown.
+
+## Error and privacy contract
+
+The function validates JSON content type and body size, normalizes a US state and a four-digit graduation year, enforces the category allowlist, and accepts no browser-supplied destination URL. Gateway credentials remain server-side. The function does not read or write student profile, scholarship, or eligibility tables. Search responses contain unverified leads and safe failure summaries; never return secrets or raw private student data.
+
+The public endpoint uses `verify_jwt=false` by design. This is limited to public discovery. Cloud scholarship CRUD remains authenticated and owner-scoped by existing RLS policies.
+
+## Release requirements
+
+Before deploying the canonical wrapper:
+
+1. Verify the named gateway route and token from their authoritative sources without printing either secret.
+2. Verify both Upstash secrets exist and are valid; do not deploy the fail-closed wrapper without them.
+3. Review the deployed/canonical diff and confirm the request/response contract and privacy boundary.
+4. Record the AgentGrid revision and deployed source hash, plus the prior version and rollback procedure.
+5. Run focused edge tests, the full application suite/build/audit, and a synthetic production POST with synthetic inputs.
+6. Confirm partial-result behavior, 429/503 behavior, CORS preflight, and no private data or secrets in responses/logs.
+
+## Browser result handling
+
+The browser discovery pipeline:
 
 - Rejects unsafe URLs.
 - Canonicalizes safe HTTPS URLs and strips known tracking parameters.
 - Normalizes titles and domains.
-- Deduplicates repeated leads by canonical source URL and normalized title, merging their discovery provenance.
-- Preserves discovery category/query/page provenance.
-- Ranks leads using relevant terms and broad state/year matching.
-- Keeps sponsor, award, deadline, and evidence fields unknown.
-- Marks every live result unverified until a human checks the official sponsor source.
+- Deduplicates repeated leads while merging discovery provenance.
+- Preserves category/query/page provenance.
+- Ranks leads using broad state/year and scholarship-relevance signals.
+- Keeps sponsor, award, deadline, and evidence fields unknown until official-source review.
+- Marks live results unverified.
 
-Tracker duplicate suggestions are separately classified as exact title match, strong similarity (85% or above), or possible similarity (80% through 84%). A shared normalized sponsor and valid deadline year are still required. The tracker presents both records with manual Review actions; it never merges, deletes, or changes either record automatically.
-
-## Errors and partial results
-
-The browser distinguishes authentication/configuration and live-search errors from an empty result set. The API rejects invalid result shapes instead of interpreting them as zero scholarships. The deployed function returns meaningful HTTP error responses for missing gateway configuration, invalid request data, failed gateway connection, non-success gateway response, and unreadable result JSON.
-
-The client currently normalizes absent summary fields to zero because the older deployed v7 response does not include the expanded multi-query summary contract. That is a compatibility behavior, not proof that multiple queries were run.
-
-## Planned improvements
-
-- Deploy the expanded search implementation only after explicit approval and authenticated smoke tests.
-- Align the live Edge Function and browser capability metadata through a shared versioned contract.
-- Extend manual duplicate review with a reversible, privacy-safe user decision history only if there is a clear need.
-- Improve ranking only with measured relevance signals and traceable reasons.
-- Add pagination only where the deployed gateway contract supports it.
-- Preserve the rule that a search result is a lead, not verification.
+Tracker duplicate suggestions are a separate local workflow. They do not merge, delete, or modify records automatically.

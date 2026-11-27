@@ -113,7 +113,11 @@ test("canonical URL removes tracking, personal and credential query parameters",
 });
 
 test("returned source URLs must be safe HTTPS hostnames", () => {
-  for (const url of ["http://example.org", "https://localhost", "https://127.0.0.1", "https://[::1]", "https://user:pass@example.org", "https://metadata.google.internal"]) assert.equal(isSafeHttpsUrl(url), false, url);
+  for (const url of [
+    "http://example.org", "https://localhost", "https://127.0.0.1", "https://[::1]",
+    "https://user:pass@example.org", "https://metadata.google.internal",
+    "https://router.home.arpa", "https://nas.lan", "https://service.intranet",
+  ]) assert.equal(isSafeHttpsUrl(url), false, url);
   assert.equal(isSafeHttpsUrl("https://foundation.example/scholarships"), true);
 });
 test("canonical URL removes tracking and fragments and sorts remaining query parameters", () => {
@@ -196,6 +200,20 @@ test("each upstream page is capped at fifteen results", async () => {
   assert.equal(outcome.results.length, 15);
 });
 
+test("does not follow gateway redirects and reports the redirect status", async () => {
+  let fetchOptions;
+  const outcome = await fetchSearchPage("https://gateway.example", "synthetic-token", { category: "local", query: "synthetic", page: 1 }, {
+    fetchImpl: async (_url, options) => {
+      fetchOptions = options;
+      return new Response("", { status: 302, headers: { Location: "https://challenge.example/" } });
+    },
+  });
+  assert.equal(fetchOptions.redirect, "manual");
+  assert.equal(outcome.ok, false);
+  assert.equal(outcome.status, 302);
+  assert.equal(outcome.failureCode, "http_redirect");
+});
+
 test("rejects redirected gateway responses even when the destination is a private IP", async () => {
   let requestOptions;
   const outcome = await fetchSearchPage("https://gateway.example", "synthetic-token", { category: "local", query: "synthetic", page: 1 }, {
@@ -204,7 +222,7 @@ test("rejects redirected gateway responses even when the destination is a privat
       return { ok: true, status: 200, redirected: true, url: "https://10.0.0.7/search", json: async () => ({ results: [] }) };
     },
   });
-  assert.equal(requestOptions.redirect, "error");
+  assert.equal(requestOptions.redirect, "manual");
   assert.equal(outcome.ok, false);
 });
 
@@ -261,6 +279,21 @@ test("handler accepts four categories at most and ignores arbitrary profile fiel
   assert.equal(sent.length, 16);
   assert.ok(sent.every((query) => !/PRIVATE-SCHOOL-SENTINEL|PRIVATE-GPA-SENTINEL|PRIVATE-EMAIL-SENTINEL/.test(query)));
 });
+test("gateway bearer secret is trimmed before constructing the Authorization header", async () => {
+  const token = "x".repeat(64);
+  let authorization = "";
+  const handler = createScholarshipDiscoveryHandler(deps({
+    getEnv: (key) => key === "SEARXNG_GATEWAY_URL" ? "https://gateway.example" : `  ${token}\r\n`,
+    fetchImpl: async (_url, init) => {
+      authorization = init.headers.Authorization;
+      return response({ results: [] });
+    },
+  }));
+  const result = await handler(request(baseBody));
+  assert.equal(result.status, 200);
+  assert.equal(authorization, `Bearer ${token}`);
+});
+
 test("handler validates method, content type, state, year, and category", async () => {  const makeHandler = () => createScholarshipDiscoveryHandler(deps());
   assert.equal((await makeHandler()(new Request("https://edge.test", { method: "GET" }))).status, 405);  assert.equal((await makeHandler()(new Request("https://edge.test", { method: "POST", headers: { "cf-connecting-ip": "192.0.2.9" }, body: "{}" }))).status, 415);
   assert.equal((await makeHandler()(request({ ...baseBody, profile: { state: "Texas123", graduationYear: "2027" } }))).status, 400);
@@ -356,6 +389,22 @@ test("rate-limit buckets are isolated by client address", () => {
   assert.equal(limiter(req("198.51.100.2")).allowed, true);
 });
 
+test("network failures expose only safe error codes, never exception messages", async () => {
+  const cause = Object.assign(new Error("private upstream URL and credentials"), { code: "ECONNRESET" });
+  const failure = Object.assign(new TypeError("fetch failed"), { cause });
+  const outcome = await fetchSearchPage("https://gateway.example", "synthetic-token", { category: "local", query: "synthetic", page: 1 }, {
+    fetchImpl: async () => { throw failure; },
+  });
+  assert.equal(outcome.ok, false);
+  assert.equal(outcome.failureCode, "network_econnreset");
+  assert.equal(JSON.stringify(outcome).includes("private upstream URL"), false);
+  const noCause = await fetchSearchPage("https://gateway.example", "synthetic-token", { category: "local", query: "synthetic", page: 1 }, {
+    fetchImpl: async () => { throw new TypeError("error sending request for url (https://gateway.example/search?q=private-query)"); },
+  });
+  assert.equal(noCause.failureCode, "network_send_error");
+  assert.equal(JSON.stringify(noCause).includes("private-query"), false);
+});
+
 test("total gateway authentication failure exposes safe status diagnostics without credentials", async () => {
   const token = "synthetic-secret-token-".padEnd(64, "x");
   const handler = createScholarshipDiscoveryHandler(deps({
@@ -383,16 +432,16 @@ test("public rate limiter only trusts Cloudflare client identity and does not ev
   const spoofed = new Request("https://edge.test/discover", { method: "POST", headers: { "x-real-ip": "192.0.2.8" } });
   assert.equal(limiter(spoofed).unattributed, true);});
 
-test("Upstash limiter atomically shares counters and hashes addresses before storage", async () => {
+test("Upstash limiter uses one atomic shared admission script and hashes client addresses", async () => {
   let count = 0;
   const commands = [];
   const limiter = createUpstashRateLimiter({
-    url: "https://redis.example",
+    url: "https://redis.example.upstash.io",
     token: "synthetic-upstash-token-abcdefghijklmnopqrstuvwxyz0123456789",
     fetchImpl: async (_url, init) => {
       commands.push(JSON.parse(init.body));
       count += 1;
-      return response({ result: [count, 41_000] });
+      return response({ result: count > 2 ? [0, 41, "client_minute"] : [1, 0, "allowed"] });
     },
   });
   assert.equal((await limiter(request(baseBody))).allowed, true);
@@ -402,22 +451,23 @@ test("Upstash limiter atomically shares counters and hashes addresses before sto
   assert.equal(blocked.retryAfterSeconds, 41);
   assert.equal(commands.length, 3);
   assert.equal(commands[0][0], "EVAL");
-  assert.equal(commands[0][2], "1");
+  assert.equal(commands[0][2], "6");
   assert.equal(commands[0][3].includes("192.0.2.1"), false);
-  assert.match(commands[0][1], /redis\.call\('INCR'/);
+  assert.match(commands[0][1], /redis\\.call\\('INCR'/);
+  assert.match(commands[0][1], /redis\\.call\\('ZADD'/);
 });
 
 test("Upstash limiter fails closed for missing config, missing trusted address, and backend errors", async () => {
   assert.equal((await createUpstashRateLimiter({})(request(baseBody))).storageUnavailable, true);
   const noAddress = new Request("https://edge.test/discover", { method: "POST", headers: { "x-real-ip": "192.0.2.1" } });
   const configured = createUpstashRateLimiter({
-    url: "https://redis.example",
+    url: "https://redis.example.upstash.io",
     token: "synthetic-upstash-token-abcdefghijklmnopqrstuvwxyz0123456789",
-    fetchImpl: async () => response({ result: [1, 60_000] }),
+    fetchImpl: async () => response({ result: [1, 0, "allowed"] }),
   });
   assert.equal((await configured(noAddress)).unattributed, true);
   const unavailable = createUpstashRateLimiter({
-    url: "https://redis.example",
+    url: "https://redis.example.upstash.io",
     token: "synthetic-upstash-token-abcdefghijklmnopqrstuvwxyz0123456789",
     fetchImpl: async () => { throw new Error("offline"); },
   });

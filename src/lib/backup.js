@@ -13,12 +13,14 @@ export function buildScoutBackup(
   exportedAt = new Date(),
   applicationProgress = {},
   applicationWorkspace = {},
+  profileDraft = profile,
 ) {
   return {
     format: "scholarship-scout-backup",
     version: 2,
     exportedAt: exportedAt.toISOString(),
     profile: structuredClone(profile),
+    profileDraft: structuredClone(isRecord(profileDraft) ? profileDraft : profile),
     scholarships: structuredClone(Array.isArray(scholarships) ? scholarships : []),
     applicationProgress: structuredClone(
       isRecord(applicationProgress) ? applicationProgress : {},
@@ -52,6 +54,15 @@ export function validateScoutBackup(input, allowedProfileKeys) {
     for (const [key, value] of Object.entries(input.profile)) {
       if (!allowed.has(key) || typeof value !== "string") {
         return { ok: false, error: "The backup contains an unknown or invalid profile field." };
+      }
+    }
+    const profileDraft = input.profileDraft ?? input.profile;
+    if (!isRecord(profileDraft)) {
+      return { ok: false, error: "The backup profile draft is missing or invalid." };
+    }
+    for (const [key, value] of Object.entries(profileDraft)) {
+      if (!allowed.has(key) || typeof value !== "string") {
+        return { ok: false, error: "The backup contains an unknown or invalid profile draft field." };
       }
     }
     if (!Array.isArray(input.scholarships) || input.scholarships.length > MAX_SCHOLARSHIPS) {
@@ -126,6 +137,7 @@ export function validateScoutBackup(input, allowedProfileKeys) {
       ok: true,
       value: {
         profile: structuredClone(input.profile),
+        profileDraft: structuredClone(profileDraft),
         scholarships: safeScholarships,
         applicationProgress: structuredClone(applicationProgress),
         applicationWorkspace: normalizeApplicationWorkspace(applicationWorkspace, [...scholarshipIds]),

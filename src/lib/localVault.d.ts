@@ -1,0 +1,16 @@
+export const LOCAL_VAULT_FORMAT: string;
+export const LOCAL_VAULT_VERSION: number;
+export const LOCAL_VAULT_DATABASE: string;
+export const LOCAL_VAULT_STORE: string;
+export const LOCAL_VAULT_RECORD_KEY: string;
+export const LOCAL_VAULT_KDF_ITERATIONS: number;
+export type LocalVaultBackend = { get(): Promise<unknown>; set(value: unknown): Promise<unknown> };
+export function hasEncryptedVault(options?: { backend?: Pick<LocalVaultBackend, "get"> }): Promise<boolean>;
+export function createLocalVault(passphrase: string, options?: { storage?: Storage; backend?: LocalVaultBackend; lockManager?: LockManager | null }): Promise<{ recordCount: number }>;
+export function unlockLocalVault(passphrase: string, options?: { storage?: Storage; backend?: LocalVaultBackend; lockManager?: LockManager | null }): Promise<{ recordCount: number }>;
+export function flushLocalVault(): Promise<boolean>;
+export function destroyLocalVault(options?: { storage?: Storage; sessionStorage?: Storage; backend?: LocalVaultBackend }): Promise<boolean>;
+export function hasPendingLocalVaultWrites(): boolean;
+export function lockLocalVault(): Promise<boolean>;
+export function isLocalVaultUnlocked(): boolean;
+export const vaultStorage: Storage;

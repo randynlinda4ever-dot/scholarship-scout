@@ -1,12 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { readWorkspaceStyles } from './helpers/styles.mjs';
-import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readWorkspaceSource();
+const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const cloudApi = await readFile(new URL('../src/lib/scholarshipApi.ts', import.meta.url), 'utf8');
-const styles = await readWorkspaceStyles();
+const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
 
 test('email sign-in remains available as an optional account path', () => {
   assert.match(app, /id="cloud-email"/);
@@ -15,9 +13,11 @@ test('email sign-in remains available as an optional account path', () => {
   assert.doesNotMatch(app, /!supabaseConfigured \? <div className="panel cloud-setup">/);
 });
 
-test('live scholarship search can start without a pre-existing account session', () => {
-  assert.match(app, /Public search — no account required/);
-  assert.match(app, /no email or password/i);
+test('live scholarship search is public while account management stays in Settings', () => {
+  const cloudSearch = app.slice(app.indexOf("{tab === 'Cloud Search'"), app.indexOf("{tab === 'Scholarships'"));
+  const settings = app.slice(app.indexOf("{tab === 'Settings'"), app.indexOf("{tab === 'Discovery'"));
+  assert.match(cloudSearch, /Public search works without signing in or creating an account/);
+  assert.match(settings, /id="cloud-email"/);
   assert.doesNotMatch(app, /Cloud account required/);
   assert.doesNotMatch(app, /ensureCloudUser\(/);
   assert.doesNotMatch(cloudApi, /ensureAnonymousUser/);
@@ -33,13 +33,16 @@ test('theme preference is toggleable and persisted locally', () => {
   assert.match(styles, /\.theme-toggle/);
 });
 
-test('profile adds optional discovery fields and search cards use them', () => {
-  for (const field of ['academicStrengths', 'careerInterests', 'awardsHonors', 'preferredCollegeLocation', 'enrollmentPlan', 'searchKeywords']) {
+test('manual search links use the profile fields that are actually editable', () => {
+  for (const field of ['academicHonors', 'interests', 'searchKeywords', 'schoolState', 'plannedCollegeState', 'collegeStatus']) {
     assert.match(app, new RegExp(field));
   }
-  assert.match(app, /profile\.academicStrengths/);
-  assert.match(app, /profile\.careerInterests/);
-  assert.match(app, /profile\.searchKeywords/);
+  assert.match(app, /const topicTerms = \[profile\.plannedMajor, profile\.interests, profile\.academicHonors, profile\.searchKeywords\]/);
+  assert.match(app, /const collegeTerms = \[profile\.plannedCollege, profile\.plannedCollegeState, profile\.collegeStatus\]/);
+  assert.match(app, /const schoolTerms = \[profile\.school, profile\.schoolState, profile\.district\]/);
+  for (const removedField of ['academicStrengths', 'careerInterests', 'awardsHonors', 'preferredCollegeLocation', 'enrollmentPlan']) {
+    assert.doesNotMatch(app, new RegExp('profile\\.' + removedField));
+  }
 });
 
 test('older profile backups merge with defaults and restore through a rollback-capable storage batch', () => {
@@ -59,25 +62,23 @@ test('live web discovery rechecks Supabase auth and protects against stale sessi
   assert.match(cloudApi, /export async function getCloudUser\(\)[\s\S]*?await getSupabaseClient\(\)[\s\S]*?client\.auth\.getUser\(\)/);
 });
 
-test('live web discovery offers category selection, bounded research, and ranked SearXNG leads', () => {
-  assert.match(app, /Live web discovery is ready/i);
-  assert.match(app, /onClick=\{\(\)=>setTab\('Cloud Search'\)\}/);
-  assert.match(app, /SearXNG live web discovery/i);
-  assert.match(app, /Run research/);
-  assert.match(app, /DISCOVERY_CATEGORY_OPTIONS\.map/);
-  assert.match(app, /current\.length < 4/);
-  assert.match(app, /two result pages per query/i);
-  assert.match(app, /Research run summary/);
-  assert.match(app, /Live SearXNG results/);
-  assert.match(app, /relevance_score/);
-  assert.doesNotMatch(app, /live web discovery is not deployed/i);
-  assert.doesNotMatch(app, /Search Exa now|Live Exa results|sent to Exa/i);
+test('live web discovery keeps its current category selection and result review flow', () => {
+  const cloudSearch = app.slice(app.indexOf("{tab === 'Cloud Search'"), app.indexOf("{tab === 'Scholarships'"));
+  assert.match(cloudSearch, /<WorkspaceSubnav label="Scholarship search method"/);\n  assert.match(cloudSearch, /value: 'Cloud Search', label: 'Live web discovery'/);
+  assert.match(cloudSearch, /Run research/);
+  assert.match(cloudSearch, /DISCOVERY_CATEGORY_OPTIONS\.map/);
+  assert.match(cloudSearch, /current\.length < 4/);
+  assert.match(cloudSearch, /Live scholarship results/);
+  assert.match(cloudSearch, /relevance_score/);
+  assert.match(cloudSearch, /Sponsor, award, deadline, and eligibility remain unverified/);
+  assert.doesNotMatch(cloudSearch, /SearXNG|Exa/);
 });
 
-test('manual searches and live SearXNG discovery keep their data boundaries clear', () => {
-  assert.match(app, /A query is sent to Google only after you click its Search link/i);
-  assert.match(app, /Only state, graduation year, and category choices are sent to SearXNG/);
-  assert.match(app, /Research completed/);
-  assert.match(app, /student profile stay on this device/);
-  assert.match(app, /Sponsor, award, deadline, and eligibility remain unverified/);
+test('manual and automated discovery explain their separate data boundaries', () => {
+  const discovery = app.slice(app.indexOf("{tab === 'Discovery'"), app.indexOf("{tab === 'Cloud Search'"));
+  const cloudSearch = app.slice(app.indexOf("{tab === 'Cloud Search'"), app.indexOf("{tab === 'Scholarships'"));
+  assert.match(discovery, /open Google only when selected/i);
+  assert.match(discovery, /use the search terms shown on each card/i);
+  assert.match(cloudSearch, /Only your state, graduation year, and selected categories are sent/);
+  assert.match(cloudSearch, /Verify eligibility, award details, and deadlines on each official sponsor page/);
 });

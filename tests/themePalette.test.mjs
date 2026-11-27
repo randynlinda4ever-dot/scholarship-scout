@@ -1,43 +1,47 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { readWorkspaceStyles } from './helpers/styles.mjs';
 
-const css = await readWorkspaceStyles();
+const css = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
-const fieldNotes = css.split('/* Scholarship Scout — Field Notes design system */')[1] ?? '';
+const themeStyles = css.split('/* Scholarship Scout — Midnight Violet design system */')[1] ?? '';
 
-test('Field Notes defines the paper-and-evergreen light palette', () => {
+test('dark theme uses midnight navy surfaces and a violet accent system', () => {
   for (const token of [
-    '--bg: #f4f1e8',
-    '--surface: #fffdf7',
-    '--sidebar: #e9e6da',
-    '--text: #202b24',
-    '--accent: #365b49',
-    '--accent-strong: #795b2e',
-  ]) assert.ok(fieldNotes.includes(token), `missing light design token ${token}`);
+    '--bg: #080e1f',
+    '--surface: #121f3e',
+    '--sidebar: #0c1630',
+    '--text: #f5f4ff',
+    '--accent: #9c91ff',
+    '--accent-strong: #c6bdff',
+  ]) assert.ok(themeStyles.includes(token), `missing dark theme token ${token}`);
+  assert.match(themeStyles, /\.shell:not\(\[data-theme="light"\]\)/);
 });
 
-test('dark theme has a coordinated forest-and-sage palette', () => {
+test('light theme remains available with cool blue and lavender surfaces', () => {
   for (const token of [
-    '--bg: #151e19',
-    '--surface: #202e25',
-    '--sidebar: #1b2921',
-    '--text: #f0eee5',
-    '--accent: #b7c69a',
-    '--accent-strong: #e0c27f',
-  ]) assert.ok(fieldNotes.includes(token), `missing dark design token ${token}`);
-  assert.match(fieldNotes, /\.shell:not\(\[data-theme="light"\]\)/);
-  assert.match(fieldNotes, /\.shell\[data-theme="light"\]/);
+    '--bg: #f2f4fc',
+    '--surface: #ffffff',
+    '--sidebar: #e8ebf8',
+    '--text: #20253d',
+    '--accent: #6556c8',
+    '--accent-strong: #5143a8',
+  ]) assert.ok(themeStyles.includes(token), `missing light theme token ${token}`);
+  assert.match(themeStyles, /\.shell\[data-theme="light"\]/);
 });
 
-test('new users receive the light theme while saved dark preferences remain intact', () => {
-  assert.match(app, /localStorage\.getItem\('scout-theme'\) === 'dark' \? 'dark' : 'light'/);
-  assert.match(app, /catch \{ return 'light'; \}/);
+test('legacy implicit light preferences migrate to dark while deliberate theme choices persist', () => {
+  assert.match(app, /localStorage\.getItem\('scout-theme-choice'\) === 'true'/);
+  assert.match(app, /return hasExplicitPreference && savedTheme === 'light' \? 'light' : 'dark'/);
+  assert.match(app, /const chooseTheme = \(nextTheme: 'dark' \| 'light'\) =>/);
+  assert.match(app, /localStorage\.setItem\('scout-theme-choice', 'true'\)/);
+  assert.match(app, /catch \{ return 'dark'; \}/);
 });
 
-test('status semantics remain text-labelled and receive distinct tones', () => {
-  assert.match(fieldNotes, /\.status-likely-eligible, \.status-eligible, \.source-status-verified/);
-  assert.match(fieldNotes, /\.status-needs-information, \.source-status-needs-review/);
-  assert.match(fieldNotes, /\.status-not-eligible, \.source-status-expired/);
+test('status semantics remain text-labelled and use coordinated non-green tones', () => {
+  assert.match(themeStyles, /\.status-likely-eligible, \.status-eligible, \.source-status-verified/);
+  assert.match(themeStyles, /\.status-needs-information, \.source-status-needs-review/);
+  assert.match(themeStyles, /\.status-not-eligible, \.source-status-expired/);
+  assert.match(css, /\.application-status-submitted, \.application-status-awarded/);
+  assert.doesNotMatch(css, /#(?:365b49|b7c69a|dce5d8|344a3a|9bb59a|4c806e|8bd3b4)/i);
 });

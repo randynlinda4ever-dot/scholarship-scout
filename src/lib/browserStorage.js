@@ -1,4 +1,5 @@
 import { recordReliabilityEvent } from "./reliabilityMonitor.js";
+import { vaultStorage } from "./localVault.js";
 
 function recordStorageFailure() {
   recordReliabilityEvent("storage_write_failure");
@@ -7,7 +8,7 @@ function recordStorageFailure() {
 /**
  * Save JSON to browser storage and return an explicit status.
  */
-export function writeJsonStorage(key, value, resolveStorage = () => globalThis.localStorage) {
+export function writeJsonStorage(key, value, resolveStorage = () => vaultStorage) {
   try {
     const storage = resolveStorage();
     if (!storage || typeof storage.setItem !== "function") {
@@ -36,7 +37,7 @@ export function writeJsonStorage(key, value, resolveStorage = () => globalThis.l
  * success is true. A failed rollback is reported explicitly so callers do not
  * promise stronger atomicity than localStorage can provide.
  */
-export function writeJsonStorageBatch(entries, resolveStorage = () => globalThis.localStorage) {
+export function writeJsonStorageBatch(entries, resolveStorage = () => vaultStorage) {
   let operations;
   try {
     if (!entries || typeof entries !== "object" || Array.isArray(entries)) {
