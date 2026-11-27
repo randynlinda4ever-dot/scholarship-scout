@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "asOf": "2026-11-25",
+  "curatedAt": "2026-11-25",
+  "curationNote": "Public institutional and official program pages, manually checked on the curation date. These are recall anchors, not an exhaustive scholarship catalog or eligibility decisions. curatedAt is not a publication/update date and must never be used as source freshness evidence.",
+  "queries": [
+    {
+      "id": "tx-class-2027-general",
+      "query": "Texas scholarships for graduating high school seniors class of 2027 official program",
+      "category": "state",
+      "asOf": "2026-11-25",
+      "maxAgeDays": 365,
+      "requiredClaims": ["texas-scholarship-discovery", "texas-resident-programs"],
+      "expectedSources": [
+        {
+          "url": "https://comptroller.texas.gov/programs/education/msp/funding/aid/faidalpha.php",
+          "authority": "state-government-resource",
+          "supportedClaims": ["texas-scholarship-discovery"],
+          "maxAgeDays": 365
+        },
+        {
+          "url": "https://www.depts.ttu.edu/scholarships/terrys/index.php",
+          "authority": "university-scholarship-office",
+          "supportedClaims": ["texas-resident-programs"],
+          "maxAgeDays": 180
+        }
+      ]
+    },
+    {
+      "id": "tx-rural-county-programs",
+      "query": "Texas high school senior scholarships for students in eligible rural counties 2027 official university program",
+      "category": "local",
+      "asOf": "2026-11-25",
+      "maxAgeDays": 365,
+      "requiredClaims": ["county-restricted-programs"],
+      "expectedSources": [
+        {
+          "url": "https://www.depts.ttu.edu/scholarships/thoma/index.php",
+          "authority": "university-scholarship-office",
+          "supportedClaims": ["county-restricted-programs"],
+          "maxAgeDays": 180
+        }
+      ]
+    },
+    {
+      "id": "tx-humanities-subject-index",
+      "query": "Texas scholarships by subject humanities history writing high school students official resource",
+      "category": "humanities",
+      "asOf": "2026-11-25",
+      "maxAgeDays": 365,
+      "requiredClaims": ["subject-based-scholarship-discovery"],
+      "expectedSources": [
+        {
+          "url": "https://comptroller.texas.gov/programs/education/msp/funding/aid/faidsubj.php",
+          "authority": "state-government-resource",
+          "supportedClaims": ["subject-based-scholarship-discovery"],
+          "maxAgeDays": 365
+        },
+        {
+          "url": "https://comptroller.texas.gov/programs/education/msp/funding/aid/faidalpha.php",
+          "authority": "state-government-resource",
+          "supportedClaims": ["subject-based-scholarship-discovery"],
+          "maxAgeDays": 365
+        }
+      ]
+    },
+    {
+      "id": "houston-local-seniors",
+      "query": "Houston Texas high school senior scholarships local community foundation official",
+      "category": "local",
+      "asOf": "2026-11-25",
+      "maxAgeDays": 365,
+      "requiredClaims": ["local-houston-scholarship-resources"],
+      "expectedSources": [
+        {
+          "url": "https://www.houstontx.gov/education/scholarships-and-aid",
+          "authority": "city-government-resource",
+          "supportedClaims": ["local-houston-scholarship-resources"],
+          "maxAgeDays": 180
+        },
+        {
+          "url": "https://saisdfoundation.com/apply/scholarships/",
+          "authority": "school-district-foundation",
+          "supportedClaims": ["local-houston-scholarship-resources"],
+          "maxAgeDays": 180
+        }
+      ]
+    },
+    {
+      "id": "hispanic-heritage-high-school",
+      "query": "Hispanic heritage scholarships high school seniors graduating 2027 official foundation",
+      "category": "leadership",
+      "asOf": "2026-11-25",
+      "maxAgeDays": 365,
+      "requiredClaims": ["hispanic-heritage-programs"],
+      "expectedSources": [
+        {
+          "url": "https://www.hsf.net/scholarship/",
+          "authority": "official-scholarship-foundation",
+          "supportedClaims": ["hispanic-heritage-programs"],
+          "maxAgeDays": 180
+        },
+        {
+          "url": "https://www.colgate.com/en-us/mission/make-the-u",
+          "authority": "official-program-sponsor",
+          "supportedClaims": ["hispanic-heritage-programs"],
+          "maxAgeDays": 180
+        }
+      ]
+    },
+    {
+      "id": "tx-state-compendium-2027",
+      "query": "Texas 2026-2027 state scholarship and financial aid compendium official high school students",
+      "category": "state",
+      "asOf": "2026-11-25",
+      "maxAgeDays": 365,
+      "requiredClaims": ["official-state-financial-aid-index"],
+      "expectedSources": [
+        {
+          "url": "https://comptroller.texas.gov/programs/education/msp/funding/aid/faidalpha.php",
+          "authority": "state-government-resource",
+          "supportedClaims": ["official-state-financial-aid-index"],
+          "maxAgeDays": 365
+        },
+        {
+          "url": "https://comptroller.texas.gov/programs/education/msp/funding/programs/piperscholars.php",
+          "authority": "state-government-program-page",
+          "supportedClaims": ["official-state-financial-aid-index"],
+          "maxAgeDays": 180
+        }
+      ]
+    }
+  ]
+}

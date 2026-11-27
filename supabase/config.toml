@@ -1,0 +1,8 @@
+project_id = "wjrwvempgjvoxlioodse"
+
+# Public read-only discovery validates bounded inputs and applies request throttling.
+[functions.scholarship-discover]
+verify_jwt = false
+
+[functions.scholarship-verify]
+verify_jwt = true

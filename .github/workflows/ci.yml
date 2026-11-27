@@ -1,0 +1,39 @@
+name: Scholarship Scout CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scholarship-scout-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check dependency advisories
+        run: npm audit --audit-level=moderate
+
+      - name: Run automated tests
+        run: npm test
+
+      - name: Type-check and build
+        run: npm run build

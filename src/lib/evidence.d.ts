@@ -1,0 +1,33 @@
+export type SourceStatus = "verified" | "needs-review" | "expired";
+export type SourceAuthority = "official-sponsor" | "official-program" | "official-school" | "official-government" | "secondary-directory" | "unverified-lead";
+export type EvidenceCompleteness = {
+  complete: boolean;
+  completedCount: number;
+  totalCount: number;
+  missing: string[];
+  checks: Array<{ label: string; complete: boolean }>;
+};
+export function calendarDateKey(date: Date, timeZone?: string): string | null;
+export function parseSponsorDeadlineTime(value: string): { time: string; timeZoneText: string } | null;
+export function normalizeSourceCheckDate(value: string, now?: Date): string;
+export function isSafeHttpsUrl(url: string): boolean;
+export function sanitizePublicHttpsUrl(url: string): string | null;
+export function isSameOfficialSponsorSource(sponsorUrl: string, evidenceUrl: string): boolean;
+export function hasAwardEvidence(record: object): boolean;
+export function classifySourceAuthority(url: string): SourceAuthority;
+export function getSourceAttribution(url: string): { authority: SourceAuthority; label: string; linkLabel: string };
+export type EvidenceExcerptAttribution = { url: string; authority: SourceAuthority; label: string; linkLabel: string };
+export function getEvidenceExcerptAttributions(record: object): {
+  general: EvidenceExcerptAttribution | null;
+  award: EvidenceExcerptAttribution | null;
+  criteria: Record<string, EvidenceExcerptAttribution>;
+};
+export function resolveSourceAuthority(record: { sourceAuthority?: string; sourceUrl?: string; sourceVerified?: boolean }): SourceAuthority;
+export function deriveSourceStatus(record: object, now?: Date): SourceStatus;
+export function getOfficialSourceFreshness(record?: object, now?: Date): "fresh" | "stale" | "unverified";
+export function getEvidenceCompleteness(record: object, now?: Date): EvidenceCompleteness;
+export function scholarshipDedupeKey(record: object): string;
+export function deduplicateScholarshipRecords<T extends object>(records: T[]): T[];
+export function normalizeScholarshipRecord<T extends object>(record: T, now?: Date): T & { deadlineText: string; deadlineTime: string; deadlineTimezone: string; deadlineTimezoneText: string; lastCheckedDate: string; sourceAuthority: SourceAuthority; sourceStatus: SourceStatus; sourceVerified: boolean };
+export function normalizeScholarshipRecords<T extends object>(records: T[], now?: Date): Array<T & { deadlineText: string; deadlineTime: string; deadlineTimezone: string; deadlineTimezoneText: string; lastCheckedDate: string; sourceAuthority: SourceAuthority; sourceStatus: SourceStatus; sourceVerified: boolean }>;
+export function normalizeAndDeduplicateScholarships<T extends object>(records: T[], now?: Date): Array<T & { deadlineText: string; deadlineTime: string; deadlineTimezone: string; deadlineTimezoneText: string; lastCheckedDate: string; sourceAuthority: SourceAuthority; sourceStatus: SourceStatus; sourceVerified: boolean }>;
