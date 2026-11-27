@@ -26,7 +26,7 @@ test("expired or consumed one-time links receive a distinct explanation", () => 
 });
 
 test("account access and appearance preferences are grouped in Settings", () => {
-  assert.match(app, /Account & cloud access/);
+  assert.match(app, /Optional cloud account and access/);
   assert.match(app, /Send sign-in link/);
   assert.match(app, /Check session status/);
   assert.match(app, /Optional cloud account/);

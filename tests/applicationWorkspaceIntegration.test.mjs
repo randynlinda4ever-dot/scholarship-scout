@@ -9,7 +9,7 @@ test("application workspace persists to local storage and is included in encrypt
   const app = await readFile(appUrl, "utf8");
   assert.match(app, /localStorage\.getItem\('scout-application-workspace'\)/);
   assert.match(app, /saveJson\('scout-application-workspace'/);
-  assert.match(app, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace\)/);
+  assert.match(app, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft\)/);
   assert.match(app, /normalizeApplicationWorkspace\(imported\.applicationWorkspace, restoredScholarshipIds\)/);
 });
 

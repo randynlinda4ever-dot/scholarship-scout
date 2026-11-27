@@ -74,7 +74,7 @@ test("the gate keeps all workspace code unloaded until an unchecked agreement is
   assert.match(bootstrapAgeGate, /createLegalAcceptanceRecord\(new Date\(\)\.toISOString\(\),/);
   assert.match(bootstrapAgeGate, /guardianConfirmed: ageGroup === "minor"/);
   assert.match(gate, /ageGroup === "minor" && !guardianConfirmed/);
-  assert.match(gate, /I am the user's parent or legal guardian/);
+  assert.match(gate, /I am this user's parent or legal guardian/);
   assert.match(gate, /checked=\{checked\}/);
   assert.match(gate, /disabled=\{!checked \|\| !readToEnd \|\| !ageGroup/);
   assert.match(gate, /role="dialog"/);

@@ -196,7 +196,7 @@ test("encrypted backup modal clears passwords on failure and re-focuses when the
   const start = app.indexOf("const exportEncryptedBackup");
   const end = app.indexOf("const restoreLocalBackup", start);
   const exportHandler = app.slice(start, end);
-  assert.match(exportHandler, /finally\s*\{\s*setBackupPassword\(''\);\s*setBackupPasswordConfirm\(''\);\s*setBackupBusy\(false\);\s*\}/);
+  assert.match(exportHandler, /finally\s*\{\s*backupBusyRef\.current = false;\s*setBackupPassword\(''\);\s*setBackupPasswordConfirm\(''\);\s*setBackupBusy\(false\);\s*\}/);
   assert.match(app, /backupBusyRef\.current = backupBusy;/);
   assert.match(app, /\}, \[showAdd, selected\?\.id, backupDialogMode, backupPendingRestore\]\);/);
 });

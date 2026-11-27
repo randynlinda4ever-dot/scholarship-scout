@@ -6,7 +6,7 @@ const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const cloudSearch = app.slice(app.indexOf("{tab === 'Cloud Search'"), app.indexOf("{tab === 'Scholarships'"));
 
 test('cloud search has one clear page heading without a redundant live badge', () => {
-  assert.match(cloudSearch, /<h1>Live scholarship search<\/h1>/);
+  assert.match(cloudSearch, /<h1>Find scholarships<\/h1>/);
   assert.doesNotMatch(cloudSearch, /<span className="status status-likely-eligible">Live search<\/span>/);
 });
 

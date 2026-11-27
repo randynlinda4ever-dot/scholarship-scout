@@ -43,8 +43,8 @@ test('light-theme muted copy meets WCAG AA on every base surface', () => {
 
 test('scholarship name and provider are required, field-associated, and validated inline', () => {
   assert.match(app, /<form id="scholarship-editor-form"[\s\S]*?onInvalidCapture=/);
-  assert.match(app, /<Field id="scholarship-name" label="Scholarship name \*"[^>]*required/);
-  assert.match(app, /<Field id="scholarship-provider" label="Provider \*"[^>]*required/);
+  assert.match(app, /<Field id="scholarship-name" label="Scholarship name \*"[\s\S]*?required/);
+  assert.match(app, /<Field id="scholarship-provider" label="Provider \*"[\s\S]*?required/);
   assert.match(app, /aria-required=\{required \|\| undefined\}/);
   assert.match(app, /aria-invalid=\{error \? 'true' : undefined\}/);
   assert.match(app, /aria-describedby=\{error \? errorId : undefined\}/);
@@ -65,8 +65,8 @@ test('notifications are event-driven, auto-dismiss, and keep critical storage er
   assert.match(app, /setTimeout\(\(\) => setNotice\(''\), 6000\)/);
   assert.match(app, /const \[alert, setAlert\] = useState\(''\)/);
   assert.match(app, /className="app-alert" role="alert"/);
-  assert.match(app, /setAlert\('Your changes are active in this tab, but browser storage could not save them\./);
-  assert.match(app, /setAlert\('Your profile could not be saved in this browser\./);
+  assert.match(app, /setAlert\('Your changes are active in this tab, but encrypted browser storage could not finish saving\./);
+  assert.match(app, /const PROFILE_SAVE_ERROR = 'Your profile could not be saved in this browser/);
 });
 
 test('Midnight Violet CSS has one canonical token root and no duplicated motion or legacy font layers', () => {

@@ -14,7 +14,7 @@ test("live search categories are exposed as a named keyboard-operable group", ()
 
 test("live and saved search results expose named sections and list semantics", () => {
   assert.match(app, /<section aria-labelledby="live-search-results-title">/);
-  assert.match(app, /<h2 id="live-search-results-title">Live SearXNG results<\/h2>/);
+  assert.match(app, /<h2 id="live-search-results-title">Live scholarship results<\/h2>/);
   assert.match(app, /role="list" aria-label="Live scholarship search results"/);
   assert.match(app, /<section aria-labelledby="saved-cloud-results-title">/);
   assert.match(app, /role="list" aria-label="Saved scholarship records"/);

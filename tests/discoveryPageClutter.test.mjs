@@ -10,7 +10,7 @@ test('discovery page does not show a permanently empty preloaded-scholarships se
 });
 
 test('discovery page keeps actionable search paths and trusted sources', () => {
-  assert.match(app, /<h2>Run profile-specific searches<\/h2>/);
+  assert.match(app, /<h2>Run broad scholarship searches<\/h2>/);
   assert.match(app, /<h2>Trusted scholarship sources<\/h2>/);
-  assert.match(app, /Open live web discovery/);
+  assert.match(app, /label: 'Live web discovery'/);
 });

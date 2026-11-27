@@ -35,7 +35,7 @@ test("live search results and summaries render whether or not a cloud user is co
   const cloudSearchPage = app.slice(start, end);
   assert.ok(cloudSearchPage.includes("{exaResults.length>0 &&"));
   assert.ok(cloudSearchPage.includes("{discoverySummary &&"));
-  assert.ok(cloudSearchPage.includes("Public search — no account required"));
+  assert.ok(cloudSearchPage.includes("Public search works without signing in or creating an account."));
 });
 
 test("the deployed discovery function is public but applies request throttling", () => {

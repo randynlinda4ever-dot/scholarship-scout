@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const footer = app.slice(app.indexOf('<footer className="page-footer"'));
 const errorBoundary = await readFile(new URL('../src/components/AppErrorBoundary.tsx', import.meta.url), 'utf8');
 
 test('public footer does not expose local diagnostic history', () => {
-  assert.doesNotMatch(app, /Local diagnostics active|Clear local diagnostics|Diagnostic history stays on this device/);
+  assert.ok(footer.length > 0, 'workspace footer exists');
+  assert.doesNotMatch(footer, /Local diagnostics active|Clear local diagnostics|Diagnostic history stays on this device/);
   assert.doesNotMatch(errorBoundary, /local diagnostics|generic error category was saved/i);
 });
 

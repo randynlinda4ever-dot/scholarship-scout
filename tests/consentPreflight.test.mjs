@@ -36,7 +36,7 @@ test("the React workspace is dynamically imported only after consent and vault u
   );
   assert.match(bootstrap, /window\.localStorage\.setItem\(LEGAL_ACCEPTANCE_STORAGE_KEY, receipt\)/);
   assert.match(bootstrap, /isCurrentLegalAcceptance\(window\.localStorage\.getItem\(LEGAL_ACCEPTANCE_STORAGE_KEY\)\)/);
-  assert.match(bootstrap, /if \(!checkbox\.checked \|\| !readToEnd \|\| workspaceStarting\) return/);
+  assert.match(bootstrap, /if \(!checkbox\.checked \|\| !readToEnd \|\| !ageAllowed \|\| workspaceStarting\) return/);
   assert.match(bootstrap, /acceptButton\.disabled = !checkbox\.checked \|\| !readToEnd/);
 });
 

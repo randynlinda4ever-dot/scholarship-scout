@@ -22,7 +22,7 @@ test('Scholarship Scout uses a simple blue S placeholder mark', () => {
 
 test('workspace and legal gate share the reusable placeholder mark', () => {
   assert.match(app, /import \{ BrandMark \} from '\.\/components\/BrandMark'/);
-  assert.match(gate, /import \{ BrandMark \} from '\.\/BrandMark'/);
+  assert.match(gate, /import \{ BrandMark \} from [\"']\.\/BrandMark[\"']/);
   assert.match(app, /<BrandMark className="logo-mark"\s*\/>/);
   assert.match(gate, /<BrandMark className="legal-gate-mark"\s*\/>/);
   assert.match(app, /<BrandMark className="logo-mark avatar-mark"\s*\/>/);

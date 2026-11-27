@@ -8,8 +8,9 @@ const storage = await readFile(new URL("../src/lib/browserStorage.js", import.me
 const boundary = await readFile(new URL("../src/components/AppErrorBoundary.tsx", import.meta.url), "utf8");
 
 test("installs local reliability monitoring before mounting the application", () => {
-  assert.match(main, /installReliabilityMonitoring\(\)/);
-  assert.match(main, /<AppErrorBoundary>[\s\S]*?<App \/>[\s\S]*?<\/AppErrorBoundary>/);
+  assert.match(app, /installReliabilityMonitoring\(\)/);
+  assert.match(main, /import\('\.\/components\/AppErrorBoundary'\)/);
+  assert.match(main, /<ErrorBoundary><Workspace \/><\/ErrorBoundary>/);
 });
 
 test("reports only a local event count and offers a local clear action", () => {

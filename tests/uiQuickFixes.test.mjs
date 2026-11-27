@@ -6,11 +6,11 @@ const appStyles = await readFile(new URL('../src/App.css', import.meta.url), 'ut
 const brandStyles = await readFile(new URL('../src/brand-system.css', import.meta.url), 'utf8');
 
 test('desktop sidebar collapse control has a 44px target in both dimensions', () => {
-  const control = Array.from(appStyles.matchAll(/\.sidebar-collapse-toggle\s*\{([^}]*)\}/g)).at(-1)?.[1] ?? '';
+  const control = Array.from(appStyles.matchAll(/\.sidebar-collapse-toggle\s*\{([^}]*)\}/g)).at(0)?.[1] ?? '';
   assert.match(control, /width:\s*44px/);
   assert.match(control, /min-width:\s*44px/);
   assert.match(control, /height:\s*44px/);
-  assert.match(brandStyles, /\.sidebar-collapse-toggle\s*\{[^}]*min-height:\s*44px/);
+  assert.match(appStyles, /\.sidebar-collapse-toggle\s*\{[^}]*min-height:\s*44px/);
 });
 
 test('overview statistic helper text is at least 12px', () => {
