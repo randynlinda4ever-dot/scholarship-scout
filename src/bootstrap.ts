@@ -105,7 +105,11 @@ function renderLegalGate(): void {
     .legal-preflight-guardian { margin: 0 0 8px; padding: 9px; border: 1px solid #6C5D9A; border-radius: 9px; background: #211E3A; font-size: 11px; }
     .legal-preflight-check { display: flex; align-items: flex-start; gap: 10px; padding: 9px; border: 1px solid #3A365C; border-radius: 9px; background: #151D33; color: #E7E4F1; font-size: 12px; line-height: 1.5; cursor: pointer; }
     .legal-preflight-check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #A69AE8; }
-    .legal-preflight-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .legal-preflight-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+    .legal-preflight-demo { min-height: 46px; padding: 0 16px; border: 1px solid #77739D; border-radius: 10px; background: #202741; color: #E7E4F1; font: inherit; font-weight: 750; cursor: pointer; }
+    .legal-preflight-demo:hover { background: #2A3454; }
+    .legal-preflight-demo:focus-visible { outline: 3px solid #D8D0FF; outline-offset: 3px; }
+    .legal-preflight-demo-note { margin: 10px 0 0; color: #C3B9FF; font-size: 11px; line-height: 1.5; }
     .legal-preflight-accept { min-height: 46px; padding: 0 20px; border: 0; border-radius: 10px; background: #A69AE8; color: #191B39; font: inherit; font-weight: 800; cursor: pointer; }
     .legal-preflight-accept:disabled { cursor: not-allowed; opacity: .42; }
     .legal-preflight-accept:focus-visible, .legal-preflight-document:focus-visible, .legal-preflight-check input:focus-visible { outline: 3px solid #D8D0FF; outline-offset: 3px; }
@@ -261,6 +265,24 @@ function renderLegalGate(): void {
   const acceptButton = element("button", "legal-preflight-accept", "Accept and continue");
   acceptButton.type = "button";
   acceptButton.disabled = true;
+  let demoNotice: HTMLElement | null = null;
+  if (globalThis.__SCHOLARSHIP_SCOUT_PREVIEW_DEMO_ENABLED__ === true) {
+    const demoButton = element(
+      "button",
+      "legal-preflight-demo",
+      "Open synthetic agent test demo",
+    );
+    demoButton.type = "button";
+    demoButton.addEventListener("click", () => {
+      window.location.assign("/agent-demo");
+    });
+    actions.append(demoButton);
+    demoNotice = element(
+      "p",
+      "legal-preflight-demo-note",
+      "Preview test environment only. It uses fictional data, does not open the real workspace, and does not record legal acceptance.",
+    );
+  }
   actions.append(acceptButton);
 
   const footnote = element(
@@ -268,7 +290,9 @@ function renderLegalGate(): void {
     "legal-preflight-footnote",
     "Age and guardian selections are stored locally. Scholarship Scout does not verify age or guardian identity.",
   );
-  footer.append(status, ageGroupFieldset, guardianLabel, acceptanceLabel, error, actions, footnote);
+  footer.append(status, ageGroupFieldset, guardianLabel, acceptanceLabel, error);
+  if (demoNotice) footer.append(demoNotice);
+  footer.append(actions, footnote);
   panel.append(header, documentRegion, footer);
   screen.append(panel);
   root.replaceChildren(style, screen);
