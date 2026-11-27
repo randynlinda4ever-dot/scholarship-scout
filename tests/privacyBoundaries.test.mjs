@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const app = await read("src/App.tsx");
+const app = await readWorkspaceSource();
 const api = await read("src/lib/scholarshipApi.ts");
 const liveProfile = await read("src/lib/liveDiscoveryProfile.js");
 const discovery = await read("src/lib/discovery.js");

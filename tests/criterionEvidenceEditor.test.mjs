@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const app = await readWorkspaceSource();
 
 test("scholarship editor collects a URL and excerpt for every active structured criterion", () => {
   assert.match(app, /criteriaEvidence\?: Record<string, \{ excerpt\?: string; sourceUrl\?: string \}>/);

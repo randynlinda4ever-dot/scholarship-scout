@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
-import { deriveSourceStatus, getEvidenceCompleteness, getEvidenceExcerptAttributions, getOfficialSourceFreshness, getSourceAttribution, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
+import { deriveSourceStatus, getEvidenceExcerptAttributions, getSourceAttribution, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
 import { appendSourceEvidenceHistory, invalidateSourceReviewIfChanged } from './lib/sourceReview.js';
 import { getSupabaseClient, supabaseConfigured } from './lib/supabaseClient';
 import { buildScoutBackup, validateScoutBackup } from './lib/backup.js';
@@ -9,7 +9,6 @@ import { findPotentialDuplicates, getDeadlineMilestones, getDeadlineUrgency } fr
 import { APPLICATION_CHECKLIST_STEPS, normalizeApplicationProgress, updateApplicationProgress } from './lib/applicationProgress.js';
 import { createApplicationWorkspace, normalizeApplicationWorkspace, getApplicationWorkspaceSummary, countApplicationWords, RECOMMENDATION_STATUSES, type ApplicationWorkspaceEntry } from './lib/applicationWorkspace.js';
 import { summarizeEligibilityAssessment } from './lib/eligibilitySummary.js';
-import { DISCOVERY_CATEGORY_OPTIONS } from './lib/discovery.js';
 import { isLiveDiscoveryCategorySupported } from './lib/liveDiscoveryCapabilities.js';
 import { getProfileReadiness } from './lib/profileReadiness.js';
 import { validateProfileChanges } from './lib/profileValidation.js';
@@ -20,6 +19,16 @@ import { writeJsonStorage, writeJsonStorageBatch } from './lib/browserStorage.js
 import { AUTH_EMAIL_COOLDOWN_SECONDS, getAuthCooldownRemainingSeconds, isAuthRateLimitError, isExpiredAuthLinkError } from './lib/authCooldown.js';
 import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveCloudScholarship, sendMagicLink, signOutCloudUser, type LiveScholarship, type LiveDiscoverySummary } from './lib/scholarshipApi';
 import './App.css';
+import { CheckField, Field, SelectField } from './components/WorkspaceFields';
+import { ApplicationStatusPill, EligibilityMatchSummary, EvidenceCompletenessList, PriorityPill, SourceStatusPill, StatusPill } from './components/StatusPills';
+import type { CriteriaImportance, Profile, Scholarship, Status } from './domain/types.js';
+import { OverviewPage } from './features/workspace/pages/OverviewPage';
+import { SettingsPage } from './features/workspace/pages/SettingsPage';
+import { DiscoveryPage } from './features/workspace/pages/DiscoveryPage';
+import { CloudSearchPage } from './features/workspace/pages/CloudSearchPage';
+import { ScholarshipsPage } from './features/workspace/pages/ScholarshipsPage';
+import { EligibilityFiltersPage } from './features/workspace/pages/EligibilityFiltersPage';
+import { ApplicationPrepPage } from './features/workspace/pages/ApplicationPrepPage';
 
 function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record: T): T {
   const criteriaEvidence = record.criteriaEvidence && typeof record.criteriaEvidence === 'object'
@@ -38,46 +47,10 @@ function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record
   } as T;
 }
 
-type Status = EligibilityAssessment['status'];
-type CriteriaImportance = 'mandatory' | 'preferred';
-type Scholarship = {
-  id: string; name: string; provider: string; award: string; deadline: string; openDate?: string; openDateTimezone?: string;
-  deadlineText?: string; deadlineTime?: string; deadlineTimezone?: string; deadlineTimezoneText?: string; deadlineNotPublished?: boolean;
-  priorityDeadline?: string; priorityDeadlineText?: string; priorityDeadlineTimezone?: string;
-  sourceUrl: string; evidenceUrl?: string; sourceVerified: boolean; evidenceText: string; notes: string;
-  awardEvidenceText?: string; awardEvidenceUrl?: string; awardCurrencyBasis?: string; awardBasis?: string;
-  /** Transient editor signal; removed before tracker persistence. */
-  sourceReviewConfirmed?: boolean;
-  sourceAuthority?: string; sourceStatus?: 'verified' | 'needs-review' | 'expired'; lastCheckedDate?: string;
-  discoverySourceUrl?: string; discoverySourceLabel?: string; discoveredOn?: string;
-  /** Date this tracker record was created; distinct from discovery and sponsor review. */
-  recordCreatedAt?: string;
-  backendOpportunityId?: string;
-  applicationStatus?: ApplicationStatus; priority?: TrackerPriority; tags?: string[]; archived?: boolean;
-  submittedAt?: string; decisionDate?: string;
-  criteria: EligibilityCriteria;
-  criteriaImportance?: Partial<Record<keyof EligibilityCriteria, CriteriaImportance>>;
-  criteriaEvidence?: Record<string, { excerpt?: string; sourceUrl?: string }>;
-  sourceEvidenceHistory?: Array<{
-    recordedAt: string; sourceUrl?: string; evidenceUrl?: string; evidenceText?: string;
-    awardEvidenceText?: string; awardEvidenceUrl?: string; awardCurrencyBasis?: string; awardBasis?: string;
-    sourceAuthority?: string; lastCheckedDate?: string;
-    criteriaEvidence?: Record<string, { excerpt?: string; sourceUrl?: string }>;
-  }>;
-};
-type Profile = {
-  state: string; county: string; citizenship: string; age: string; school: string; schoolState: string; grade: string; graduationYear: string;
-  plannedCollege: string; plannedCollegeState: string; plannedMajor: string; degreeGoal: string; collegeStatus: string;
-  gpa: string; gpaType: string; classRank: string; rankDetails: string; credits: string; programNotes: string;
-  texasGrantNotation: string; act: string; sat: string; apCourses: string; dualCreditCourses: string;
-  academicHonors: string; interests: string; activities: string; serviceHours: string; service: string;
-  employment: string; certifications: string; languages: string; firstGeneration: string;
-  district: string; shhMembershipStatus: string; spanishAchievementStatus: string;
-  nseMedalYears: string; nseRegistered2027: string; fourHMembershipStatus: string;
-  academicStrengths: string; careerInterests: string; awardsHonors: string;
-  preferredCollegeLocation: string; enrollmentPlan: string; searchKeywords: string;
-  profileVersion: string;
-};
+
+
+
+
 
 const initialProfile: Profile = {
   // Personal student details are intentionally not bundled into the public client.
@@ -922,6 +895,27 @@ function App() {
     value !== 'any' && value !== false && (!Array.isArray(value) || value.length > 0)
   );
 
+  const renderWorkspacePage = () => {
+    switch (tab) {
+    case "Overview":
+      return <OverviewPage model={{ applicationCounts, assessments, candidateAssessments, deadlineOverview, deadlinesDueSoon, exportLocalBackup, formatDate, importLocalBackup, items, openAdd, overdueDeadlines, profile, profileReadiness, profileTags, setSelected, setTab, tracked }} />;
+    case "Settings":
+      return <SettingsPage model={{ authCooldownSeconds, cloudBusy, cloudEmail, cloudMessage, cloudUser, compactView, handleCheckCloudSession, handleCloudSignIn, handleCloudSignOut, isOnline, setCloudEmail, setCompactView, setTheme, supabaseConfigured, theme }} />;
+    case "Discovery":
+      return <DiscoveryPage model={{ candidateAssessments, googleSearch, openAdd, queryGroups, setTab, SOURCES, tracked }} />;
+    case "Cloud Search":
+      return <CloudSearchPage model={{ addLiveResult, cloudBusy, cloudMessage, cloudUser, discoveryState, discoverySummary, discoveryWarnings, exaResults, handleCloudSearch, isLiveDiscoveryCategorySupported, isOnline, items, liveResults, profile, selectedDiscoveryCategories, setSelectedDiscoveryCategories, setTab, supabaseConfigured }} />;
+    case "Scholarships":
+      return <ScholarshipsPage model={{ APPLICATION_STATUSES, applicationStatusFilter, archiveFilter, assessments, clearTrackerFilters, duplicateSuggestions, exportTrackerReport, filter, filtered, formatDate, getDeadlineMilestones, hasFilteredEmptyState, items, openAdd, query, setApplicationStatusFilter, setArchiveFilter, setFilter, setQuery, setSelected, setTrackerSortBy, statuses, summarizeEligibilityAssessment, trackerSortBy }} />;
+    case "Eligibility filters":
+      return <EligibilityFiltersPage model={{ profileDraft, profileReadiness, profileSaveStatus, saveProfile }} />;
+    case "Application prep":
+      return <ApplicationPrepPage model={{ APPLICATION_CHECKLIST_STEPS, applicationProgress, countApplicationWords, createWorkspaceItemId, formatDate, items, markPrepScholarshipSubmitted, prepScholarship, prepSummary, prepWorkspace, RECOMMENDATION_STATUSES, saveApplicationTask, savePrepWorkspace, setPrepScholarshipId, setTab }} />;
+      default:
+        return null;
+    }
+  };
+
   return <div className="shell" data-theme={theme} data-compact={compactView ? 'true' : 'false'}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="sidebar">
@@ -967,272 +961,19 @@ function App() {
       </header>
       {!isOnline && <div className="offline-notice" role="status" aria-live="polite"><b>You are offline.</b> Local changes still work and stay on this device; cloud sign-in and live search are unavailable until connection returns.</div>}
 
-      {tab === 'Overview' && <div className="page">
-        <div className="welcome"><div><div className="eyebrow">YOUR SCHOLARSHIP WORKSPACE</div><h1>Make your next opportunity count.</h1><p>Find scholarships that fit your story, verify the details, and keep every application organized.</p></div><button className="primary" onClick={() => setTab('Discovery')}>⌕ Find scholarships</button></div>
-        <div className="notice"><span>✦</span><div><b>Profile-based scholarship discovery</b><p>Searches use the school, district, location, and interests you choose to enter. Leave anything blank for broader matches.</p></div><button onClick={() => setTab('Eligibility filters')}>Review profile →</button></div>
-        <div className="panel profile-overview-readiness">
-          <div className="panel-heading"><div><h3>Profile readiness</h3><p className="muted">Coverage for personalized searches, not an eligibility decision.</p></div><span className="source-tag">{profileReadiness.core.completedCount}/{profileReadiness.core.totalCount} core details</span></div>
-          <div className="profile-readiness-meter"><strong>{profileReadiness.core.percent}%</strong><progress max={100} value={profileReadiness.core.percent} aria-label="Core profile completeness"/></div>
-          <p className="profile-readiness-caption">{profileReadiness.core.missing.length ? `Add: ${profileReadiness.core.missing.slice(0, 2).map((field) => field.label).join(', ')}${profileReadiness.core.missing.length > 2 ? ', and more' : ''}.` : 'Core location and education details are filled in. Sponsor-specific requirements still need review.'}</p>
-          <button className="text-button" onClick={() => setTab('Eligibility filters')}>Review profile details →</button>
-        </div>
-        <section className="quick-access" aria-labelledby="quick-access-title">
-          <div className="quick-access-heading"><div><span className="eyebrow">WHERE TO GO NEXT</span><h2 id="quick-access-title">Quick access</h2><p>Choose a section to get straight to what you need.</p></div></div>
-          <div className="quick-access-grid">
-            <button className="quick-link-card" onClick={() => setTab('Discovery')}><span className="quick-link-icon">⌕</span><span><b>Find scholarships</b><small>Explore awards selected around your profile.</small></span><span className="quick-link-arrow">→</span></button>
-            <button className="quick-link-card" onClick={() => setTab('Scholarships')}><span className="quick-link-icon">▤</span><span><b>My scholarships</b><small>Review saved opportunities and deadlines.</small></span><span className="quick-link-arrow">→</span></button>
-            <button className="quick-link-card" onClick={() => setTab('Application prep')}><span className="quick-link-icon">☑</span><span><b>Application checklist</b><small>Keep track of materials and next steps.</small></span><span className="quick-link-arrow">→</span></button>
-            <button className="quick-link-card" onClick={() => setTab('Eligibility filters')}><span className="quick-link-icon">♙</span><span><b>My profile</b><small>Update the details used for matching.</small></span><span className="quick-link-arrow">→</span></button>
-          </div>
-        </section>
-        <div className="section-head"><div><h2>Your pipeline</h2><p>Eligibility is calculated from the criteria recorded for each scholarship.</p></div><div className="section-actions"><button className="secondary" onClick={exportLocalBackup}>↓ Export encrypted backup</button><label className="secondary backup-import">↑ Import backup<input type="file" accept="application/json,.json" onChange={event=>{void importLocalBackup(event.target.files?.[0]);event.currentTarget.value='';}}/></label><button className="text-button" onClick={() => setTab('Scholarships')}>View all →</button></div></div>
-        <div className="stats">{[
-          {label:'Tracked scholarships',value:items.filter(item=>!item.archived).length,sub:'Active records in your workspace',icon:'▤'},
-          {label:'Eligible',value:[...assessments.values()].filter(x=>x.status==='Eligible').length,sub:'All recorded rules passed',icon:'✓'},
-          {label:'Need information',value:[...assessments.values()].filter(x=>x.status==='Needs information').length,sub:'At least one unknown condition',icon:'◷'},
-          {label:'Deadline milestones in 7 days',value:deadlinesDueSoon,sub:overdueDeadlines ? `${overdueDeadlines} past due · date-only estimates` : 'Date-only estimates; check sponsor cutoff',icon:'◷'}
-        ].map(x=><div className="stat" key={x.label}><div className="stat-top"><span>{x.label}</span><b>{x.icon}</b></div><strong>{x.value}</strong><small>{x.sub}</small></div>)}</div>
-        <div className="panel application-pipeline-summary">
-          <div className="panel-heading"><div><h3>Application progress</h3><p className="muted">Your manual workflow status, separate from scholarship eligibility.</p></div><button className="text-button" onClick={()=>setTab('Scholarships')}>Manage tracker →</button></div>
-          <div className="application-pipeline-grid">
-            <div><b>{applicationCounts.inProgress}</b><small>Preparing</small></div>
-            <div><b>{applicationCounts.ready}</b><small>Ready</small></div>
-            <div><b>{applicationCounts.submitted}</b><small>Submitted</small></div>
-            <div><b>{applicationCounts.awarded}</b><small>Awarded</small></div>
-          </div>
-        </div>
-        <div className="panel deadline-watch"><div className="panel-heading"><div><h3>Deadline watch</h3><p className="muted">The nearest dates in your tracker.</p></div><span className="source-tag">{deadlineOverview.length} opening/deadline dates shown</span></div>{deadlineOverview.length ? <div className="deadline-list">{deadlineOverview.map(({item,milestone})=><button type="button" className="deadline-item" key={`${item.id}-${milestone.key}`} onClick={()=>setSelected(item)}><span><b>{item.name}</b><small>{milestone.label} · {item.provider} · {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : 'Deadline not confirmed')}</small></span><DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></button>)}</div> : <p className="muted">Add confirmed calendar dates to see them here. Unpublished and unknown deadlines are not guessed.</p>}<small className="deadline-footnote">Date-only countdown. A sponsor-stated time zone is used when recorded; cutoff times are never inferred.</small></div>
-        <div className="section-head"><div><h2>Recent discoveries</h2><p>Opportunities with upcoming deadlines that need sponsor-level review.</p></div><button className="text-button" onClick={()=>setTab('Discovery')}>Open discovery →</button></div>
-        <div className="candidate-grid">{candidateAssessments.slice(0,2).map(({item,assessment})=><CandidateCard key={item.id} item={item} assessment={assessment} added={tracked(item.id)} onAdd={()=>openAdd(item)}/>)}</div>
-        <div className="bottom-grid"><div className="panel"><div className="panel-heading"><h3>Eligibility profile snapshot</h3><button className="text-button" onClick={()=>setTab('Eligibility filters')}>Edit →</button></div><div className="tag-row">{profileTags.slice(0,4).map(t=><span key={t}>{t}</span>)}</div><p className="muted">{profile.plannedMajor} · GPA {profile.gpa} · Rank {profile.classRank.split('—')[0].trim()} · ACT {profile.act}</p></div><div className="panel"><div className="panel-heading"><h3>How Scout verifies</h3><span className="spark">✦</span></div><div className="mini-steps"><span>01</span><p><b>Discover</b><small>Profile-specific searches and trusted directories.</small></p></div><div className="mini-steps"><span>02</span><p><b>Compare</b><small>Rules engine checks each entered requirement.</small></p></div><div className="mini-steps"><span>03</span><p><b>Audit</b><small>Unknowns and source evidence stay visible.</small></p></div></div></div>
-      </div>}
+      {renderWorkspacePage()}
 
-      {tab === 'Settings' && <div className="page narrow">
-        <div className="page-heading"><div><div className="eyebrow">WORKSPACE PREFERENCES</div><h1>Settings</h1><p>Manage how Scholarship Scout looks and how you connect your cloud account. Your profile and tracker stay local unless you choose to save sponsor records to the cloud.</p></div></div>
-        <section className="panel settings-section">
-          <div className="panel-heading"><div><h3>Appearance</h3><p className="muted">Choose the theme used across your workspace.</p></div><span className="source-tag">DISPLAY</span></div>
-          <div className="settings-choice-row">
-            <button type="button" className="theme-toggle" onClick={() => setTheme('dark')} aria-label="Use dark mode" aria-pressed={theme === 'dark'}><span aria-hidden="true">☾</span><span>Dark mode</span></button>
-            <button type="button" className="theme-toggle" onClick={() => setTheme('light')} aria-label="Use light mode" aria-pressed={theme === 'light'}><span aria-hidden="true">☀</span><span>Light mode</span></button>
-          </div>
-          <p className="muted settings-footnote">Your current selection is saved in this browser.</p>
-        </section>
-        <section className="panel settings-section">
-          <div className="panel-heading"><div><h3>Layout density</h3><p className="muted">Choose how much space cards and sections use.</p></div><span className="source-tag">LAYOUT</span></div>
-          <button type="button" className="compact-toggle" onClick={() => setCompactView(current => !current)} aria-label={compactView ? 'Switch to comfortable layout' : 'Switch to compact layout'} aria-pressed={compactView}>{compactView ? 'Comfortable view' : 'Compact view'}</button>
-          <p className="muted settings-footnote">{compactView ? 'Compact spacing is enabled.' : 'Comfortable spacing is enabled.'}</p>
-        </section>
-        <section className="panel settings-section">
-          <div className="panel-heading"><div><h3>Account & cloud access</h3><p className="muted">Live scholarship search is public and does not require an account. Email sign-in is only needed to save sponsor records to your cloud account. Your student profile, essays, and local tracker remain on this device.</p></div><span className={`status ${cloudUser ? 'status-eligible' : supabaseConfigured ? 'status-likely-eligible' : 'status-not-eligible'}`}>{cloudUser ? cloudUser.is_anonymous ? 'Anonymous account' : 'Signed in' : supabaseConfigured ? 'Public search configured' : 'Setup needed'}</span></div>
-          {cloudUser ? <div className="settings-account-state">
-            <p><b>{cloudUser.is_anonymous ? 'Anonymous browser session' : 'Connected account'}</b><span>{cloudUser.is_anonymous ? 'No email attached · private to this browser' : cloudUser.email || 'Signed-in account'}</span></p>
-            {cloudUser.is_anonymous ? <p className="cloud-config-note">Keep this browser profile to retain access to cloud records in this anonymous session. Clearing browser data or changing devices can make this session unrecoverable; account linking is not enabled in this version.</p> : null}
-            <div className="settings-account-actions">
-              <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCheckCloudSession()}>Check session status</button>
-              {!cloudUser.is_anonymous && <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCloudSignOut()}>Sign out</button>}
-            </div>
-          </div> : <div className="settings-account-state">
-            <p><b>No account connected</b><span>Public live search works without signing in.</span></p>
-            <p className="muted">Sign in only when you want to save sponsor records to your cloud account. Your student profile and essays are never uploaded by the search feature.</p>
-            <form className="cloud-auth-form settings-auth-form" onSubmit={handleCloudSignIn}>
-            <label className="field" htmlFor="cloud-email"><span>Email for sign-in link</span><input id="cloud-email" name="email" type="email" autoComplete="email" required value={cloudEmail} onChange={e=>setCloudEmail(e.target.value)} placeholder="you@example.com"/></label>
-            <button className="primary" type="submit" disabled={!supabaseConfigured || cloudBusy || !isOnline || !cloudEmail.trim() || authCooldownSeconds > 0}>{cloudBusy ? 'Sending…' : authCooldownSeconds > 0 ? `Try again in ${authCooldownSeconds}s` : 'Send sign-in link'}</button>
-            </form>
-          </div>}
-          {!supabaseConfigured && <p className="cloud-config-note" role="status">Cloud access is not available in this app build because the public Supabase browser configuration is missing. The hosted artifact must include its public publishable key before anonymous search or email sign-in can be used.</p>}
-          {cloudMessage && <p className="cloud-message" role="status" aria-live="polite">{cloudMessage}</p>}
-          <div className="cloud-steps">
-            <div><b>Public live search</b><p>Search public scholarship listings without creating an account. Requests are rate-limited and contain only state, graduation year, and selected categories.</p></div>
-            <div><b>Optional cloud account</b><p>Email sign-in connects an account for saving sponsor records across sessions. Your student profile, grades, activities, and essays remain local.</p><button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCheckCloudSession()}>Check session status</button></div>
-          </div>
-        </section>
-      </div>}
+      {}
 
-      {tab === 'Discovery' && <div className="page">
-        <div className="page-heading"><div><div className="eyebrow">PROFILE-TARGETED SEARCH</div><h1>Scholarship discovery</h1><p>Search the places most likely to have relevant awards, then import candidates into your tracker for automatic rule checks.</p></div><span className="status status-likely-eligible">Discovery beta</span></div>
-        <div className="filter-intro"><b>Live web discovery is ready</b><p>Scout can search public scholarship pages through your laptop-hosted SearXNG service. Only your state, expected graduation year, and broad search categories are sent for matching. Your school, grades, rank, test scores, activities, contact details, and the rest of your student profile stay on this device. A query is sent to Google only after you click its Search link; those manual links are separate from live discovery. Live results are unverified leads until you check the sponsor's official page.</p><button className="primary" onClick={()=>setTab('Cloud Search')}>Open live web discovery ↗</button></div>
-        <div className="section-head"><div><h2>Scholarship opportunities</h2><p>Start with your own profile and verify every opportunity with its official sponsor.</p></div></div>
-        {candidateAssessments.length ? <div className="candidate-grid">{candidateAssessments.map(({item,assessment})=><CandidateCard key={item.id} item={item} assessment={assessment} added={tracked(item.id)} onAdd={()=>openAdd(item)}/>)}</div> : <div className="panel empty"><div>⌕</div><b>No sample scholarships are preloaded</b><p>Use the research categories below to find current opportunities, or add a scholarship after checking its official source. School-based searches use only the school name and district you enter in My Profile.</p><button className="secondary" onClick={()=>setTab('Scholarships')}>Add a scholarship</button></div>}
-        <div className="section-head"><div><h2>Run profile-specific searches</h2><p>Each search includes your current education year and relevant background.</p></div></div>
-        <div className="search-grid">{queryGroups.map((item)=><div className="search-card" key={item.title}><div className="search-card-icon">⌕</div><div><b>{item.title}</b><p>{item.query}</p></div><a href={googleSearch(item.query)} target="_blank" rel="noreferrer">Search ↗</a></div>)}</div>
-        <div className="section-head"><div><h2>Trusted scholarship sources</h2><p>Use official sources first; some portals may contain third-party listings.</p></div></div>
-        <div className="source-grid">{SOURCES.map((source)=><div className="source-card" key={source.name}><span>{source.group}</span><b>{source.name}</b><p>{source.detail}</p><a href={source.url} target="_blank" rel="noreferrer">Open source ↗</a></div>)}</div>
-        <div className="safety-note"><b>Scholarship safety check</b><p>Do not pay an application or processing fee to receive a scholarship. Be cautious of guaranteed awards or requests for bank/card details. Verify the sponsor independently before sharing information. <a href="https://consumer.ftc.gov/articles/how-avoid-scholarship-and-financial-aid-scams" target="_blank" rel="noreferrer">FTC guidance ↗</a></p></div>
-      </div>}
+      {}
 
-      {tab === 'Cloud Search' && <div className="page">
-        <div className="page-heading"><div><div className="eyebrow">SEARXNG LIVE WEB DISCOVERY</div><h1>Live scholarship search</h1><p>Search public scholarship pages through your laptop-hosted SearXNG service, then review leads and optionally save sponsor details to your private account.</p></div><span className="status status-likely-eligible">SearXNG discovery</span></div>
-        <div className="cloud-run-row"><div><b>Live scholarship research</b><p className="muted">Public search works without signing in or creating an account. Only your state, graduation year, and selected categories are sent to the search service. Results are unverified leads until you review the official sponsor page.</p></div><button className="primary" disabled={cloudBusy || !isOnline || !supabaseConfigured || selectedDiscoveryCategories.length === 0} onClick={()=>void handleCloudSearch()}>{cloudBusy ? 'Researching…' : 'Run research'}</button></div>
-        <div className="panel discovery-category-picker" role="group" aria-labelledby="research-categories-title">
-          <div className="panel-heading"><div><h3 id="research-categories-title">Research categories</h3><p className="muted">Choose up to four categories per run. You can run another search with a different selection.</p></div><span className="source-tag">{selectedDiscoveryCategories.length}/4 selected</span></div>
-          <div className="discovery-category-grid">{DISCOVERY_CATEGORY_OPTIONS.map((category)=><label className="discovery-category-option" key={category.id}>
-            <input type="checkbox" checked={selectedDiscoveryCategories.includes(category.id)} disabled={!selectedDiscoveryCategories.includes(category.id) && (!isLiveDiscoveryCategorySupported(category.id) || selectedDiscoveryCategories.length >= 4)} onChange={(event)=>setSelectedDiscoveryCategories((current)=>event.target.checked ? (current.length < 4 && isLiveDiscoveryCategorySupported(category.id) ? [...current, category.id] : current) : current.filter((id)=>id !== category.id))}/>
-            <span><b>{category.label}</b><small>{category.description}{!isLiveDiscoveryCategorySupported(category.id) ? ' Not available in the deployed search yet.' : ''}</small></span>
-          </label>)}</div>
-          <p className="cloud-config-note">All categories listed here are supported by the current expanded search implementation. Choose up to four per run.</p>
-          {!profile.state.trim() || !profile.graduationYear.trim() ? <p className="cloud-config-note">Add your state and expected graduation year in My Profile before running live search.</p> : null}
-        </div>
-        <div className="panel cloud-auth">
-          <div className="panel-heading"><h3>Public search — no account required</h3><span className="status status-likely-eligible">Public access</span></div>
-          <p className="muted">Anyone can run live scholarship research without signing in. Search requests are rate-limited and contain only state, graduation year, and selected categories.</p>
-          <button type="button" className="secondary" onClick={() => setTab('Settings')}>Optional cloud account settings</button>
-        </div>
-        {cloudUser && <div className="panel cloud-authenticated">
-          <div className="panel-heading"><div><h3>{cloudUser.is_anonymous ? 'Anonymous cloud account' : `Connected as ${cloudUser.email || 'signed-in user'}`}</h3><p className="muted">Cloud sponsor records are private to this account and protected by row-level security.</p></div><button className="secondary" onClick={()=>setTab('Settings')}>Manage account</button></div>
-        </div>}
-        {cloudMessage && <p className="cloud-message" role="status" aria-live="polite">{cloudMessage}</p>}
-        {discoveryState === 'loading' && <div className="cloud-loading" aria-hidden="true">Researching…</div>}
-        {discoveryState === 'empty' && <div className="panel cloud-empty" role="status" aria-live="polite"><b>No scholarship matches were found for this search.</b><p>Your search completed, but no usable public leads matched the selected categories. Try different categories or run the search again. Provider warnings, if any, appear in the research summary.</p><button type="button" className="secondary" onClick={()=>void handleCloudSearch()}>Try search again</button></div>}
-        {discoveryState === 'error' && <div className="panel cloud-empty" role="alert"><b>Scholarship search could not be completed.</b><p>Review the search status message above for details, then retry the search.</p><button type="button" className="secondary" disabled={cloudBusy || !isOnline || !supabaseConfigured || selectedDiscoveryCategories.length === 0} onClick={()=>void handleCloudSearch()}>Retry search</button></div>}
-        {discoverySummary && <div className="panel search-metrics">
-          <div className="panel-heading"><div><h3>Research run summary</h3><p className="muted">Search coverage and deduplicated lead count.</p></div><span className="source-tag">{discoverySummary.uniqueResults} unique leads</span></div>
-          <div className="search-metrics-grid">
-            <div><b>{discoverySummary.requestedQueries}</b><small>Search requests</small></div>
-            <div><b>{discoverySummary.successfulQueries}</b><small>Successful</small></div>
-            <div><b>{discoverySummary.failedQueries}</b><small>Failed</small></div>
-            <div><b>{discoverySummary.pagesChecked}</b><small>Pages checked</small></div>
-            <div><b>{discoverySummary.rawResultCount}</b><small>Raw results</small></div>
-          </div>
-          {discoveryWarnings.map((warning,index)=><p className="cloud-config-note" key={index}>{warning}</p>)}
-        </div>}
-        {exaResults.length>0 && <section aria-labelledby="live-search-results-title"><div className="section-head"><div><h2 id="live-search-results-title">Live SearXNG results</h2><p>Ranked and deduplicated research leads. Sponsor, award, deadline, and eligibility remain unverified until you review the official page.</p></div><span className="source-tag">{exaResults.length} leads</span></div>
-          <div className="cloud-results" role="list" aria-label="Live scholarship search results">{exaResults.map((row)=><CloudResultCard key={row.id} item={row} tracked={items.some(x=>x.backendOpportunityId===row.id||x.sourceUrl===row.source_url)} onTrack={()=>addLiveResult(row)}/>)}</div>
-        </section>}
-        {cloudUser && !cloudBusy && liveResults.length === 0 && <div className="panel cloud-empty" role="status" aria-live="polite"><b>No saved cloud records yet.</b><p>Review a live lead and choose whether to save its sponsor details to your account.</p></div>}
-        {cloudUser && liveResults.length>0 && <section aria-labelledby="saved-cloud-results-title"><div className="section-head"><div><h2 id="saved-cloud-results-title">Saved cloud records</h2><p>Sponsor details saved to your private account.</p></div><span className="source-tag">{liveResults.length} records</span></div>
-          <div className="cloud-results" role="list" aria-label="Saved scholarship records">{liveResults.map((row)=><CloudResultCard key={row.id} item={row} tracked={items.some(x=>x.backendOpportunityId===row.id||x.sourceUrl===row.source_url)} onTrack={()=>addLiveResult(row)}/>)}</div>
-        </section>}
-      </div>}
+      {}
 
-      {tab === 'Scholarships' && <div className="page">
-        <div className="page-heading"><div><div className="eyebrow">OPPORTUNITY TRACKER</div><h1>Scholarships</h1><p>Every saved opportunity is automatically compared against your current profile.</p></div><div className="tracker-heading-actions"><button className="secondary" onClick={exportTrackerReport}>↓ Export CSV report</button><button className="primary" onClick={()=>openAdd()}>＋ Add scholarship</button></div></div>
-        <div className="toolbar tracker-toolbar">
-          <input aria-label="Search tracked scholarships" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search names, sponsors, or tags…"/>
-          <select aria-label="Eligibility status filter" value={filter} onChange={e=>setFilter(e.target.value)}><option value="All">Any eligibility</option>{statuses.map(s=><option key={s}>{s}</option>)}</select>
-          <select aria-label="Application status filter" value={applicationStatusFilter} onChange={e=>setApplicationStatusFilter(e.target.value)}><option value="All">All application statuses</option>{APPLICATION_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
-          <select aria-label="Archive filter" value={archiveFilter} onChange={e=>setArchiveFilter(e.target.value as 'active'|'archived'|'all')}><option value="active">Active records</option><option value="archived">Archived records</option><option value="all">All records</option></select>
-          <select aria-label="Sort tracker records" value={trackerSortBy} onChange={e=>setTrackerSortBy(e.target.value as typeof trackerSortBy)}>
-            <option value="deadline">Sort: Deadline</option><option value="priority">Sort: Priority</option><option value="award">Sort: Award amount</option><option value="applicationStatus">Sort: Application status</option><option value="eligibility">Sort: Eligibility</option><option value="name">Sort: Name</option>
-          </select>
-        </div>
-        {duplicateSuggestions.length > 0 && <div className="panel duplicate-review"><div className="panel-heading"><div><h3>Duplicate suggestions to review</h3><p className="muted">Exact, strong, and possible title matches with the same sponsor and deadline year. Suggestions only; Scout will not merge or delete records.</p></div><span className="source-tag">{duplicateSuggestions.length} pairs</span></div><div className="duplicate-list">{duplicateSuggestions.slice(0,5).map((pair)=><div className="duplicate-row" key={`${pair.firstId}-${pair.secondId}`}><div className="duplicate-names"><span className="source-tag">{pair.matchLabel}</span><b>{pair.firstName}</b><span>and</span><b>{pair.secondName}</b><small>{pair.sponsor} · Deadline year {pair.deadlineYear} · {pair.titleSimilarity}% title similarity</small><small>{pair.reasons.join(' · ')}</small></div><div className="duplicate-actions"><button className="text-button" onClick={()=>setSelected(items[pair.firstIndex])}>Review first</button><button className="text-button" onClick={()=>setSelected(items[pair.secondIndex])}>Review second</button></div></div>)}</div>{duplicateSuggestions.length > 5 && <small className="deadline-footnote">Showing the five strongest suggestions. The remaining {duplicateSuggestions.length - 5} pairs are also retained for review.</small>}</div>}
-        <div className="table-card"><div className="table-title"><b>Tracked opportunities</b><span>{filtered.length} shown · eligibility and application status are tracked separately</span></div>{filtered.length===0 && items.length===0 ? <Empty onAdd={()=>openAdd()}/> : hasFilteredEmptyState ? <FilteredEmpty onClear={clearTrackerFilters}/> : <div className="table-wrap"><table><thead><tr><th>OPPORTUNITY</th><th>AWARD AMOUNT / BASIS</th><th>DEADLINE</th><th>URGENCY</th><th>APPLICATION</th><th>PRIORITY</th><th>ELIGIBILITY</th><th>SOURCE REVIEW</th><th></th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td data-label="Opportunity"><button type="button" className="tracker-open" aria-label={'Review ' + item.name} onClick={()=>setSelected(item)}>{item.name}</button><small>{item.provider}</small>{item.tags?.length ? <small>{item.tags.join(' · ')}</small> : null}</td><td data-label="Award amount / basis"><b>{item.award || 'Amount not recorded'}</b><small>Basis: as entered; not separately classified</small></td><td data-label="Deadline">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : "Date not confirmed")}</small>)}</td><td data-label="Urgency">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: <DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></small>)}</td><td data-label="Application"><ApplicationStatusPill status={item.applicationStatus || 'Not started'}/></td><td data-label="Priority"><PriorityPill priority={item.priority || 'Medium'}/></td><td data-label="Eligibility"><StatusPill status={summarizeEligibilityAssessment(assessments.get(item.id)).status as Status}/></td><td data-label="Source review"><SourceStatusPill item={item}/></td><td aria-hidden="true">›</td></tr>)}</tbody></table></div>}</div>
-        <p className="footnote">“Eligible” means every structured rule entered in Scout passed and the official source review was marked complete. It is not an award guarantee; sponsor decisions and unentered requirements may still apply.</p>
-      </div>}
+      {}
 
-      {tab === 'Eligibility filters' && <div className="page narrow">
-        <div className="page-heading"><div><div className="eyebrow">PERSONAL MATCHING PROFILE</div><h1>Your profile</h1><p>These details guide scholarship discovery and eligibility checks. Update anything that is missing or outdated.</p></div></div>
-        <div className="filter-intro"><b>How the filters work</b><p>Location, citizenship, school year, GPA, and class rank are hard eligibility comparisons when a sponsor specifies them. Activities, service, work, and interests help find strong matches. Financial need and other sensitive factors are not inferred; unknown conditions are flagged.</p></div>
-        <div className="panel profile-readiness-panel">
-          <div className="panel-heading"><div><h3>Profile readiness</h3><p className="muted">Complete the core details first. The rest are optional ways to improve discovery.</p></div><span className="source-tag">{profileReadiness.core.completedCount}/{profileReadiness.core.totalCount} core details</span></div>
-          <div className="profile-readiness-meter"><strong>{profileReadiness.core.percent}%</strong><progress max={100} value={profileReadiness.core.percent} aria-label="Core profile completeness"/></div>
-          <div className="profile-readiness-columns">
-            <div><b>Core details</b><p>{profileReadiness.core.completedCount} of {profileReadiness.core.totalCount} entered</p>{profileReadiness.core.missing.length ? <ul className="profile-readiness-list">{profileReadiness.core.missing.map((field) => <li key={field.key}><b>{field.label}:</b> {field.reason}</li>)}</ul> : <p className="profile-ready-message">Core location and education details are present.</p>}</div>
-            <div><b>Optional matching details</b><p>{profileReadiness.supporting.completedCount} of {profileReadiness.supporting.totalCount} entered</p>{profileReadiness.supporting.missing.length ? <ul className="profile-readiness-list">{profileReadiness.supporting.missing.slice(0, 4).map((field) => <li key={field.key}><b>{field.label}:</b> {field.reason}</li>)}</ul> : <p className="profile-ready-message">Helpful matching details are filled in.</p>}</div>
-          </div>
-          <small className="profile-readiness-note">These indicators do not change eligibility results. Citizenship, financial need, organization membership, and other sponsor-specific qualifications remain unknown unless you explicitly confirm them.</small>
-        </div>
-        <div className={`profile-storage-state ${profileSaveStatus === 'unavailable' ? 'is-unavailable' : 'is-saved'}`} role="status" aria-live="polite">
-          {profileSaveStatus === 'unavailable' ? 'Could not save your latest profile change in this browser. Export an encrypted backup before closing or reloading.' : profileSaveStatus === 'draft' ? 'An unfinished value is saved as a local draft and is not used for eligibility calculations until valid.' : profileSaveStatus === 'saved' ? 'Profile changes saved in this browser only.' : 'Profile information stays in this browser and is not uploaded to your cloud scholarship records.'}
-        </div>
-        <div className="form-card">
-          <div className="form-section"><div className="section-title-row"><div><h3>Geographic and citizenship filters</h3><p>Useful for state, county, local, and national scholarships. School name and district are optional.</p></div><span className="source-tag">APPLICATION</span></div><div className="form-grid"><Field label="State of residence" value={profileDraft.state} onChange={v=>saveProfile({...profileDraft,state:v})}/><Field label="County" value={profileDraft.county} onChange={v=>saveProfile({...profileDraft,county:v})}/><Field label="Citizenship" value={profileDraft.citizenship} onChange={v=>saveProfile({...profileDraft,citizenship:v})}/><Field label="School name (optional)" value={profileDraft.school} onChange={v=>saveProfile({...profileDraft,school:v})} placeholder="Enter your school name"/><Field label="State where your school is located" value={profileDraft.schoolState} onChange={v=>saveProfile({...profileDraft,schoolState:v})} placeholder="Texas"/></div></div>
-          <div className="form-section"><div className="section-title-row"><div><h3>Education plans</h3><p>Separates current senior eligibility from future college enrollment.</p></div><span className="source-tag">APPLICATION</span></div><div className="form-grid"><Field label="Age (whole years; optional, stays on this device)" value={profileDraft.age} onChange={v=>saveProfile({...profileDraft,age:v})} type="number"/><Field label="Current education level" value={profileDraft.grade} onChange={v=>saveProfile({...profileDraft,grade:v})}/><Field label="Expected graduation year" value={profileDraft.graduationYear} onChange={v=>saveProfile({...profileDraft,graduationYear:v})}/><Field label="Planned college" value={profileDraft.plannedCollege} onChange={v=>saveProfile({...profileDraft,plannedCollege:v})}/><Field label="State where your intended college is located" value={profileDraft.plannedCollegeState} onChange={v=>saveProfile({...profileDraft,plannedCollegeState:v})} placeholder="Texas"/><Field label="Intended major" value={profileDraft.plannedMajor} onChange={v=>saveProfile({...profileDraft,plannedMajor:v})}/></div><Field label="College status" value={profileDraft.collegeStatus} onChange={v=>saveProfile({...profileDraft,collegeStatus:v})} placeholder="e.g. incoming planned, full-time confirmed, part-time confirmed"/><Field label="Long-term education/career goal" value={profileDraft.degreeGoal} onChange={v=>saveProfile({...profileDraft,degreeGoal:v})}/></div>
-          <div className="form-section"><div className="section-title-row"><div><h3>Academic filters</h3><p>Official transcript values override résumé estimates.</p></div><span className="source-tag">OFFICIAL TRANSCRIPT</span></div><div className="form-grid"><Field label="GPA" value={profileDraft.gpa} onChange={v=>saveProfile({...profileDraft,gpa:v})}/><Field label="GPA type and scale" value={profileDraft.gpaType} onChange={v=>saveProfile({...profileDraft,gpaType:v})}/><Field label="Official class standing" value={profileDraft.classRank} onChange={v=>saveProfile({...profileDraft,classRank:v})}/><Field label="State credits earned" value={profileDraft.credits} onChange={v=>saveProfile({...profileDraft,credits:v})}/><Field label="ACT composite" value={profileDraft.act} onChange={v=>saveProfile({...profileDraft,act:v})}/><Field label="SAT score" value={profileDraft.sat} onChange={v=>saveProfile({...profileDraft,sat:v})}/><Field label="AP courses" value={profileDraft.apCourses} onChange={v=>saveProfile({...profileDraft,apCourses:v})}/><Field label="Dual-credit courses" value={profileDraft.dualCreditCourses} onChange={v=>saveProfile({...profileDraft,dualCreditCourses:v})}/></div><small className="profile-search-hint">ACT scores must be 1–36 and SAT scores 400–1600. GPA must be numeric; a maximum is applied only when you enter a numeric GPA scale.</small><label className="field"><span>Academic honors and distinctions</span><textarea value={profileDraft.academicHonors} onChange={e=>saveProfile({...profileDraft,academicHonors:e.target.value})}/></label><Field label="Graduation program, achievement level, and endorsement" value={profileDraft.programNotes} onChange={v=>saveProfile({...profileDraft,programNotes:v})}/><div className="rank-warning"><b>Official transcript rank</b><p>{profileDraft.rankDetails}</p><Field label="Rank source and date / clarification" value={profileDraft.rankDetails} onChange={v=>saveProfile({...profileDraft,rankDetails:v})}/></div><div className="rank-warning"><b>Texas Grant notation — confirm before use</b><p>This transcript notation should be confirmed with the school or financial-aid office; it is not treated as automatic qualification for every Texas grant or scholarship.</p><Field label="Transcript's Texas Grant notation" value={profileDraft.texasGrantNotation} onChange={v=>saveProfile({...profileDraft,texasGrantNotation:v})}/></div></div>
-          <div className="form-section"><div className="section-title-row"><div><h3>Activities and scholarship strengths</h3><p>Used for leadership, service, career-interest, and special-interest matching.</p></div><span className="source-tag">ACTIVITIES + RÉSUMÉ</span></div><Field label="Academic and career interests" value={profileDraft.interests} onChange={v=>saveProfile({...profileDraft,interests:v})}/><label className="field"><span>Clubs, leadership, and extracurriculars</span><textarea value={profileDraft.activities} onChange={e=>saveProfile({...profileDraft,activities:e.target.value})}/></label><div className="form-grid"><Field label="Community service hours" value={profileDraft.serviceHours} onChange={v=>saveProfile({...profileDraft,serviceHours:v})}/><Field label="Languages" value={profileDraft.languages} onChange={v=>saveProfile({...profileDraft,languages:v})}/></div><label className="field"><span>Service experience</span><textarea value={profileDraft.service} onChange={e=>saveProfile({...profileDraft,service:e.target.value})}/></label><div className="form-grid"><Field label="Employment" value={profileDraft.employment} onChange={v=>saveProfile({...profileDraft,employment:v})}/><Field label="Certifications" value={profileDraft.certifications} onChange={v=>saveProfile({...profileDraft,certifications:v})}/></div></div>
-          <div className="form-section">
-            <div className="section-title-row"><div><h3>Additional scholarship matching details</h3><p>Optional general details that make search links more relevant. Use broad topics, not private identifiers.</p></div><span className="source-tag">OPTIONAL SEARCH CONTEXT</span></div>
-            <div className="form-grid">
-              <Field label="Academic strengths or favorite subjects" value={profileDraft.academicStrengths} onChange={v=>saveProfile({...profileDraft,academicStrengths:v})} placeholder="e.g. history, writing, biology, computer science"/>
-              <Field label="Career fields you want to explore" value={profileDraft.careerInterests} onChange={v=>saveProfile({...profileDraft,careerInterests:v})} placeholder="e.g. education, engineering, public service"/>
-              <Field label="Awards, honors, and recognitions" value={profileDraft.awardsHonors} onChange={v=>saveProfile({...profileDraft,awardsHonors:v})} placeholder="List awards you have actually received or clearly mark pending"/>
-              <Field label="Preferred college location" value={profileDraft.preferredCollegeLocation} onChange={v=>saveProfile({...profileDraft,preferredCollegeLocation:v})} placeholder="e.g. Texas, nearby states, anywhere in the U.S."/>
-              <Field label="Expected enrollment plan" value={profileDraft.enrollmentPlan} onChange={v=>saveProfile({...profileDraft,enrollmentPlan:v})} placeholder="e.g. four-year university, community college, technical program"/>
-            </div>
-            <label className="field"><span>Extra scholarship search keywords</span><textarea value={profileDraft.searchKeywords} onChange={e=>saveProfile({...profileDraft,searchKeywords:e.target.value})} placeholder="Broad topics or award categories you want included in search links"/></label>
-            <p className="profile-search-hint">These keywords can appear in Google searches after you click a search link. Do not enter your name, email, phone number, street address, account details, or other private information.</p>
-          </div>
-          <div className="form-section">
-            <div className="section-title-row"><div><h3>School and district information</h3><p>Both fields are optional. Enter your own details to discover school-based awards, or leave them blank for broader results.</p></div><span className="source-tag">OPTIONAL</span></div>
-            <div className="form-grid">
-              <Field label="School district (optional)" value={profileDraft.district} onChange={v=>saveProfile({...profileDraft,district:v})} placeholder="Enter your school district"/>
-            </div>
-          </div>
-          <div className="form-section"><div className="section-title-row"><div><h3>Optional matching detail</h3><p>Only use these when the scholarship's specific rules require them.</p></div><span className="source-tag">NEEDS CONFIRMATION</span></div><label className="field"><span>First-generation college student status</span><select value={profileDraft.firstGeneration} onChange={e=>saveProfile({...profileDraft,firstGeneration:e.target.value})}><option>Not confirmed — verify sponsor definition and family education details before matching</option><option>Yes — I meet the sponsor's definition</option><option>No</option><option>Unsure — needs review</option></select></label></div>
-          <div className="privacy-note">◈ <span><b>Privacy-conscious profileDraft.</b><br/>Contact details, street address, government identifiers, health information, and household financial details are excluded from automated matching. Profile data is stored in this browser only.</span></div>
-        </div>
-      </div>}
+      {}
 
-      {tab === 'Application prep' && <div className="page narrow">
-        <div className="page-heading"><div><div className="eyebrow">APPLICATION WORKBENCH</div><h1>Application preparation</h1><p>Organize each scholarship separately, track required materials, and keep your drafts together on this device.</p></div></div>
-        {!prepScholarship ? <div className="panel prep-panel"><h2>Start an application workspace</h2><p className="muted">Add a scholarship to your tracker before preparing its application.</p><button className="secondary" onClick={()=>setTab('Scholarships')}>Open scholarship tracker</button></div> : <>
-          <section className="panel prep-panel">
-            <div className="prep-icon">✎</div><h2>{prepScholarship.name}</h2><p>{prepScholarship.provider} · {prepScholarship.award || 'Award amount not listed'} · Deadline: {prepScholarship.deadline ? formatDate(prepScholarship.deadline) : prepScholarship.deadlineText || 'Not listed'}</p>
-            <label className="field"><span>Scholarship workspace</span><select value={prepScholarship.id} onChange={event=>setPrepScholarshipId(event.target.value)}>{items.map(item=><option key={item.id} value={item.id}>{item.name} — {item.provider}</option>)}</select></label>
-            <div className="application-progress"><div><b>{prepSummary.completed} of {prepSummary.total} preparation items complete</b><strong>{prepSummary.percent}%</strong></div><progress max={100} value={prepSummary.percent}/><small>{prepSummary.requiredDocuments} required documents · {prepSummary.readyDocuments} ready · {prepSummary.pendingRecommendations} recommendation requests pending · {prepSummary.overLimitEssays} essays over word limit</small></div>
-            <h3>Core preparation checklist</h3>
-            {APPLICATION_CHECKLIST_STEPS.map((step,index)=><label className="check-row" key={step}><input type="checkbox" checked={Boolean(applicationProgress[prepScholarship.id]?.[index])} onChange={event=>saveApplicationTask(prepScholarship.id,index,event.target.checked)}/><span>{step}</span></label>)}
-            <small className="deadline-footnote">Progress, prompts, draft text, recommendation details, and document notes are stored locally in this browser and included only in your encrypted backup. They are not sent to cloud sponsor records.</small>
-          </section>
-          <div className="prep-section-grid">
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Custom checklist</h3><p>Add steps specific to this scholarship.</p></div><span className="source-tag">{prepWorkspace.customTasks.filter(task=>task.completed).length}/{prepWorkspace.customTasks.length}</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;savePrepWorkspace({...prepWorkspace,customTasks:[...prepWorkspace.customTasks,{id:createWorkspaceItemId(),title,completed:false,dueDate:String(data.get('dueDate')??'')}]});form.reset();}}>
-                <input name="title" aria-label="New checklist task" placeholder="Add a task…" maxLength={160} required/><input type="date" name="dueDate" aria-label="Task due date"/><button type="submit" className="secondary">Add task</button>
-              </form>
-              {prepWorkspace.customTasks.length===0?<p className="muted">No custom tasks yet.</p>:prepWorkspace.customTasks.map(task=><div className="prep-list-row" key={task.id}><label className="check-row"><input type="checkbox" checked={task.completed} onChange={event=>savePrepWorkspace({...prepWorkspace,customTasks:prepWorkspace.customTasks.map(row=>row.id===task.id?{...row,completed:event.target.checked}:row)})}/><span>{task.title}<small>{task.dueDate ? 'Due ' + formatDate(task.dueDate) : 'No due date'}</small></span></label><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,customTasks:prepWorkspace.customTasks.filter(row=>row.id!==task.id)})}>Remove</button></div>)}
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Essay prompts and drafts</h3><p>Keep the exact prompt and check your word count.</p></div><span className="source-tag">{prepWorkspace.essays.length} prompts</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;const limit=Number(data.get('wordLimit')??0);savePrepWorkspace({...prepWorkspace,essays:[...prepWorkspace.essays,{id:createWorkspaceItemId(),title,prompt:String(data.get('prompt')??''),wordLimit:Number.isInteger(limit)&&limit>0?Math.min(limit,10000):0,draft:''}]});form.reset();}}>
-                <input name="title" aria-label="Essay title" placeholder="Prompt title…" maxLength={160} required/><input name="wordLimit" type="number" min="1" max="10000" aria-label="Word limit" placeholder="Word limit"/><button type="submit" className="secondary">Add prompt</button>
-              </form>
-              {prepWorkspace.essays.length===0?<p className="muted">No essay prompts saved yet.</p>:prepWorkspace.essays.map(essay=>{const words=countApplicationWords(essay.draft);const over=essay.wordLimit>0&&words>essay.wordLimit;return <div className="prep-entry-card" key={essay.id}>
-                <div className="prep-section-heading"><b>{essay.title}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.filter(row=>row.id!==essay.id)})}>Remove</button></div>
-                <label className="field"><span>Essay title</span><input value={essay.title} maxLength={160} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,title:event.target.value}:row)})}/></label>
-                <label className="field"><span>Exact sponsor prompt</span><textarea rows={3} maxLength={5000} value={essay.prompt} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,prompt:event.target.value}:row)})}/></label>
-                <label className="field"><span>Word limit (leave blank when there is none)</span><input type="number" min="1" max="10000" value={essay.wordLimit||''} onChange={event=>{const value=Number(event.target.value);savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,wordLimit:Number.isInteger(value)&&value>0?Math.min(value,10000):0}:row)})}}/></label>
-                <label className="field"><span>Draft — keep your own voice and experiences</span><textarea rows={6} maxLength={20000} value={essay.draft} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,draft:event.target.value}:row)})}/></label>
-                <small className={over?'prep-word-count is-over':'prep-word-count'}>{words} words{essay.wordLimit>0?' / ' + essay.wordLimit:' · no word limit entered'}{over?' · over limit':''}</small>
-              </div>;})}
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Recommendation requests</h3><p>Track who you asked and when a letter is due.</p></div><span className="source-tag">{prepWorkspace.recommenders.filter(person=>person.status==='Received').length}/{prepWorkspace.recommenders.length} received</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const name=String(data.get('name')??'').trim();if(!name)return;savePrepWorkspace({...prepWorkspace,recommenders:[...prepWorkspace.recommenders,{id:createWorkspaceItemId(),name,role:String(data.get('role')??''),status:'Not requested',requestedAt:'',dueDate:String(data.get('dueDate')??''),receivedAt:'',notes:''}]});form.reset();}}>
-                <input name="name" aria-label="Recommender name" placeholder="Name…" maxLength={120} required/><input name="role" aria-label="Relationship or role" placeholder="Teacher, counselor…" maxLength={120}/><input type="date" name="dueDate" aria-label="Recommendation due date"/><button type="submit" className="secondary">Add person</button>
-              </form>
-              {prepWorkspace.recommenders.length===0?<p className="muted">No recommendation requests added.</p>:prepWorkspace.recommenders.map(person=><div className="prep-entry-card" key={person.id}>
-                <div className="prep-section-heading"><b>{person.name}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.filter(row=>row.id!==person.id)})}>Remove</button></div>
-                <div className="form-grid"><label className="field"><span>Name</span><input value={person.name} maxLength={120} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,name:event.target.value}:row)})}/></label><label className="field"><span>Role</span><input value={person.role} maxLength={120} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,role:event.target.value}:row)})}/></label><label className="field"><span>Status</span><select value={person.status} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,status:event.target.value as typeof person.status}:row)})}>{RECOMMENDATION_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label><label className="field"><span>Requested on</span><input type="date" value={person.requestedAt} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,requestedAt:event.target.value}:row)})}/></label><label className="field"><span>Due date</span><input type="date" value={person.dueDate} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,dueDate:event.target.value}:row)})}/></label><label className="field"><span>Received on</span><input type="date" value={person.receivedAt} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,receivedAt:event.target.value}:row)})}/></label></div>
-                <label className="field"><span>Notes</span><textarea rows={2} maxLength={1000} value={person.notes} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,notes:event.target.value}:row)})}/></label>
-              </div>)}
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Required documents and deadlines</h3><p>Choose which suggested materials this sponsor actually requires.</p></div><span className="source-tag">{prepSummary.readyDocuments}/{prepSummary.requiredDocuments} ready</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;savePrepWorkspace({...prepWorkspace,documents:[...prepWorkspace.documents,{id:createWorkspaceItemId(),title,required:data.get('required')==='on',ready:false,dueDate:String(data.get('dueDate')??''),notes:''}]});form.reset();}}>
-                <input name="title" aria-label="Document name" placeholder="Add a document…" maxLength={160} required/><input type="date" name="dueDate" aria-label="Document due date"/><label className="check-field"><input type="checkbox" name="required" defaultChecked/><span>Required</span></label><button type="submit" className="secondary">Add document</button>
-              </form>
-              {prepWorkspace.documents.length===0?<p className="muted">No document rows. Add the materials listed by the sponsor.</p>:prepWorkspace.documents.map(document=><div className="prep-document-row" key={document.id}>
-                <div className="prep-document-title"><b>{document.title}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.filter(row=>row.id!==document.id)})}>Remove</button></div>
-                <div className="prep-document-controls"><label className="check-field"><input type="checkbox" checked={document.required} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,required:event.target.checked}:row)})}/><span>Required</span></label><label className="check-field"><input type="checkbox" checked={document.ready} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,ready:event.target.checked}:row)})}/><span>Ready</span></label><label className="field"><span>Due date</span><input type="date" value={document.dueDate} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,dueDate:event.target.value}:row)})}/></label></div>
-                <label className="field"><span>Notes</span><input maxLength={1000} value={document.notes} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,notes:event.target.value}:row)})}/></label>
-              </div>)}
-              <small className="deadline-footnote">Suggested materials are not assumed to be required. Confirm the exact document list and due dates on the sponsor's official application page.</small>
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Final application review</h3><p>Complete this check before recording a submission.</p></div></div>
-              {prepWorkspace.finalReview.map(item=><label className="check-row" key={item.id}><input type="checkbox" checked={item.done} onChange={event=>savePrepWorkspace({...prepWorkspace,finalReview:prepWorkspace.finalReview.map(row=>row.id===item.id?{...row,done:event.target.checked}:row)})}/><span>{item.label}</span></label>)}
-            </section>
-            <section className="panel prep-section prep-submission">
-              <div className="prep-section-heading"><div><h3>Submission and decision record</h3><p>This is a personal record only; Scout does not submit applications.</p></div><ApplicationStatusPill status={prepScholarship.applicationStatus||'Not started'}/></div>
-              <p>Submission date: <b>{prepScholarship.submittedAt?formatDate(prepScholarship.submittedAt):'Not recorded'}</b> · Decision date: <b>{prepScholarship.decisionDate?formatDate(prepScholarship.decisionDate):'Not recorded'}</b></p>
-              {!['Submitted','Awarded','Rejected'].includes(prepScholarship.applicationStatus||'Not started') && <button type="button" className="primary" onClick={markPrepScholarshipSubmitted}>Record as submitted</button>}
-              <small className="deadline-footnote">To record an award or decision date, edit the scholarship's application status in the tracker. Keep official confirmation from the sponsor.</small>
-            </section>
-          </div>
-        </>}
-        <div className="panel"><h3>Writing principles</h3><p className="muted">Drafts should use your own voice and real experiences, answer the exact sponsor prompt, and never exaggerate achievements. Scholarship Scout counts words but does not invent personal stories or submit applications for you.</p></div>
-      </div>}
+      {}
 
       <footer className="page-footer">
         <div>Scholarship Scout <span>·</span> Personal scholarship assistant <span>·</span> Alpha 0.7</div>
@@ -1377,88 +1118,20 @@ function App() {
   </div>;
 }
 
-function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tracked:boolean;onTrack:()=>void}) {
-  const rules = item.extracted_rules as {
-    eligibility_requirements?:Array<{requirement?:string;mandatory?:boolean;evidence?:string;needs_human_confirmation?:boolean}>;
-    uncertainties?:string[]; short_source_summary?:string; application_fee?:boolean|null;
-    application_documents?:string[]; application_steps?:string[];
-  }|undefined;
-  return <article className="cloud-result-card" role="listitem">
-    <div className="candidate-top"><span className="status status-needs-information">{item.verification_state === 'human_verified' ? 'Sponsor-reviewed record' : item.verification_state === 'needs_human_review' ? 'Needs sponsor review' : 'Unverified lead'}</span><span>{(item.discovery_categories || [item.discovery_category]).map((category)=>category.replace(/_/g,' ')).join(' · ')}</span></div>
-    <h3>{item.title}</h3><p className="candidate-provider">{item.provider || 'Sponsor not confirmed'} · {item.source_domain || (()=>{try{return new URL(item.source_url).hostname.replace(/^www[.]/,'')}catch{return 'Source domain unavailable'}})()}</p>
-    <div className="cloud-result-meta"><span>{item.award_text || 'Award not extracted'}</span><span>{item.open_date ? `Opens ${item.open_date}` : "Opening date not confirmed"}</span><span>{item.deadline ? `Deadline ${item.deadline}` : "Deadline not confirmed"}</span></div>
-    <p className="candidate-description">{rules?.short_source_summary || item.excerpt || 'Open the source page and review the official sponsor rules.'}</p>
-    {item.relevance_score !== undefined && <div className="research-relevance"><b>Research relevance: {item.relevance_score}</b>{item.relevance_reasons?.length ? <small>{item.relevance_reasons.join(' · ')}</small> : null}</div>}
-    <small className="candidate-source">Discovery date: {item.discovered_at ? new Date(item.discovered_at).toLocaleString() : 'Not recorded'} · Cloud record created: {item.record_created_at ? new Date(item.record_created_at).toLocaleString() : 'Date not recorded'} · Sponsor rules last checked: {item.source_checked_at || 'Not recorded'}</small>
-    {item.discovery_pages?.length ? <small className="candidate-source">Search pages checked: {item.discovery_pages.join(', ')} · Found in {item.discovery_queries?.length || 1} query variation(s)</small> : null}
-    {sanitizePublicHttpsUrl(item.source_evidence_url || '') && <p><a className="source-link" href={sanitizePublicHttpsUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noreferrer">Open supporting rules / evidence ↗</a></p>}
-    {rules?.eligibility_requirements?.length ? <div className="extracted-rules"><b>Extracted sponsor rules — provisional</b>{rules.eligibility_requirements.map((rule,index)=><div key={index}><span>{rule.mandatory?'Required':'Selection / preference'}{rule.needs_human_confirmation?' · Confirm with sponsor':''}</span><p>{rule.requirement}</p>{rule.evidence&&<small>Evidence: {rule.evidence}</small>}</div>)}</div>:null}
-    {rules?.uncertainties?.length ? <div className="uncertainty-list"><b>Still unclear</b><ul>{rules.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
-    {rules?.application_documents?.length ? <div className="extracted-rules"><b>Application documents</b><ul>{rules.application_documents.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
-    {rules?.application_steps?.length ? <div className="extracted-rules"><b>Application steps</b><ol>{rules.application_steps.map((item,index)=><li key={index}>{item}</li>)}</ol></div>:null}
-    {rules?.application_fee === true ? <div className="risk-flag">⚠ The sponsor-page extraction indicates an application fee. Verify directly with the sponsor and do not pay to apply.</div>:null}
-    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.source_url) && <a href={sanitizePublicHttpsUrl(item.source_url) || undefined} target="_blank" rel="noreferrer">Open source page ↗</a>}<button className="secondary" disabled={true} title="Sponsor verification Edge Function is not deployed">Verification not deployed</button><button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
-    <small className="candidate-source">Cloud records are not automatically refreshed. Re-check the current official sponsor page before relying on any detail.</small>
-  </article>;
-}
 
-function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessment:EligibilityAssessment;added:boolean;onAdd:()=>void}) {
-  const summary = summarizeEligibilityAssessment(assessment);
-  return <div className="candidate-card">
-    <div className="candidate-top"><StatusPill status={summary.status as Status}/><SourceStatusPill item={item}/></div>
-    <div className="candidate-deadline">{item.deadlineText && item.deadlineText !== item.deadline ? item.deadlineText : (item.deadline ? formatDate(item.deadline) : item.deadlineNotPublished ? 'No deadline published by sponsor' : 'Deadline not confirmed')} {item.deadlineTimezone ? `· ${item.deadlineTimezone}` : ''}</div>
-    <h3>{item.name}</h3><p className="candidate-provider">{item.provider}</p><div className="candidate-award">{item.award || 'Award details not published'}</div>
-    <p className="candidate-description">{item.notes}</p>
-    <div className="candidate-match"><b>Profile check</b><span>{summary.passed.length} pass · {summary.unknown.length} unknown · {summary.failed.length} fail</span></div>
-    <small className="candidate-source">{summary.caveat}</small>
-    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.sourceUrl) && <a href={sanitizePublicHttpsUrl(item.sourceUrl) || undefined} target="_blank" rel="noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
-    <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
-  </div>;
-}
-function Field({label,value,onChange,placeholder,type='text'}:{label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string}) { return <label className="field"><span>{label}</span><input type={type} value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)}/></label>; }
-function SelectField({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[][]}) { return <label className="field"><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>; }
-function CheckField({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}) { return <label className="check-field"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span>{label}</span></label>; }
-const STATUS_CLASS_MAP: Record<string, string> = {
-  'Eligible': 'eligible',
-  'Rules match — source unverified': 'rules-match-unverified',
-  'Needs information': 'needs-information',
-  'Ineligible': 'ineligible',
-  'Expired': 'expired',
-};
-function StatusPill({status}:{status:Status}) {
-  return <span className={'status status-' + (STATUS_CLASS_MAP[status] || 'unknown')}>{status}</span>;
-}
-function ApplicationStatusPill({status}:{status:ApplicationStatus}) { return <span className={'application-status-pill application-status-'+status.toLowerCase().replace(/ /g,'-')}>{status}</span>; }
-function PriorityPill({priority}:{priority:TrackerPriority}) { return <span className={'priority-pill priority-'+priority.toLowerCase()}>{priority}</span>; }
-function SourceStatusPill({item}:{item:Scholarship}) {
-  const freshness = getOfficialSourceFreshness(item);
-  const label = freshness === 'fresh' ? 'Fresh' : freshness === 'stale' ? 'Stale' : 'Unverified';
-  const tone = freshness === 'fresh' ? 'verified' : 'needs-review';
-  return <span className={'source-status source-status-'+tone} aria-label={'Official source freshness: '+label}>{label}</span>;
-}
-function DeadlineUrgencyPill({deadline,timeZone,openDate,openDateTimezone,deadlineTime}:{deadline?:string;timeZone?:string;openDate?:string;openDateTimezone?:string;deadlineTime?:string}) {
-  const urgency = getDeadlineUrgency(deadline, new Date(), timeZone, openDate, openDateTimezone, deadlineTime);
-  const explanation = openDate
-    ? "Opening date is evaluated as a date-only sponsor window" + (openDateTimezone ? " in " + openDateTimezone : "") + "; the deadline is not treated as overdue before the opportunity opens."
-    : timeZone
-      ? "Date-only estimate using the sponsor-stated time zone (" + timeZone + "); no cutoff time is inferred."
-      : "Date-only estimate; no sponsor time zone or cutoff time is inferred.";
-  return <span className={`deadline-urgency deadline-urgency-${urgency.status}`} title={explanation}>{urgency.label}</span>;
-}
-function EvidenceCompletenessList({item}:{item:Scholarship}) {
-  const review = getEvidenceCompleteness(item);
-  return <div className="evidence-completeness"><div className="panel-heading"><div><b>Sponsor evidence completeness</b><small>{review.completedCount} of {review.totalCount} source checks complete. This is not a personal eligibility result.</small></div><span className={review.complete ? 'source-status source-status-verified' : 'source-status source-status-needs-review'}>{review.complete ? 'Complete' : 'Needs review'}</span></div><ul>{review.checks.map((check)=><li key={check.label}><span className={check.complete ? 'evidence-check-done' : 'evidence-check-missing'}>{check.complete ? '✓' : '•'}</span>{check.label}</li>)}</ul></div>;
-}
-function EligibilityMatchSummary({assessment}:{assessment:EligibilityAssessment}) {
-  const summary = summarizeEligibilityAssessment(assessment);
-  const groups = [
-    { title: 'Matches recorded rules', items: summary.passed, tone: 'pass' },
-    { title: 'Does not meet', items: summary.failed, tone: 'fail' },
-    { title: 'Still needs confirmation', items: summary.unknown, tone: 'unknown' },
-    { title: 'Preferred qualifications (informational)', items: summary.preferred, tone: 'unknown' },
-  ].filter((group) => group.items.length > 0);
-  return <div className="match-summary"><div className="match-summary-heading"><b>{summary.headline}</b><span>{summary.passed.length} mandatory passed · {summary.failed.length} mandatory not met · {summary.unknown.length} mandatory unknown · {summary.preferred.length} preferred informational</span></div>{groups.length ? groups.map((group)=><section className={`match-summary-group match-summary-${group.tone}`} key={group.title}><h4>{group.title}</h4><ul>{group.items.map((item)=><li key={item.label}><b>{item.label}</b>{item.importance === 'preferred' && <small>{item.outcome === 'pass' ? 'Preferred match' : item.outcome === 'fail' ? 'Preferred not met — not disqualifying' : 'Preferred — confirmation pending'}</small>}<span>{item.detail || 'No additional detail recorded.'}</span>{item.evidence?.state === 'linked' ? <div className="criterion-evidence"><small>Source excerpt: {item.evidence.excerpt}</small>{sanitizePublicHttpsUrl(item.evidence.sourceUrl) && <a className="source-link" href={sanitizePublicHttpsUrl(item.evidence.sourceUrl) || undefined} target="_blank" rel="noreferrer">Open criterion source ↗</a>}</div> : item.criterionKey ? <small className="criterion-evidence-missing">Criterion evidence is not linked yet; confirm this rule on the sponsor's official page.</small> : null}</li>)}</ul></section>) : <p className="muted">Add structured sponsor criteria to compare this scholarship.</p>}<small>{summary.caveat} Sponsor decisions and requirements not recorded in Scout may still apply.</small></div>;
-}
-function Empty({onAdd}:{onAdd:()=>void}) { return <div className="empty"><div>▤</div><b>No scholarships in this view</b><p>Add an opportunity from discovery or enter its sponsor criteria.</p><button className="secondary" onClick={onAdd}>＋ Add scholarship</button></div>; }
-function FilteredEmpty({onClear}:{onClear:()=>void}) { return <div className="empty" role="status"><div>⌕</div><b>No scholarships match these filters</b><p>Saved opportunities are available, but your search or selected filters hide them.</p><button type="button" className="secondary" onClick={onClear}>Clear filters</button></div>; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default App;

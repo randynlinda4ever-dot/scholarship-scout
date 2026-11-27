@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceStyles } from './helpers/styles.mjs';
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const app = await readWorkspaceSource();
+const css = await readWorkspaceStyles();
 
 test("live search categories are exposed as a named keyboard-operable group", () => {
   assert.match(app, /className="panel discovery-category-picker" role="group" aria-labelledby="research-categories-title"/);

@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readWorkspaceStyles } from './helpers/styles.mjs';
 
-const css = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const css = await readWorkspaceStyles();
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const fieldNotes = css.split('/* Scholarship Scout — Field Notes design system */')[1] ?? '';
 

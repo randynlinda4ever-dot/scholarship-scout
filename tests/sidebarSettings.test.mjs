@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceStyles } from './helpers/styles.mjs';
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const styles = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const app = await readWorkspaceSource();
+const settingsPage = await readFile(new URL("../src/features/workspace/pages/SettingsPage.tsx", import.meta.url), "utf8");
+const styles = await readWorkspaceStyles();
 
 test("desktop sidebar begins collapsed and opens after a visible hover delay", () => {
   assert.match(app, /className="sidebar-hover-indicator"/);
@@ -25,7 +28,7 @@ test("sidebar destinations remain accessible when their visual labels are collap
 
 test("settings owns appearance and density preferences instead of the top bar", () => {
   const topbar = app.match(/<header className="topbar">([\s\S]*?)<\/header>/)?.[1] ?? "";
-  const settings = app.match(/\{tab === 'Settings' &&([\s\S]*?)\n      \{tab === 'Discovery'/)?.[1] ?? "";
+  const settings = settingsPage;
   assert.ok(settings.includes("Appearance"));
   assert.ok(settings.includes("theme-toggle"));
   assert.ok(settings.includes("compact-toggle"));

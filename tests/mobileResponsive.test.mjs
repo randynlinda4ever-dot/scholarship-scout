@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceStyles } from './helpers/styles.mjs';
 
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const styles = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const styles = await readWorkspaceStyles();
 
 test("mobile navigation is explicitly toggled and announces its expanded state", () => {
   assert.match(app, /className="mobile-nav-toggle"/);

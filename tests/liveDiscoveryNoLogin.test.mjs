@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
 const api = await readFile(new URL("../src/lib/scholarshipApi.ts", import.meta.url), "utf8");
-const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const app = await readWorkspaceSource();
+const cloudSearchPageSource = await readFile(new URL("../src/features/workspace/pages/CloudSearchPage.tsx", import.meta.url), "utf8");
 const edge = await readFile(new URL("../supabase/functions/_shared/scholarship-discovery.mjs", import.meta.url), "utf8");
 const entrypoint = await readFile(new URL("../supabase/functions/scholarship-discover/index.ts", import.meta.url), "utf8");
 const config = await readFile(new URL("../supabase/config.toml", import.meta.url), "utf8");
@@ -28,14 +30,9 @@ test("the Cloud Search button does not force an anonymous login before searching
 });
 
 test("live search results and summaries render whether or not a cloud user is connected", () => {
-  const start = app.indexOf("{tab === 'Cloud Search'");
-  const end = app.indexOf("{tab === 'Scholarships'", start);
-  assert.notEqual(start, -1);
-  assert.notEqual(end, -1);
-  const cloudSearchPage = app.slice(start, end);
-  assert.ok(cloudSearchPage.includes("{exaResults.length>0 &&"));
-  assert.ok(cloudSearchPage.includes("{discoverySummary &&"));
-  assert.ok(cloudSearchPage.includes("Public search — no account required"));
+  assert.ok(cloudSearchPageSource.includes("{exaResults.length>0 &&"));
+  assert.ok(cloudSearchPageSource.includes("{discoverySummary &&"));
+  assert.ok(cloudSearchPageSource.includes("Public search — no account required"));
 });
 
 test("the deployed discovery function is public but applies request throttling", () => {

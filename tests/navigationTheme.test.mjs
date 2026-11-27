@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readWorkspaceStyles } from './helpers/styles.mjs';
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
-const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const app = await readWorkspaceSource();
+const styles = await readWorkspaceStyles();
 
 test('primary navigation groups every main workspace destination with descriptions', () => {
   for (const label of ['Find scholarships', 'Live web search', 'My scholarships', 'Application checklist', 'My profile']) {

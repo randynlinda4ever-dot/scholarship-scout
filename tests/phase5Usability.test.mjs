@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readWorkspaceStyles } from './helpers/styles.mjs';
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const styles = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const app = await readWorkspaceSource();
+const styles = await readWorkspaceStyles();
 
 test("provides a skip link and a named main landmark for keyboard users", () => {
   assert.match(app, /href="#main-content"[^>]*>Skip to main content/);

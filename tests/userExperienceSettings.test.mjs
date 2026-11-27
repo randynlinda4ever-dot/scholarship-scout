@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readWorkspaceStyles } from './helpers/styles.mjs';
+import { readWorkspaceSource } from './helpers/workspaceSource.mjs';
 
-const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const app = await readWorkspaceSource();
 const cloudApi = await readFile(new URL('../src/lib/scholarshipApi.ts', import.meta.url), 'utf8');
-const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const styles = await readWorkspaceStyles();
 
 test('email sign-in remains available as an optional account path', () => {
   assert.match(app, /id="cloud-email"/);

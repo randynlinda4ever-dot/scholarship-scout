@@ -1,0 +1,17 @@
+import type { DiscoveryPageModel } from '../pageTypes.js';
+import { CandidateCard } from '../../../components/ScholarshipCards.js';
+
+export function DiscoveryPage({ model }: { model: DiscoveryPageModel }) {
+  const { candidateAssessments, googleSearch, openAdd, queryGroups, setTab, SOURCES, tracked } = model;
+  return <div className="page">
+        <div className="page-heading"><div><div className="eyebrow">PROFILE-TARGETED SEARCH</div><h1>Scholarship discovery</h1><p>Search the places most likely to have relevant awards, then import candidates into your tracker for automatic rule checks.</p></div><span className="status status-likely-eligible">Discovery beta</span></div>
+        <div className="filter-intro"><b>Live web discovery is ready</b><p>Scout can search public scholarship pages through your laptop-hosted SearXNG service. Only your state, expected graduation year, and broad search categories are sent for matching. Your school, grades, rank, test scores, activities, contact details, and the rest of your student profile stay on this device. A query is sent to Google only after you click its Search link; those manual links are separate from live discovery. Live results are unverified leads until you check the sponsor's official page.</p><button className="primary" onClick={()=>setTab('Cloud Search')}>Open live web discovery ↗</button></div>
+        <div className="section-head"><div><h2>Scholarship opportunities</h2><p>Start with your own profile and verify every opportunity with its official sponsor.</p></div></div>
+        {candidateAssessments.length ? <div className="candidate-grid">{candidateAssessments.map(({item,assessment})=><CandidateCard key={item.id} item={item} assessment={assessment} added={tracked(item.id)} onAdd={()=>openAdd(item)}/>)}</div> : <div className="panel empty"><div>⌕</div><b>No sample scholarships are preloaded</b><p>Use the research categories below to find current opportunities, or add a scholarship after checking its official source. School-based searches use only the school name and district you enter in My Profile.</p><button className="secondary" onClick={()=>setTab('Scholarships')}>Add a scholarship</button></div>}
+        <div className="section-head"><div><h2>Run profile-specific searches</h2><p>Each search includes your current education year and relevant background.</p></div></div>
+        <div className="search-grid">{queryGroups.map((item)=><div className="search-card" key={item.title}><div className="search-card-icon">⌕</div><div><b>{item.title}</b><p>{item.query}</p></div><a href={googleSearch(item.query)} target="_blank" rel="noreferrer">Search ↗</a></div>)}</div>
+        <div className="section-head"><div><h2>Trusted scholarship sources</h2><p>Use official sources first; some portals may contain third-party listings.</p></div></div>
+        <div className="source-grid">{SOURCES.map((source)=><div className="source-card" key={source.name}><span>{source.group}</span><b>{source.name}</b><p>{source.detail}</p><a href={source.url} target="_blank" rel="noreferrer">Open source ↗</a></div>)}</div>
+        <div className="safety-note"><b>Scholarship safety check</b><p>Do not pay an application or processing fee to receive a scholarship. Be cautious of guaranteed awards or requests for bank/card details. Verify the sponsor independently before sharing information. <a href="https://consumer.ftc.gov/articles/how-avoid-scholarship-and-financial-aid-scams" target="_blank" rel="noreferrer">FTC guidance ↗</a></p></div>
+      </div>;
+}
