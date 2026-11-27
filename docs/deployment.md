@@ -7,7 +7,7 @@
 - Canonical frontend and Edge Function source: the existing AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`.
 - Existing Supabase project: `wjrwvempgjvoxlioodse`.
 - Supabase function: `scholarship-discover`, reported ACTIVE at version 19 with `verify_jwt=false` for public discovery only.
-- Vercel is not the canonical source or deployment control for this project and was not used in this audit. Do not infer current production state from an old Vercel deployment.
+- AgentGrid remains the canonical authoring source. GitHub (`randynlinda4ever-dot/scholarship-scout`) is the release repository, and the Vercel project `scholarship-scout-standalone` is the production frontend host for `scholarship-scout.org` and `www.scholarship-scout.org`. The Vercel production branch is currently `sync/agentgrid-682fae7-20261127`; its deployments are built from GitHub commits. A successful Vercel deployment verifies only the frontend bundle, not Supabase Edge Function source parity or live discovery reliability.
 - AgentGrid artifact commits update canonical source; they do not automatically prove that the public domain or Supabase Edge Function is running that revision.
 
 ## Current backend deployment
@@ -42,6 +42,7 @@ Before declaring a release ready:
 8. Verify public search, source review, local save/restore, cloud owner isolation, and sign-in/session behavior in a real browser.
 9. Check keyboard operation, screen-reader names/status, responsive layouts, and offline behavior.
 10. Confirm no private student data or secrets appear in requests, responses, logs, or client bundles.
+11. Verify the Vercel preview built from the exact candidate commit, including its entry document, referenced assets, browser behavior, and critical discovery flow. Promote that same verified deployment to production only after every release gate passes, then confirm the production aliases and custom domain.
 
 A green build is not proof of working discovery. A successful search is not proof that every result is a legitimate or currently open scholarship.
 

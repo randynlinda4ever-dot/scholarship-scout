@@ -1703,8 +1703,7 @@ function App() {
             <Field label="Organization membership" value={draft.criteria.requiredMembership ?? ''} onChange={v=>setCriteria({requiredMembership:v||undefined})}/>
           </div>
           <div className="check-options">
-            <CheckField label="Full-time college enrollment (legacy rule)" checked={Boolean(draft.criteria.requiresFullTimeEnrollment)} onChange={v=>setCriteria({requiresFullTimeEnrollment:v})}/>
-            <span className="field-hint">Alternative enrollment routes (any one may satisfy the sponsor rule):</span>
+            <span className="field-hint">Accepted enrollment routes (any one may satisfy the sponsor rule):</span>
             <CheckField label="Full-time student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("full-time"))} onChange={v=>updateEnrollmentStatus("full-time",v)}/>
             <CheckField label="Part-time student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("part-time"))} onChange={v=>updateEnrollmentStatus("part-time",v)}/>
             <CheckField label="Incoming college student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("incoming"))} onChange={v=>updateEnrollmentStatus("incoming",v)}/>
