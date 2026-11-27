@@ -33,9 +33,9 @@ The connected database session is `postgres`. PostgreSQL rejected both `ALTER DE
 
 ## Production discovery and public abuse protection
 
-The canonical AgentGrid Edge Function entrypoint uses the shared Upstash limiter from `_shared/discovery-rate-limit.mjs`. It applies per-client minute/day quotas, per-IP minute/day quotas, and per-IP/global concurrency leases. It hashes client/IP identifiers before using Redis keys, uses only the trusted Cloudflare `cf-connecting-ip` header, and fails closed when the Redis service is unavailable.
+The corrected AgentGrid Edge Function entrypoint uses `createPublicRateLimiter()` from `_shared/discovery-rate-limit.mjs`. It applies a two-per-minute per-IP limit per isolate and trusts only Cloudflare's `cf-connecting-ip` header. The authenticated single-process gateway supplies the shared 30-upstream-requests-per-minute ceiling across isolates. This no-Redis design fits the current single-gateway topology; it does not provide durable daily quotas or shared in-flight concurrency leases.
 
-The live Supabase function was last observed at version 19 using the older in-memory per-isolate limiter. The connected Supabase tools do not expose Edge Function secret-list/write operations, so presence of `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` was not verified. The source wrapper was not deployed because missing Redis credentials would intentionally cause HTTP 503 on all public requests. The deployment checklist, synthetic 200/429/503 verification, and rollback plan are in `docs/supabase-owner-security-runbook-2026-11-27.md`.
+The live Supabase function remains at version 19 using the in-memory per-isolate limiter. The connected Supabase tools do not expose Edge Function secret read/write or invoke operations. The owner confirms the required `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN` settings are configured; an authenticated direct check of the named gateway returned HTTP 200 with 15 results. The corrected source wrapper now uses the existing gateway-backed no-Redis design; a reviewed deployment, fresh Supabase-to-gateway POST, and rollback verification remain outstanding. See `docs/supabase-owner-security-runbook-2026-11-27.md`.
 
 Turnstile is not yet wired to the public discovery request. Cloudflare's robots directives restrict some training crawlers but are not request-level bot protection.
 
@@ -46,7 +46,13 @@ A live SecurityHeaders scan of `https://scholarship-scout.org` at 2026-11-27 05:
 ## Verification limits
 
 - Regression tests for vault encryption/migration, wrong passphrases, tampered ciphertext, Supabase session/PKCE storage, lock/unlock, single-tab locking, and failed persistence have been added or updated in AgentGrid source.
-- The AgentGrid MCP surface exposes artifact inspection/editing and preview status, but no authorized project shell or test-runner action. Therefore `npm test`, `npm run build`, and `npm audit` were not run after these vault changes. Treat the test files as authored, not executed.
+- The AgentGrid MCP surface itself has no project shell/test-runner action. However, the connected local release checkout was used to run `npm ci`, the full `npm test` suite (730 passed, zero failed, zero skipped), `npm run build`, and `npm audit --audit-level=moderate` (zero vulnerabilities) after the corrected wrapper and regression tests were applied. The tested checkout contained the same application and Edge Function source as the validated AgentGrid revision.
 - A synthetic public discovery request was attempted through a browser automation run, but the run was cancelled and returned no HTTP result. No new production 200/429/503 behavior is claimed.
-- No Edge Function was deployed, no Upstash or gateway secret was read/changed, and no Cloudflare/hosting response-header rule was changed.
+- No Edge Function was deployed, no gateway secret was read or changed, and no Cloudflare/hosting response-header rule was changed. Upstash is not required by the selected architecture.
 
+
+## Follow-up: discovery limiter decision corrected — November 27, 2026
+
+The earlier Upstash recommendation in this report is superseded for the current single-gateway topology. The gateway already has an authenticated process-wide ceiling of 30 `/search` requests per 60 seconds. The Edge Function's per-isolate IP throttle remains in place. The corrected GitHub release wrapper no longer requires `UPSTASH_REDIS_REST_URL` or `UPSTASH_REDIS_REST_TOKEN`; the Upstash module remains an optional future scale-up path only.
+
+The owner confirms the SearXNG gateway secrets are configured. An authenticated request from the laptop reached the named tunnel and returned 15 results; the obsolete Quick Tunnel hostname failed. No secret was printed or modified, and no production function deployment was made. The no-Redis design's limitations (no durable daily quotas, no shared in-flight concurrency lease, and process-counter reset on restart) are recorded in `docs/rate-limit-decision-2026-11-27.md`.

@@ -57,12 +57,11 @@ test('future postgres-owned public objects do not inherit anon or authenticated 
   assert.doesNotMatch(defaultPrivilegesMigration, /FOR ROLE supabase_admin/i);
 });
 
-test('the production discovery source never falls back to per-isolate rate limiting', () => {
-  assert.match(discoveryEntrypoint, /createUpstashRateLimiter/);
-  assert.match(discoveryEntrypoint, /getDiscoveryRateLimitConfig/);
-  assert.match(discoveryEntrypoint, /UPSTASH_REDIS_REST_URL/);
-  assert.match(discoveryEntrypoint, /UPSTASH_REDIS_REST_TOKEN/);
-  assert.doesNotMatch(discoveryEntrypoint, /createPublicRateLimiter/);
+test('the production discovery source uses local IP throttling without mandatory Redis configuration', () => {
+  assert.match(discoveryEntrypoint, /createPublicRateLimiter/);
+  assert.match(discoveryEntrypoint, /rateLimiter:\s*createPublicRateLimiter\(\)/);
+  assert.match(discoveryEntrypoint, /x-scout-client-id/);
+  assert.doesNotMatch(discoveryEntrypoint, /createUpstashRateLimiter|UPSTASH_REDIS_REST_(?:URL|TOKEN)/);
 });
 
 test('cloud foreign-key relationships remain inside the authenticated owner boundary', () => {

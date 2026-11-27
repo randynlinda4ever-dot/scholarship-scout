@@ -1,6 +1,6 @@
 # Deployment and release controls
 
-> **Reconciliation status — November 27, 2026:** AgentGrid HEAD `336ed785daedcf4ba02650d79786545bee6a2edf` is the canonical source inspected. GitHub release commit `6147370a94499a69ef47dd9fee0677e0cd3abec3` is the starting point for the isolated branch `release/reconciliation-2026-11-27`; this branch has not yet passed release checks. Vercel is the production frontend host and deployment target, with GitHub as its release input. Supabase discovery version 19 still uses the in-memory per-isolate limiter while canonical source uses the separate Upstash-backed wrapper. No backend or production deployment was performed. See [the source reconciliation record](source-reconciliation-2026-11-27.md).
+> **Reconciliation status — November 27, 2026:** AgentGrid HEAD `336ed785daedcf4ba02650d79786545bee6a2edf` is the canonical source inspected. GitHub release branch `release/reconciliation-2026-11-27` is the reviewed mirror. Vercel is the production frontend host and deployment target, with GitHub as its release input. Supabase discovery version 19 uses the per-isolate limiter; the corrected release candidate adopts the same no-Redis behavior plus the existing authenticated gateway's process-wide 30-request/minute cap. The gateway's two server-side secrets are owner-confirmed as configured, and the named tunnel passed a direct authenticated HTTP 200/15-result check from the laptop. No backend or production deployment was performed. See [the source reconciliation record](source-reconciliation-2026-11-27.md).
 
 ## Source and environments
 
@@ -12,21 +12,21 @@
 
 ## Current backend deployment
 
-The Supabase function response returned an entrypoint that imports `createPublicRateLimiter()`, the in-memory per-isolate limiter. The returned deployed helper contains adaptive search, a complete-result cache, and bounded retries, but the wrapper does not use the canonical Upstash V2 module.
+The deployed Supabase v19 entrypoint imports and injects `createPublicRateLimiter()`, the in-memory per-isolate limiter. Its helper contains adaptive search, a complete-result cache, and bounded retries. The corrected release wrapper keeps the same limiter policy, imports it from the separate shared rate-limit module, and adds `x-scout-client-id` to CORS; it does not activate Upstash. Deployed v19 source parity still needs a reviewed update.
 
-The current AgentGrid wrapper imports `createUpstashRateLimiter` and `getDiscoveryRateLimitConfig` from `supabase/functions/_shared/discovery-rate-limit.mjs`. It requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`, uses distributed client/IP quotas and concurrency leases, and allows `x-scout-client-id` through CORS. The returned deployed file set does not contain that module/wrapper. Source parity is incomplete.
+The corrected GitHub release wrapper imports `createPublicRateLimiter` from `supabase/functions/_shared/discovery-rate-limit.mjs`, preserves the `x-scout-client-id` CORS header, and uses the existing fixed HTTPS SearXNG gateway. It has no Redis/Upstash dependency. The gateway enforces a shared 30-upstream-request-per-60-second process ceiling across Edge Function isolates. The design does not supply durable daily quotas or shared in-flight concurrency leases. The deployed v19 file set is still not byte-identical to the release candidate; source parity remains a reviewed deployment gate.
 
-An earlier failure log at `2026-11-27T02:48:55.575Z` showed four upstream DNS failures against `plugin-loan-anybody-drilling.trycloudflare.com`. A later production smoke test returned 40 leads, and Supabase logged a successful discovery POST at `2026-11-27T05:09:06.848Z`. This is a single successful request, not a sustained-uptime guarantee. The named-tunnel URL in prior documentation was not directly health-checked. Neither gateway secret nor either Upstash secret was read or changed; the connected Supabase integration does not expose a secrets read/write action.
+An earlier failure log at `2026-11-27T02:48:55.575Z` showed four upstream DNS failures against the obsolete Quick Tunnel hostname `plugin-loan-anybody-drilling.trycloudflare.com`. The owner confirms `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN` are configured. Without exposing the token, an authenticated local request to `https://discovery-gateway.scholarship-scout.org` returned HTTP 200 with 15 results; the old Quick Tunnel hostname failed. This confirms direct named-tunnel reachability from the laptop, not a fresh Supabase invocation. No Redis/Upstash secrets are part of the selected deployment design.
 
 Do not deploy the canonical wrapper until:
 
-1. The current gateway URL and bearer token are reconciled from authoritative sources without printing either secret.
-2. Both Upstash secrets are verified as present and valid.
-3. The deployed/canonical source diff and request/response contract are reviewed.
-4. The prior deployed version, source hash, and rollback path are recorded.
-5. A synthetic end-to-end request proves the gateway and function path.
+1. The gateway URL and bearer token remain server-side; owner confirmation and the authenticated named-tunnel check are recorded without revealing either value.
+2. The per-isolate limiter, gateway-wide 30-per-minute ceiling, browser CORS header, and fixed gateway request contract are reviewed.
+3. The deployed/candidate source diff is reviewed, including every Edge Function dependency file.
+4. The prior deployed v19 source files, metadata, and rollback path are preserved.
+5. A synthetic end-to-end Supabase POST proves the function-to-gateway path before production deployment.
 
-The canonical wrapper intentionally fails closed with HTTP 503 when the shared limiter is unavailable. Do not bypass this control or substitute the in-memory fallback in production.
+The Edge Function fails closed with HTTP 503 when it cannot attribute a trusted client IP. The gateway independently rejects excess global request volume with HTTP 429. Do not bypass either control. Upstash can be reconsidered only as a separately approved scale-up design, with a staging service and tests.
 
 ## Release requirements
 

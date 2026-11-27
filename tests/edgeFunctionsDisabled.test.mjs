@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const functionSource = await readFile(new URL("../supabase/functions/_shared/scholarship-discovery.mjs", import.meta.url), "utf8");
 const entrypointSource = await readFile(new URL("../supabase/functions/scholarship-discover/index.ts", import.meta.url), "utf8");
+const rateLimitSource = await readFile(new URL("../supabase/functions/_shared/discovery-rate-limit.mjs", import.meta.url), "utf8");
 
 test("scholarship discovery uses the public SearXNG gateway without database writes", () => {
   assert.match(entrypointSource, /createScholarshipDiscoveryHandler/);
@@ -20,14 +21,13 @@ test("scholarship discovery uses the public SearXNG gateway without database wri
   assert.doesNotMatch(functionSource, /student_profiles|eligibility_checks/);
 });
 
-test("production discovery wrapper uses the shared Upstash limiter, not the isolate-local fallback", () => {
-  assert.match(entrypointSource, /createUpstashRateLimiter/);
-  assert.match(entrypointSource, /getDiscoveryRateLimitConfig/);
-  assert.match(entrypointSource, /UPSTASH_REDIS_REST_URL/);
-  assert.match(entrypointSource, /UPSTASH_REDIS_REST_TOKEN/);
-  assert.match(entrypointSource, /rateLimiter,/);
+test("production discovery wrapper uses isolate IP throttling without mandatory Redis configuration", () => {
+  assert.match(entrypointSource, /createPublicRateLimiter/);
+  assert.match(entrypointSource, /rateLimiter:\s*createPublicRateLimiter\(\)/);
   assert.match(entrypointSource, /x-scout-client-id/);
-  assert.doesNotMatch(entrypointSource, /createPublicRateLimiter/);
+  assert.doesNotMatch(entrypointSource, /createUpstashRateLimiter|UPSTASH_REDIS_REST_(?:URL|TOKEN)/);
+  assert.match(rateLimitSource, /PUBLIC_RATE_LIMIT_MAX_REQUESTS\s*=\s*2/);
+  assert.match(rateLimitSource, /MINUTE_MS\s*=\s*60_000/);
 });
 
 test("live discovery allows only generic reusable categories", () => {

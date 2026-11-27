@@ -1,14 +1,8 @@
 import { corsHeaders } from "jsr:@supabase/supabase-js@2/cors";
+import { createPublicRateLimiter } from "../_shared/discovery-rate-limit.mjs";
 import { createScholarshipDiscoveryHandler } from "../_shared/scholarship-discovery.mjs";
-import { createUpstashRateLimiter, getDiscoveryRateLimitConfig } from "../_shared/discovery-rate-limit.mjs";
 
 const getEnv = (key: string) => Deno.env.get(key);
-const rateLimitConfig = getDiscoveryRateLimitConfig(getEnv);
-const rateLimiter = createUpstashRateLimiter({
-  url: getEnv("UPSTASH_REDIS_REST_URL"),
-  token: getEnv("UPSTASH_REDIS_REST_TOKEN"),
-  config: rateLimitConfig,
-});
 const discoveryCorsHeaders = {
   ...corsHeaders,
   "Access-Control-Allow-Headers": [
@@ -20,8 +14,8 @@ const discoveryCorsHeaders = {
 const handler = createScholarshipDiscoveryHandler({
   corsHeaders: discoveryCorsHeaders,
   getEnv,
-  rateLimiter,
-  searchConcurrency: rateLimitConfig.upstreamConcurrency,
+  rateLimiter: createPublicRateLimiter(),
+  searchConcurrency: 4,
 });
 
 Deno.serve(async (req) => {

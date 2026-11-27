@@ -121,3 +121,15 @@ This reconciliation branch records the actual frontend activation state, age/gua
 This reconciliation pass did not run `npm ci`, `npm test`, `npm run build`, `npm audit`, or real-browser workflows. No claim of test/build success is made. It also did not deploy Vercel or Supabase, read or change secrets, change RLS, or touch production data.
 
 After the source reconciliation is reviewed, validate the exact commit on this branch. Then test the legal/age gate, local-vault behavior, discovery request privacy boundary, public discovery, sign-in and account deletion, and owner-scoped cloud access in a browser. Keep Supabase backend source parity and the rate-limiter choice as a separate gate. Production publishing can wait until the release candidate is explicitly accepted.
+
+## Follow-up implementation correction — November 27, 2026
+
+The first reconciliation documented the Upstash wrapper as the proposed canonical limiter. After the owner clarified that only the existing SearXNG gateway secrets are configured, the actual gateway implementation was inspected. That inspection found the authenticated single-process gateway already enforces a process-wide limit of 30 upstream requests per 60 seconds, shared across all Supabase Edge Function isolates. The previous deployed v19 wrapper already used the no-Redis per-isolate limiter.
+
+The mandatory Upstash dependency in the GitHub candidate was therefore unnecessary for the current single-gateway topology. It would have failed every discovery request with HTTP 503 when its two Redis secrets were absent. The release candidate was corrected to use `createPublicRateLimiter()` and retain the `x-scout-client-id` CORS allowance. The optional Upstash implementation and its tests remain dormant, not required.
+
+The owner confirms `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN` are configured. An authenticated local request using the token read only into process memory returned HTTP 200 with 15 results through `https://discovery-gateway.scholarship-scout.org`. The saved Quick Tunnel hostname failed and is stale. No secret was printed or changed.
+
+The selected limiter is bounded but not equivalent to Redis: it has no durable per-client daily quotas, no shared in-flight concurrency lease, and the gateway request counter resets when the gateway process restarts. This is the accepted current-topology design, not a claim of strong distributed abuse protection. See `rate-limit-decision-2026-11-27.md`.
+
+The release wrapper change and regression tests are committed separately from the original documentation-only reconciliation commit. Supabase remains at version 19 until a reviewed, synchronized source deployment and synthetic end-to-end function check are completed. No production Edge Function, Vercel alias, gateway process, or Supabase secret was changed in this correction.
