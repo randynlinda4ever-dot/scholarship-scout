@@ -65,14 +65,15 @@ test("profile drafts save and restore locally without a cloud login", async () =
 
 test("the profile editor autosaves drafts locally before validation and independently of cloud auth", async () => {
   const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-  const start = app.indexOf("  useEffect(() => {\n    const generation = ++profileSaveGenerationRef.current;");
+  const effectStart = app.match(/^[ \t]*useEffect\(\(\) => \{\r?\n[ \t]*const generation = \+\+profileSaveGenerationRef\.current;/m);
+  const start = effectStart?.index ?? -1;
   const end = app.indexOf("  }, [profileDraft]);", start);
   assert.ok(start >= 0 && end > start, "profile draft autosave effect should exist");
   const effect = app.slice(start, end);
 
   assert.ok(effect.includes("await flushLocalVault()"), "the UI must wait for encrypted persistence before reporting success");
   assert.ok(
-    /setAlert\(\(currentAlert\) =>\s*currentAlert === PROFILE_DRAFT_SAVE_ERROR \|\| currentAlert === PROFILE_SAVE_ERROR/.test(effect),
+    /setAlert\s*\(\s*\(currentAlert\)\s*=>\s*currentAlert\s*===\s*PROFILE_DRAFT_SAVE_ERROR\s*\|\|\s*currentAlert\s*===\s*PROFILE_SAVE_ERROR/.test(effect),
     "a successful save must clear stale profile-save alerts",
   );
 

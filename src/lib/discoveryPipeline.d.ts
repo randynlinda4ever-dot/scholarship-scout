@@ -12,6 +12,8 @@ export type LiveDiscoveryRecord = {
   discovery_pages?: number[];
   relevance_score?: number;
   relevance_reasons?: string[];
+  search_consensus_score?: number;
+  search_consensus_count?: number;
   [key: string]: unknown;
 };
 export function rankAndDeduplicateLiveResults(
