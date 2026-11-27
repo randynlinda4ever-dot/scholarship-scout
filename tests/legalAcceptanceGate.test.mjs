@@ -15,7 +15,7 @@ test("only an affirmative acceptance for the current legal version opens the wor
   const parentAuthorized = createLegalAcceptanceRecord("2026-11-26T12:00:00.000Z", { ageGroup: "minor", guardianConfirmed: true });
   assert.equal(isCurrentLegalAcceptance(current), true);
   assert.equal(isCurrentLegalAcceptance(parentAuthorized), true);
-  assert.equal(isCurrentLegalAcceptance(createLegalAcceptanceRecord("2026-11-26T12:00:00.000Z", { ageGroup: "minor", guardianConfirmed: false })), false);
+  assert.throws(() => createLegalAcceptanceRecord("2026-11-26T12:00:00.000Z", { ageGroup: "minor", guardianConfirmed: false }));
   assert.throws(() => createLegalAcceptanceRecord("2026-11-26T12:00:00.000Z", { ageGroup: "under13" }));
   assert.equal(isCurrentLegalAcceptance(null), false);
   assert.equal(isCurrentLegalAcceptance(""), false);

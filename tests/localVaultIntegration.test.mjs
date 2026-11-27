@@ -42,7 +42,7 @@ test("the vault uses authenticated encryption and the browser's exclusive single
   assert.match(vault, /navigator\?\.locks/);
   assert.match(vault, /mode: "exclusive", ifAvailable: true/);
   assert.match(vault, /VAULT_WEB_LOCK_NAME/);
-  assert.match(vault, /activeVault\\.pendingWrites > 0 \\|\\| activeVault\\.lastError/);
+  assert.match(vault, /activeVault\.pendingWrites > 0 \|\| activeVault\.lastError/);
   assert.doesNotMatch(vault, /BroadcastChannel/);
   assert.match(app, /15 \* 60 \* 1000/);
   assert.match(app, /Lock vault now/);

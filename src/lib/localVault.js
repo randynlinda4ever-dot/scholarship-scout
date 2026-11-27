@@ -314,8 +314,10 @@ export async function hasEncryptedVault({ backend } = {}) {
 
 const VAULT_WEB_LOCK_NAME = "scholarship-scout-local-vault-session";
 let releaseVaultTabLock = null;
+let vaultLockReleasePromise = null;
 
 async function acquireVaultTabLock(lockManager = globalThis.navigator?.locks) {
+  if (vaultLockReleasePromise) await vaultLockReleasePromise;
   if (releaseVaultTabLock) return;
   if (!lockManager || typeof lockManager.request !== "function") {
     throw new Error("This browser does not support the secure single-tab vault lock. Update your browser before opening student records.");
@@ -352,19 +354,27 @@ async function acquireVaultTabLock(lockManager = globalThis.navigator?.locks) {
   });
   await started;
 
-  let released = false;
-  releaseVaultTabLock = () => {
-    if (released) return;
-    released = true;
-    releaseHold();
-    releaseVaultTabLock = null;
+  let releasePromise = null;
+  const release = async () => {
+    if (!releasePromise) {
+      releaseHold();
+      releasePromise = request.then(() => undefined, () => undefined);
+      vaultLockReleasePromise = releasePromise;
+    }
+    await releasePromise;
+    if (releaseVaultTabLock === release) releaseVaultTabLock = null;
+    if (vaultLockReleasePromise === releasePromise) vaultLockReleasePromise = null;
   };
+  releaseVaultTabLock = release;
 }
 
-function releaseActiveVaultTabLock() {
+async function releaseActiveVaultTabLock() {
   const release = releaseVaultTabLock;
-  releaseVaultTabLock = null;
-  release?.();
+  if (release) {
+    await release();
+  } else if (vaultLockReleasePromise) {
+    await vaultLockReleasePromise;
+  }
 }
 
 export async function createLocalVault(passphrase, { storage = globalThis.localStorage, backend, lockManager } = {}) {
@@ -388,7 +398,7 @@ export async function createLocalVault(passphrase, { storage = globalThis.localS
     removeLegacyRecords(storage);
     return activateVault({ ...verified, backend: selectedBackend });
   } catch (error) {
-    releaseActiveVaultTabLock();
+    await releaseActiveVaultTabLock();
     throw error;
   }
 }
@@ -405,7 +415,7 @@ export async function unlockLocalVault(passphrase, { storage = globalThis.localS
     removeLegacyRecords(storage);
     return activateVault({ ...unlocked, backend: selectedBackend });
   } catch (error) {
-    releaseActiveVaultTabLock();
+    await releaseActiveVaultTabLock();
     throw error;
   }
 }
@@ -430,7 +440,7 @@ export async function lockLocalVault() {
   if (activeVault.destroyed || inactiveUntilReload) {
     activeVault.records.clear();
     activeVault = null;
-    releaseActiveVaultTabLock();
+    await releaseActiveVaultTabLock();
     return true;
   }
   await flushLocalVault();
@@ -439,7 +449,7 @@ export async function lockLocalVault() {
   // and writes are ignored until a successful unlock reactivates the adapter.
   inactiveUntilReload = true;
   activeVault = null;
-  releaseActiveVaultTabLock();
+  await releaseActiveVaultTabLock();
   return true;
 }
 
@@ -480,7 +490,7 @@ export async function destroyLocalVault({
   // envelope has been deleted; no further writes are allowed in this document.
   activeVault = null;
   inactiveUntilReload = true;
-  releaseActiveVaultTabLock();
+  await releaseActiveVaultTabLock();
 
   if (!storage || typeof storage.length !== "number" || typeof storage.key !== "function" ||
       typeof storage.removeItem !== "function" || typeof storage.getItem !== "function") {

@@ -453,8 +453,8 @@ test("Upstash limiter uses one atomic shared admission script and hashes client 
   assert.equal(commands[0][0], "EVAL");
   assert.equal(commands[0][2], "6");
   assert.equal(commands[0][3].includes("192.0.2.1"), false);
-  assert.match(commands[0][1], /redis\\.call\\('INCR'/);
-  assert.match(commands[0][1], /redis\\.call\\('ZADD'/);
+  assert.match(commands[0][1], /redis\.call\('INCR'/);
+  assert.match(commands[0][1], /redis\.call\('ZADD'/);
 });
 
 test("Upstash limiter fails closed for missing config, missing trusted address, and backend errors", async () => {

@@ -72,4 +72,15 @@ Signed-in cloud accounts can be permanently deleted from Settings. The server ve
 
 The deletion form requires an explicit acknowledgement and the exact text DELETE MY ACCOUNT. A failed session-revocation step prevents Auth-user deletion. A successful cloud deletion is confirmed separately from the local vault operation, so a local cleanup failure is not misreported as a cloud deletion failure.
 
+## Hosting response headers: not yet verified
+
+The repository's HTML meta Content Security Policy does not replace hosting-level response headers. The production host must be checked independently for these headers; their presence and values are not verified by this source audit:
+
+- `Strict-Transport-Security` with an appropriate max-age and includeSubDomains policy only after all subdomains are HTTPS-ready.
+- `X-Content-Type-Options: nosniff`.
+- `Permissions-Policy` restricting browser capabilities the application does not use.
+- `Content-Security-Policy` response directives including `frame-ancestors 'none'` (this directive cannot be delivered through a meta CSP).
+
+Do not treat these headers as deployed until the production response headers have been fetched and checked. Re-run the check after hosting configuration changes.
+
 The optional local-data action waits for queued encrypted-vault writes, removes the encrypted IndexedDB vault, and clears Scholarship Scout-owned local and session storage plus the app's Supabase Auth session keys in the current browser profile. It preserves unrelated origin storage. It cannot erase another browser profile or device, separately downloaded backup files, or information independently retained by third-party providers. Those locations must be handled separately by the person who controls them.

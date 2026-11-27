@@ -18,6 +18,11 @@ h3 { font-size: 15px; }
 small { line-height: 1.45; }
 
 .shell { display: flex; min-height: 100vh; background: var(--bg); color: var(--text); }
+.sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.sidebar-header .logo { min-width: 0; flex: 1 1 auto; }
+.sidebar-collapse-toggle { display: inline-flex; flex: 0 0 44px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; align-items: center; justify-content: center; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-raised); color: var(--text-soft); cursor: pointer; }
+.sidebar-collapse-toggle:hover { border-color: var(--accent); color: var(--text); }
+.sidebar-collapse-toggle:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
 .sidebar { position: sticky; top: 0; display: flex; flex: 0 0 278px; flex-direction: column; width: 278px; height: 100vh; min-height: 620px; padding: 26px 18px 18px; overflow-y: auto; background: var(--sidebar); border-right: 1px solid var(--line); }
 .logo { display: flex; align-items: center; gap: 12px; padding: 3px 8px 25px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -.04em; }
 .logo-mark { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; overflow: hidden; border-radius: 13px; background: #1D4ED8; color: #000000; font-family: 'DM Sans', sans-serif; font-size: 25px; font-weight: 800; line-height: 1; text-align: center; box-shadow: 0 5px 14px rgba(7,9,31,.22); }

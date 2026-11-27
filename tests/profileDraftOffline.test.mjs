@@ -72,7 +72,7 @@ test("the profile editor autosaves drafts locally before validation and independ
 
   assert.ok(effect.includes("await flushLocalVault()"), "the UI must wait for encrypted persistence before reporting success");
   assert.ok(
-    effect.includes("setAlert((currentAlert) => currentAlert === PROFILE_DRAFT_SAVE_ERROR || currentAlert === PROFILE_SAVE_ERROR"),
+    /setAlert\(\(currentAlert\) =>\s*currentAlert === PROFILE_DRAFT_SAVE_ERROR \|\| currentAlert === PROFILE_SAVE_ERROR/.test(effect),
     "a successful save must clear stale profile-save alerts",
   );
 

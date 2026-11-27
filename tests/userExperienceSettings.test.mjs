@@ -64,7 +64,8 @@ test('live web discovery rechecks Supabase auth and protects against stale sessi
 
 test('live web discovery keeps its current category selection and result review flow', () => {
   const cloudSearch = app.slice(app.indexOf("{tab === 'Cloud Search'"), app.indexOf("{tab === 'Scholarships'"));
-  assert.match(cloudSearch, /<WorkspaceSubnav label="Scholarship search method"/);\n  assert.match(cloudSearch, /value: 'Cloud Search', label: 'Live web discovery'/);
+  assert.match(cloudSearch, /<WorkspaceSubnav label="Scholarship search method"/);
+  assert.match(cloudSearch, /value: 'Cloud Search', label: 'Live web discovery'/);
   assert.match(cloudSearch, /Run research/);
   assert.match(cloudSearch, /DISCOVERY_CATEGORY_OPTIONS\.map/);
   assert.match(cloudSearch, /current\.length < 4/);

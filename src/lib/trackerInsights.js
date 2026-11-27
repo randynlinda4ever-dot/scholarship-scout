@@ -119,17 +119,19 @@ export function getDeadlineUrgency(deadline, now = new Date(), timeZone = "", op
   }
   if (openDate) {
     if (!isValidDateKey(openDate)) return { status: "unknown", daysRemaining: null, label: "Opening date needs review" };
-    if (isValidDateKey(deadline) && deadline < openDate) {
-      return { status: "unknown", daysRemaining: null, label: "Opening/deadline range needs review" };
-    }
     const openingToday = calendarDateKey(now, openDateTimezone);
     if (!openingToday) return { status: "unknown", daysRemaining: null, label: "Opening date time zone needs review" };
+    if (isValidDateKey(deadline) && deadline < openDate && deadline.slice(0, 4) === openDate.slice(0, 4)) {
+      return { status: "unknown", daysRemaining: null, label: "Opening/deadline range needs review" };
+    }
     if (openDate > openingToday) {
       const [openYear, openMonth, openDay] = openDate.split("-").map(Number);
       const [todayYear, todayMonth, todayDay] = openingToday.split("-").map(Number);
       const daysUntilOpen = Math.round((Date.UTC(openYear, openMonth - 1, openDay) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / DAY_MS);
       return { status: "not-open", daysRemaining: daysUntilOpen, label: `Opens in ${daysUntilOpen} ${daysUntilOpen === 1 ? "day" : "days"}` };
-    }  }  if (!isValidDateKey(deadline)) return { status: "unknown", daysRemaining: null, label: "Deadline not confirmed" };
+    }
+  }
+  if (!isValidDateKey(deadline)) return { status: "unknown", daysRemaining: null, label: "Deadline not confirmed" };
   const todayKey = calendarDateKey(now, timeZone);
   if (!todayKey) return { status: "unknown", daysRemaining: null, label: "Deadline time zone needs review" };
   const [year, month, day] = deadline.split("-").map(Number);

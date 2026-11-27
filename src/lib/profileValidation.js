@@ -1,12 +1,18 @@
 import {
+  isCountryCode,
   normalizeUsStateName,
   PROFILE_CITIZENSHIP_OPTIONS,
 } from "./profileLocations.js";
 
+const PROFILE_COUNTRY_FIELDS = [
+  ["country", "residence"],
+  ["schoolCountry", "school"],
+  ["plannedCollegeCountry", "intended college"],
+];
 const PROFILE_STATE_FIELDS = [
-  ["state", "residence"],
-  ["schoolState", "school"],
-  ["plannedCollegeState", "intended college"],
+  ["state", "country", "residence"],
+  ["schoolState", "schoolCountry", "school"],
+  ["plannedCollegeState", "plannedCollegeCountry", "intended college"],
 ];
 const CITIZENSHIP_VALUES = new Set(PROFILE_CITIZENSHIP_OPTIONS.map(([value]) => value));
 
@@ -30,10 +36,19 @@ function validateBoundedInteger(previous, next, key, min, max, message) {
 
 export function validateProfileChanges(previous = {}, next = {}) {
   const errors = [];
-  for (const [stateKey, label] of PROFILE_STATE_FIELDS) {
+  for (const [countryKey, label] of PROFILE_COUNTRY_FIELDS) {
+    const country = String(next?.[countryKey] ?? "").trim().toUpperCase();
+    if (changed(previous, next, countryKey) && country && !isCountryCode(country)) {
+      errors.push(`Choose a valid country for your ${label} location.`);
+    }
+  }
+  for (const [stateKey, countryKey, label] of PROFILE_STATE_FIELDS) {
     const state = String(next?.[stateKey] ?? "").trim();
-    if (changed(previous, next, stateKey) && state && !normalizeUsStateName(state)) {
-      errors.push(`Choose a valid U.S. state or territory for your ${label} location.`);
+    const country = String(next?.[countryKey] ?? "").trim().toUpperCase();
+    if (changed(previous, next, stateKey) && state && ((country && country !== "US") || !normalizeUsStateName(state))) {
+      errors.push(`Choose a valid U.S. state or territory for your ${label} location, or clear the state for a non-U.S. country.`);
+    } else if (changed(previous, next, countryKey) && country && country !== "US" && state) {
+      errors.push(`Clear the U.S. state field when your ${label} country is not the United States.`);
     }
   }
   if (changed(previous, next, "citizenship") && !CITIZENSHIP_VALUES.has(String(next?.citizenship ?? "").trim())) {
