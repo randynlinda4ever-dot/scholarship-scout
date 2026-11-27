@@ -2,6 +2,7 @@
 
 These documents describe the verified implementation and distinguish current behavior from proposed work.
 
+- [Source reconciliation — November 27, 2026](source-reconciliation-2026-11-27.md) — exact AgentGrid/GitHub refs, active versus preserved frontend architecture, rate-limiter mismatch, and file-level merge decisions.
 - [Runtime audit — November 27, 2026](runtime-audit-2026-11-27.md) — current AgentGrid revision, Supabase version-19 source/rate-limit mismatch, gateway DNS failure, database advisors, and release blockers.
 - [Recovery status — November 25, 2026](recovery-status-2026-11-25.md) — historical SC-054 reconciliation, earlier deployed-source parity, gateway failure, and release gates.
 - [Recovery status — November 24, 2026](recovery-status-2026-11-24.md) — earlier local checkpoint and clean-install evidence.

@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-The canonical Scholarship Scout application is the AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`. The runtime source inspected for this audit was at AgentGrid revision `5a17758a431188a270bf94d1201a87d49734ef71` (committed 2026-11-27 04:57:30 UTC). Subsequent audit commits updated tests and documentation only; they did not change the runtime application or Edge Function source. Resolve the latest AgentGrid HEAD before any future edits. AgentGrid is the source of truth. Vercel was not used as a source or deployment control in this audit.
+The canonical Scholarship Scout application is the AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`. The latest AgentGrid HEAD inspected during the reconciliation pass is `336ed785daedcf4ba02650d79786545bee6a2edf`. The commits after the earlier `5a17758a` runtime snapshot did include application changes (including tracker/workspace capacity, profile validation, discovery error handling, and obsolete enrollment-control removal) as well as tests and documentation; the earlier sentence that later commits changed tests/docs only was incorrect. GitHub release base `6147370a94499a69ef47dd9fee0677e0cd3abec3` is preserved on the separate branch `release/reconciliation-2026-11-27`. AgentGrid is the canonical authoring source; GitHub is the collaboration/release mirror; Vercel is the frontend hosting/deployment target, not a source. See [the source reconciliation record](source-reconciliation-2026-11-27.md).
 
 ## Live Supabase function
 

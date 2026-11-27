@@ -2,7 +2,7 @@
 
 React + TypeScript workspace for researching, tracking, and reviewing scholarship opportunities, with optional profile filters and official-source review workflows.
 
-> **Current runtime audit — November 27, 2026:** The runtime source was inspected at AgentGrid revision `5a17758a431188a270bf94d1201a87d49734ef71`; subsequent audit commits changed tests and documentation only. Resolve the latest AgentGrid HEAD before future edits. Supabase reports `scholarship-discover` ACTIVE at version 19, but the returned deployed wrapper still uses the in-memory per-isolate limiter; the current canonical wrapper uses the separate Upstash-backed shared limiter. An earlier request failed with four upstream DNS errors, but a later production smoke check returned 40 leads and Supabase logged discovery `POST 200` at `2026-11-27T05:09:06.848Z`. This proves one successful request, not sustained reliability. Gateway and Upstash secret presence remains unverified, and the current-revision full test/build run was not performed. Older versioned deployment notes in this README are historical snapshots, not current runtime evidence. See [the current runtime audit](docs/runtime-audit-2026-11-27.md). AgentGrid is the source of truth; Vercel was not used in this audit.
+> **Current reconciliation status — November 27, 2026:** Latest AgentGrid HEAD inspected: `336ed785daedcf4ba02650d79786545bee6a2edf`. The active GitHub workspace remains the monolithic `src/App.tsx`; page modules, shared components, and split styles are preserved refactor work and are not wired into the runtime. GitHub's country-aware profile validation and additional local UI contributions are intentionally preserved rather than overwritten by narrower AgentGrid equivalents. Supabase discovery version 19 still uses the in-memory per-isolate limiter, while current AgentGrid/GitHub source uses the separate Upstash-backed limiter; Upstash secret presence is unverified. One synthetic production request returned 40 leads and POST 200, not sustained reliability evidence. The full current test/build/audit checks have not been run. See [the source reconciliation record](docs/source-reconciliation-2026-11-27.md) and [runtime audit](docs/runtime-audit-2026-11-27.md). AgentGrid is the canonical authoring source, GitHub is the collaboration/release mirror, and Vercel is the production hosting/deployment target.
 
 ## Features
 - Profile-based scholarship filters using the official transcript and application profile.
@@ -92,7 +92,7 @@ The browser requests only `openid email profile` for Google authentication. It d
 
 ## Shared GitHub repository
 
-The public [Scholarship Scout GitHub repository](https://github.com/randynlinda4ever-dot/scholarship-scout) is the collaboration mirror for agents and contributors. AgentGrid remains the canonical product source and deployment source of truth. See [GITHUB_REPOSITORY.md](GITHUB_REPOSITORY.md) for repository scope, privacy, and contribution rules. GitHub and AgentGrid do not synchronize automatically.
+The public [Scholarship Scout GitHub repository](https://github.com/randynlinda4ever-dot/scholarship-scout) is the collaboration and reviewed release mirror for agents and contributors. AgentGrid remains the canonical product authoring source; Vercel is the production hosting/deployment target and builds from the reviewed GitHub release commit. See [GITHUB_REPOSITORY.md](GITHUB_REPOSITORY.md) for repository scope, privacy, and contribution rules. GitHub and AgentGrid do not synchronize automatically.
 
 ## Source of truth and artifact integrity
 

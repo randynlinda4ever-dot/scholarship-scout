@@ -1,13 +1,13 @@
 # Deployment and release controls
 
-> **Current deployment status — November 27, 2026:** AgentGrid is the canonical application source. The runtime source snapshot inspected for this audit was revision `5a17758a431188a270bf94d1201a87d49734ef71`; subsequent audit commits changed tests/docs only. Supabase reports `scholarship-discover` ACTIVE at version 19. The returned deployed wrapper still uses the in-memory per-isolate limiter rather than the canonical Upstash-backed wrapper. An earlier request failed with DNS errors, but a later production smoke test returned 40 leads and Supabase logged discovery POST 200 at `05:09:06.848Z`. No Edge Function deployment or production secret change was performed. See [the current runtime audit](runtime-audit-2026-11-27.md).
+> **Reconciliation status — November 27, 2026:** AgentGrid HEAD `336ed785daedcf4ba02650d79786545bee6a2edf` is the canonical source inspected. GitHub release commit `6147370a94499a69ef47dd9fee0677e0cd3abec3` is the starting point for the isolated branch `release/reconciliation-2026-11-27`; this branch has not yet passed release checks. Vercel is the production frontend host and deployment target, with GitHub as its release input. Supabase discovery version 19 still uses the in-memory per-isolate limiter while canonical source uses the separate Upstash-backed wrapper. No backend or production deployment was performed. See [the source reconciliation record](source-reconciliation-2026-11-27.md).
 
 ## Source and environments
 
 - Canonical frontend and Edge Function source: the existing AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`.
 - Existing Supabase project: `wjrwvempgjvoxlioodse`.
 - Supabase function: `scholarship-discover`, reported ACTIVE at version 19 with `verify_jwt=false` for public discovery only.
-- AgentGrid remains the canonical authoring source. GitHub (`randynlinda4ever-dot/scholarship-scout`) is the release repository, and the Vercel project `scholarship-scout-standalone` is the production frontend host for `scholarship-scout.org` and `www.scholarship-scout.org`. The Vercel production branch is currently `sync/agentgrid-682fae7-20261127`; its deployments are built from GitHub commits. A successful Vercel deployment verifies only the frontend bundle, not Supabase Edge Function source parity or live discovery reliability.
+- AgentGrid remains the canonical authoring source. GitHub (`randynlinda4ever-dot/scholarship-scout`) is the collaboration/release repository, and the Vercel project `scholarship-scout-standalone` is the production frontend host for `scholarship-scout.org` and `www.scholarship-scout.org`. Verify the Vercel production-branch setting directly before relying on it; historical notes about the branch are not current deployment evidence. Deployments are built from GitHub commits. A successful Vercel deployment verifies only the frontend bundle, not Supabase Edge Function source parity or live discovery reliability.
 - AgentGrid artifact commits update canonical source; they do not automatically prove that the public domain or Supabase Edge Function is running that revision.
 
 ## Current backend deployment

@@ -1,6 +1,6 @@
 # Test and verification strategy
 
-> **Latest verification — November 25, 2026:** The targeted discovery/evidence/eligibility suite passed 145/145 in an isolated Node.js 22.23.5 sandbox. The full application suite and production build have not been rerun against the current revision; the 313/313 full-suite and build results are from November 24 and are historical. Supabase v9 live discovery still returns HTTP 502 and the deployed inline function does not match the current checked-in helper. See [current recovery status](recovery-status-2026-11-25.md).
+> **Verification status — November 27, 2026:** The latest AgentGrid HEAD inspected is `336ed785daedcf4ba02650d79786545bee6a2edf`. `npm ci`, the full `npm test` suite, `npm run build`, and `npm audit --audit-level=moderate` have not been run against this exact revision or the reconciliation branch. Earlier pass counts below are historical, not release evidence for this candidate. Supabase discovery is ACTIVE at version 19; its deployed entrypoint uses the in-memory per-isolate limiter while canonical AgentGrid/GitHub source uses the separate Upstash-backed limiter. See [the source reconciliation record](source-reconciliation-2026-11-27.md) and [runtime audit](runtime-audit-2026-11-27.md).
 
 ## Commands
 
@@ -19,7 +19,7 @@ The project contains unit tests for profile validation, discovery and URL safety
 - `tests/authSignInExperience.test.mjs` and `tests/cloudConnectionConfig.test.mjs` ensure email sign-in uses the current embedded app origin.
 - `tests/googleOAuth.test.mjs` covers Google OAuth setup, anonymous identity linking, limited scopes, PKCE callback detection/restoration, and the updated privacy disclosure.
 - `tests/liveDiscoveryNoLogin.test.mjs` verifies the live-search client does not create or require a Supabase user, the UI shows public results while signed out, and the Edge Function is configured for public requests with bounded inputs.
-- `tests/liveDiscoveryCapabilities.test.mjs` tracks the deployed version-9 category allow-list.
+- `tests/liveDiscoveryCapabilities.test.mjs` tracks the deployed version-19 category allow-list.
 - Cloud database reads and writes remain authenticated and use the existing owner-scoped RLS policies.
 
 ## Other regression coverage
@@ -38,7 +38,7 @@ The project contains unit tests for profile validation, discovery and URL safety
 - Source date semantics: sponsor-check dates come only from explicit review metadata; discovery dates are not inferred from cloud row creation or update timestamps; record creation is shown separately, and missing dates remain unknown.
 - Mandatory/preferred criteria: preferred failures and unknowns remain visible but do not change eligibility status; mandatory failures and unknowns continue to block; preferred-only records cannot establish eligibility; importance metadata survives cloud save/reload.
 
-## Latest full verification
+## Historical full verification (not run against current HEAD)
 
 On the refreshed Windows validation workspace using Node.js 26.13.0:
 
@@ -68,13 +68,13 @@ On the refreshed Windows validation workspace using Node.js 26.13.0:
 - Focused command `node --test tests/openingDate.test.mjs`: NOT RUN. Full command `npm test`: NOT RUN. Build command `npm run build`: NOT RUN. AgentGrid supports artifact inspection and commits but provides no authorized Node/npm test or build execution; Desktop Commander is restricted to local Apex runtime work and cannot run product checks.
 - Browser smoke is deployment-only and cannot verify this AgentGrid source revision.
 
-## Live integration status
+## Live integration status — November 27, 2026
 
-The local gateway was validated through the current Quick Tunnel and returned 15 results. The public Supabase function is deployed as version 8 with `verify_jwt=false`, but its `SEARXNG_GATEWAY_URL` secret still needs the current temporary tunnel hostname. End-to-end public cloud search is therefore not yet verified.
+Supabase reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=false`. The deployed entrypoint injects the in-memory per-isolate limiter. The canonical AgentGrid/GitHub entrypoint injects the separate Upstash-backed limiter and requires `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`; secret presence and validity remain unverified. A previous synthetic production request returned 40 leads and was logged as POST 200. This proves one successful request only, not sustained availability. Do not deploy the Upstash wrapper until secret verification, gateway reconciliation, and rollback preparation are complete.
 
-The email provider is enabled and magic-link request/verification events have been observed. The current preview frame URL must also be included in Supabase Auth Redirect URLs before same-frame email sign-in can be confirmed. Google OAuth source support is committed, but the Google provider credentials and Manual Linking setting have not been configured or verified through the connected Supabase interface. `tests/googleOAuth.test.mjs`, the full test suite, and the production build were not executed in this work session because the AgentGrid source tools do not provide a Node/npm runner. A real Google provider callback still requires live configuration and browser verification.
+The source includes email magic-link sign-in and Google OAuth support, but a successful live Google callback and all relevant provider settings must be verified independently. Browser acceptance of the legal notice is versioned; the age gate accepts adults, requires a separate parent/legal-guardian authorization selection for users aged 13–17, and blocks under-13 use. The gate does not verify age or guardian identity.
 
-A distributed rate limiter, CAPTCHA/bot protection, separate-browser RLS isolation checks, and a full spoken screen-reader assessment remain outstanding.
+The latest GitHub reconciliation branch has not yet passed `npm ci`, `npm test`, `npm run build`, or `npm audit --audit-level=moderate`. Real-browser validation of local-vault persistence, consent/age gate, discovery, cloud ownership, sign-in, and account deletion remains outstanding. Rate-limiter deployment choice, live secret verification, and backend source parity are separate backend gates.
 
 ## SC-039 — enrollment-status alternatives (November 24, 2026)
 
