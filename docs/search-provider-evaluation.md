@@ -6,12 +6,13 @@ Six curated golden queries were executed against the local SearXNG JSON endpoint
 
 This is a baseline benchmark of local SearXNG only. It does not establish Supabase-to-gateway production reliability or source freshness. One separate authenticated Cloudflare gateway request returned 15 results in 1,101 ms. The Supabase production request still fails because the configured Edge Function gateway hostname is an obsolete Quick Tunnel hostname; see the SC-246 recovery report.
 
-**Status:** Contract and deterministic evaluation harness added; provider integration is not changed.  
-**Curated query set:** tests/fixtures/search/golden-queries.json (six public-source queries; curation date 2026-11-25).
+**Status:** Provider selection remains SearXNG-only. Query planning, quality-aware expansion, and within-provider RRF were enhanced; deterministic evaluation now supports graded ranking metrics.
+**Curated anchors:** tests/fixtures/search/golden-queries.json (six public-source queries; curation date 2026-11-25).
+**Query coverage:** tests/fixtures/search/benchmark-intents.json (100 intents across 14 categories; all relevance labels pending human review).
 
 ## Purpose and boundary
 
-The existing discovery function is SearXNG-backed. This work introduces a provider-neutral contract and a repeatable quality evaluator without changing the live Edge Function's provider selection, secrets, gateway, cache, request payload, or deployment. Search results remain unverified leads. The contract does not establish sponsor identity, eligibility, award amount, or deadline truth.
+The production discovery function remains SearXNG-backed. It now expands three category-specific query intents, applies quality-aware adaptive stopping, and fuses SearXNG result positions with RRF. The provider-neutral contract remains a separate adapter boundary and still uses sequential fallback; it is not wired as parallel multi-provider fan-out. The live request payload, secrets, gateway, and deployment were not changed. Search results remain unverified leads. The contract does not establish sponsor identity, eligibility, award amount, or deadline truth.
 
 The golden set uses public government, university, city, school-foundation, and official program pages. It contains no student profile data. Expected sources are recall anchors rather than an exhaustive catalog. The fixture's curatedAt date records when the URL/claim mapping was checked; it is not a source publication date and is never counted as freshness evidence.
 
@@ -64,8 +65,13 @@ Each query has expected official/institutional source URLs and claim mappings.
 - **Citation accuracy:** citations whose source is explicitly mapped to support the cited claim / citations evaluated. No citations means N/A.
 - **Freshness compliance:** returned results with a valid, non-future publication/update date within the source's maximum age / returned results assessed. Undated results count as not fresh and are also counted in freshnessUnknown.
 - **Duplicate rate:** redundant canonical URL + normalized-title results / returned results.
+- **Precision@10:** results graded relevant or strong (grade 2–3) in the first ten / ten.
+- **nDCG@10:** normalized discounted cumulative gain using 0–3 graded relevance labels.
+- **MRR@10:** reciprocal rank of the first grade 2–3 result in the first ten.
+- **Recall@50:** grade 2–3 judged relevant sources retrieved in the first fifty / all judged relevant sources.
+- **Judged coverage@10:** returned results with an explicit relevance judgment / returned top-ten results.
 
-Aggregate metrics are weighted by their numerator/denominator counts, not by averaging query percentages. A zero denominator is N/A, not a pass. Search retrieval alone does not prove that a source supports a claim; the citation mapping must be independently curated.
+Source-recall, citation, freshness, and duplicate ratios are aggregated by numerator/denominator. Ranking metrics are macro-averaged across queries with human judgments; unjudged metrics remain N/A. A zero denominator is not a pass. Search retrieval alone does not prove that a source supports a claim; citation and relevance mappings must be independently curated. The 100-intent corpus is not a measured quality benchmark until labels are reviewed.
 
 ## Provider comparison status
 
@@ -87,4 +93,4 @@ Report per-query and aggregate results, with N/A values preserved. A provider th
 
 ## Verification limitations
 
-The product source artifact supports inspection and commits but does not provide an authorized Node/npm execution environment. Product tests/build therefore remain NOT RUN until an authorized Node runner is available. Desktop Commander is restricted to local Apex runtime work and must not be used for Scholarship Scout product tests. No deployment, publication, provider configuration, secret access, database change, or live search request was performed for this work.
+On an isolated clone of the GitHub release branch, the search-focused regression tests passed, the TypeScript/Vite production build passed, and npm audit reported zero vulnerabilities. The full suite reported 742 passing tests and one pre-existing failure in tests/profileDraftOffline.test.mjs: the release mirror's src/App.tsx lacks the profile-draft autosave effect present in canonical AgentGrid. That unrelated source-parity defect was not changed here. No deployment, provider configuration, secret access, database change, or live production search request was performed for the search algorithm change.

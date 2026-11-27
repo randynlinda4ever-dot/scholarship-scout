@@ -1,0 +1,1411 @@
+{
+  "version": 1,
+  "createdAt": "2026-11-27",
+  "status": "query-intent-corpus",
+  "note": "100 representative public search intents across all 14 discovery categories. Relevance judgments are intentionally empty and pending human review; this fixture is not a measured quality benchmark and must not be used to claim precision, recall, or nDCG gains until judgments are curated.",
+  "queryCount": 100,
+  "queries": [
+    {
+      "id": "local-tx-senior-2027",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "local-ca-incoming-2027",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "local-ny-junior-2028",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "local-fl-college-2027",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "local-wa-rural-2028",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "local-oh-public-university-2027",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "local-ga-senior-2029",
+      "categories": [
+        "local"
+      ],
+      "category": "local",
+      "query": "local and county community foundation scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-tx-senior-2027",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-ca-incoming-2027",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-ny-junior-2028",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-fl-college-2027",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-wa-rural-2028",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-oh-public-university-2027",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "school_resources-ga-senior-2029",
+      "categories": [
+        "school_resources"
+      ],
+      "category": "school_resources",
+      "query": "high school counselor school district scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-tx-senior-2027",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-ca-incoming-2027",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-ny-junior-2028",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-fl-college-2027",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-wa-rural-2028",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-oh-public-university-2027",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "regional-ga-senior-2029",
+      "categories": [
+        "regional"
+      ],
+      "category": "regional",
+      "query": "regional community foundation and multi-county scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-tx-senior-2027",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-ca-incoming-2027",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-ny-junior-2028",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-fl-college-2027",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-wa-rural-2028",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-oh-public-university-2027",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "state-ga-senior-2029",
+      "categories": [
+        "state"
+      ],
+      "category": "state",
+      "query": "state scholarship and education grant scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-tx-senior-2027",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-ca-incoming-2027",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-ny-junior-2028",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-fl-college-2027",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-wa-rural-2028",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-oh-public-university-2027",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "academic-ga-senior-2029",
+      "categories": [
+        "academic"
+      ],
+      "category": "academic",
+      "query": "academic merit grades honors achievement scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-tx-senior-2027",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-ca-incoming-2027",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-ny-junior-2028",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-fl-college-2027",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-wa-rural-2028",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-oh-public-university-2027",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "humanities-ga-senior-2029",
+      "categories": [
+        "humanities"
+      ],
+      "category": "humanities",
+      "query": "humanities history literature anthropology cultural studies scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-tx-senior-2027",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-ca-incoming-2027",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-ny-junior-2028",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-fl-college-2027",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-wa-rural-2028",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-oh-public-university-2027",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "leadership-ga-senior-2029",
+      "categories": [
+        "leadership"
+      ],
+      "category": "leadership",
+      "query": "student leadership civic engagement youth council scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-tx-senior-2027",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-ca-incoming-2027",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-ny-junior-2028",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-fl-college-2027",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-wa-rural-2028",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-oh-public-university-2027",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "community_service-ga-senior-2029",
+      "categories": [
+        "community_service"
+      ],
+      "category": "community_service",
+      "query": "volunteering community service nonprofit public service scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-tx-senior-2027",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-ca-incoming-2027",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-ny-junior-2028",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-fl-college-2027",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-wa-rural-2028",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-oh-public-university-2027",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "language-ga-senior-2029",
+      "categories": [
+        "language"
+      ],
+      "category": "language",
+      "query": "world language bilingual multilingual language study scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-tx-senior-2027",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-ca-incoming-2027",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-ny-junior-2028",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-fl-college-2027",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-wa-rural-2028",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-oh-public-university-2027",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "employment-ga-senior-2029",
+      "categories": [
+        "employment"
+      ],
+      "category": "employment",
+      "query": "employer sponsored workplace career training scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-tx-senior-2027",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-ca-incoming-2027",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-ny-junior-2028",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-fl-college-2027",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-wa-rural-2028",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-oh-public-university-2027",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "arts-ga-senior-2029",
+      "categories": [
+        "arts"
+      ],
+      "category": "arts",
+      "query": "visual art design theater music creative scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-tx-senior-2027",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-ca-incoming-2027",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-ny-junior-2028",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-fl-college-2027",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-wa-rural-2028",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-oh-public-university-2027",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "incoming_college-ga-senior-2029",
+      "categories": [
+        "incoming_college"
+      ],
+      "category": "incoming_college",
+      "query": "incoming college freshman university department scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-tx-senior-2027",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-ca-incoming-2027",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-ny-junior-2028",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-fl-college-2027",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-wa-rural-2028",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-oh-public-university-2027",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "national-ga-senior-2029",
+      "categories": [
+        "national"
+      ],
+      "category": "national",
+      "query": "nationwide national foundation corporate sponsor scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-tx-senior-2027",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for graduating high-school seniors in Texas, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-ca-incoming-2027",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for incoming first-year college students in California, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-ny-junior-2028",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for high-school juniors planning for college in New York, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "New York",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-fl-college-2027",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for community college and undergraduate students in Florida, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Florida",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-wa-rural-2028",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for students in rural counties in Washington, class of 2028, official sponsor application and eligibility",
+      "filters": {
+        "state": "Washington",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-oh-public-university-2027",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for students attending public universities in Ohio, class of 2027, official sponsor application and eligibility",
+      "filters": {
+        "state": "Ohio",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "general-ga-senior-2029",
+      "categories": [
+        "general"
+      ],
+      "category": "general",
+      "query": "general eligibility student scholarship education award scholarships for graduating high-school seniors in Georgia, class of 2029, official sponsor application and eligibility",
+      "filters": {
+        "state": "Georgia",
+        "graduationYear": 2029
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "cross-category-tx-academic-service-2027",
+      "categories": [
+        "academic",
+        "community_service"
+      ],
+      "category": "cross-category",
+      "query": "Texas class of 2027 academic merit scholarships recognizing sustained volunteering and civic engagement, official sponsor criteria",
+      "filters": {
+        "state": "Texas",
+        "graduationYear": 2027
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    },
+    {
+      "id": "cross-category-ca-humanities-arts-2028",
+      "categories": [
+        "humanities",
+        "arts"
+      ],
+      "category": "cross-category",
+      "query": "California class of 2028 humanities and creative arts scholarships for student researchers, writers, and artists, official award programs",
+      "filters": {
+        "state": "California",
+        "graduationYear": 2028
+      },
+      "relevanceJudgments": [],
+      "judgmentStatus": "pending"
+    }
+  ]
+}

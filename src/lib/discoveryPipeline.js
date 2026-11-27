@@ -45,6 +45,18 @@ function asNumberArray(value) {
   return [...new Set(values.map(Number).filter((item) => Number.isInteger(item) && item >= 1 && item <= 2))];
 }
 
+const PROFILE_CONCEPT_GROUPS = Object.freeze([
+  ["community service", "community involvement", "volunteer", "volunteering", "volunteerism", "civic engagement", "public service", "nonprofit"],
+  ["humanities", "history", "historical studies", "literature", "cultural studies", "social sciences", "anthropology", "heritage"],
+  ["environmental science", "environmental studies", "ecology", "conservation", "sustainability", "climate studies"],
+  ["leadership", "student government", "civic leadership", "youth leadership", "organization officer"],
+  ["language learning", "world languages", "bilingual", "multilingual", "translation", "language proficiency"],
+]);
+
+function relatedProfileTerms(keyword) {
+  return PROFILE_CONCEPT_GROUPS.find((group) => group.includes(keyword)) || [keyword];
+}
+
 function resultCompleteness(item) {
   return cleanText(item.excerpt, 1800).length +
     asStringArray(item.discovery_queries).join(" ").length +
@@ -85,10 +97,23 @@ function relevance(item, profile = {}) {
     .flatMap((value) => String(value ?? "").split(/[,;\n]/))
     .map((value) => cleanText(value, 80).toLowerCase())
     .filter((value) => value.length >= 3))];
-  const matchedKeywords = keywords.filter((keyword) => searchable.includes(keyword));
-  if (matchedKeywords.length) {
-    score += Math.min(matchedKeywords.length * 3, 9);
-    reasons.push(`Matches your interests: ${matchedKeywords.slice(0, 3).join(", ")}`);
+  const keywordMatches = keywords.map((keyword) => {
+    const matchedTerm = relatedProfileTerms(keyword).find((term) => searchable.includes(term));
+    return matchedTerm ? { keyword, matchedTerm, related: matchedTerm !== keyword } : null;
+  }).filter(Boolean);
+  if (keywordMatches.length) {
+    score += Math.min(keywordMatches.length * 3, 9);
+    const directMatches = keywordMatches.filter((match) => !match.related).map((match) => match.keyword);
+    const relatedMatches = keywordMatches.filter((match) => match.related).map((match) => match.keyword);
+    if (directMatches.length) reasons.push(`Matches your interests: ${directMatches.slice(0, 3).join(", ")}`);
+    if (relatedMatches.length) reasons.push(`Matches related concepts for your interests: ${relatedMatches.slice(0, 3).join(", ")}`);
+  }
+
+  const consensusCount = Number(item.search_consensus_count) || 0;
+  const consensusScore = Number(item.search_consensus_score) || 0;
+  if (consensusCount >= 2 && consensusScore > 0) {
+    score += Math.min(2, Math.round(consensusScore * 200) / 100);
+    reasons.push("Found across multiple search variations");
   }
 
   const grade = cleanText(profile.grade, 60).toLowerCase();
@@ -150,6 +175,8 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
     // Whitelist discovery fields instead of spreading untrusted search metadata.
     // In particular, authority labels and verification claims must never travel
     // from a search result (or a neighboring deduplicated result) into the UI.
+    const consensusScoreValue = Number(raw.search_consensus_score);
+    const consensusCountValue = Number(raw.search_consensus_count);
     const normalized = {
       id: cleanText(raw.id, 100) || sourceUrl,
       title,
@@ -157,6 +184,8 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
       source_url: sourceUrl,
       source_domain: domain,
       excerpt: cleanText(raw.excerpt, 1800),
+      search_consensus_score: Number.isFinite(consensusScoreValue) ? Math.max(0, Math.min(1, consensusScoreValue)) : 0,
+      search_consensus_count: Number.isSafeInteger(consensusCountValue) ? Math.max(0, Math.min(24, consensusCountValue)) : 0,
       published_at: cleanText(raw.published_at, 40),
       discovery_source_url: null,
       discovery_category: categoryValues[0] || "",
@@ -203,6 +232,8 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
         ...asNumberArray(previous.discovery_pages),
         ...pageValues,
       ])],
+      search_consensus_score: Math.max(previous.search_consensus_score || 0, normalized.search_consensus_score || 0),
+      search_consensus_count: Math.max(previous.search_consensus_count || 0, normalized.search_consensus_count || 0),
     });
   }
 
@@ -215,6 +246,7 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
     };
   }).sort((a, b) =>
     b.relevance_score - a.relevance_score ||
+    b.search_consensus_score - a.search_consensus_score ||
     a.title.localeCompare(b.title),
   );
 }

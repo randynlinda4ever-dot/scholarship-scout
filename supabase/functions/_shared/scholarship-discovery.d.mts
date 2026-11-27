@@ -1,4 +1,4 @@
-export type SearchJob = { category: string; query: string; page: number };
+export type SearchJob = { category: string; query: string; page: number; variation?: number };
 export type SearchOutcome = { ok: true; job: SearchJob; results: Array<{ title?: unknown; url?: unknown; content?: unknown; publishedDate?: unknown }> } | { ok: false; job: SearchJob; status?: number };
 export type DiscoveryRateLimitConfig = {
   clientPerMinute: number;
@@ -27,6 +27,9 @@ export function isSafeHttpsUrl(value: unknown): boolean;
 export function canonicalizeUrl(value: string): string;
 export function normalizeTitle(value: string): string;
 export function buildSearchJobs(state: string, graduationYear: number, categories: string[]): SearchJob[];
+export function scoreCandidateQuality(input?: { title?: unknown; excerpt?: unknown; domain?: unknown; state?: string; year?: string | number }): { score: number; reasons: string[]; isUseful: boolean };
+export function calculateReciprocalRankFusion(rankings: Array<Array<{ title?: unknown; url?: unknown; rank?: number }>>, options?: { rankConstant?: number }): Array<{ url: string; title: string; score: number; appearances: number; consensusScore: number }>;
+export function runAdaptiveSearches(gatewayBase: URL | string, gatewayToken: string, jobs: SearchJob[], options?: { minimumQualityResults?: number; minimumUniqueResults?: number; maxSearchRequests?: number; totalBudgetMs?: number; state?: string; graduationYear?: number; maxRetries?: number; fetchImpl?: typeof fetch; concurrency?: number; clock?: () => number }): Promise<SearchOutcome[]>;
 export function fetchSearchPage(gatewayBase: URL | string, gatewayToken: string, job: SearchJob, options?: { fetchImpl?: typeof fetch; deadlineAt?: number; clock?: () => number }): Promise<SearchOutcome>;
 export function runBoundedSearches(gatewayBase: URL | string, gatewayToken: string, jobs: SearchJob[], options?: { fetchImpl?: typeof fetch; concurrency?: number; deadlineAt?: number; clock?: () => number }): Promise<SearchOutcome[]>;
 export function normalizeAndRankResults(outcomes: SearchOutcome[], discoveredAt: string, state: string, graduationYear: number, options?: { randomUUID?: () => string }): { results: Array<Record<string, unknown>>; rawResultCount: number };

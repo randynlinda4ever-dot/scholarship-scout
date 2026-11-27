@@ -6,7 +6,10 @@ const MAX_SEARCH_CONCURRENCY = 8;
 const MAX_BODY_BYTES = 8192;
 const DISCOVERY_CACHE_TTL_MS = 30_000;
 const DISCOVERY_CACHE_MAX_ENTRIES = 100;
-const MIN_UNIQUE_RESULTS_PER_CATEGORY = 8;
+const MAX_SEARCH_REQUESTS = 24;
+const MIN_QUALITY_RESULTS_PER_CATEGORY = 5;
+const MIN_CANDIDATE_QUALITY_SCORE = 5;
+const RRF_RANK_CONSTANT = 60;
 const MAX_RETRIES = 1;
 const DEFAULT_RETRY_DELAY_MS = 150;
 const MAX_RETRY_DELAY_MS = 1_000;
@@ -29,20 +32,76 @@ function parseRetryAfterDelayMs(value, nowMs) {
   return Number.isFinite(retryAt) ? Math.max(0, retryAt - nowMs) : Number.NaN;
 }
 const CATEGORY_VARIATIONS = {
-  local: ["local and county student scholarships, community foundations, and civic organization awards", "nearby scholarships for students and residents, official community foundation and sponsor pages"],
-  school_resources: ["school scholarship resources, counselor pages, and public financial aid information", "school and district scholarship announcements and student financial aid resources"],
-  regional: ["regional student scholarship programs and community foundations", "regional scholarships and education awards published by official sponsors"],
-  state: ["statewide scholarship programs and education grants for students", "state resident scholarships and financial aid, official government and sponsor application pages"],
-  academic: ["academic merit scholarships for students, grades, honors, and achievement", "scholarships for students with strong academic records, official foundation and sponsor rules"],
-  humanities: ["humanities, history, culture, social science, and writing scholarships for students", "scholarships for students interested in cultural heritage, humanities, research, and writing"],
-  leadership: ["student leadership, organization officer, civic engagement, and youth leadership scholarships", "scholarships for student leaders and community leadership, official sponsor rules"],
-  community_service: ["volunteer service, nonprofit involvement, and community service scholarships", "scholarships recognizing student volunteering and documented community impact"],
-  language: ["world language learning, multilingual students, and language study scholarships", "scholarships for language learning and bilingual achievement, official sponsor rules"],
-  employment: ["employer sponsored scholarships, workplace scholarships, and career training awards", "career and workplace scholarships for students, official employer foundation pages"],
-  arts: ["visual art, design, theater, music, speech, and creative student scholarships", "creative arts and performance scholarships, official sponsor application pages"],
-  incoming_college: ["incoming college student scholarships and first year university awards", "new college student merit scholarships and department awards, official university pages"],
-  national: ["national scholarships open to students across the United States", "national student scholarship programs, official foundations and sponsors"],
-  general: ["general student scholarships with broad eligibility requirements", "broad eligibility scholarships for students, official sponsor application pages"],
+  local: [
+    "local and county scholarships from community foundations and civic organizations",
+    "city and county student awards, local foundations, and official sponsor application pages",
+    "regional volunteer, neighborhood, rural-community, and resident scholarship programs",
+  ],
+  school_resources: [
+    "high school counselor scholarship lists, district foundations, and school award programs",
+    "school-specific scholarships, graduating class awards, and district education foundations",
+    "official high school financial aid resources, local donor awards, and application requirements",
+  ],
+  regional: [
+    "regional student scholarship programs and community foundations",
+    "multi-county scholarship awards, regional education foundations, and official program pages",
+    "regional student grants, resident eligibility, and sponsor application deadlines",
+  ],
+  state: [
+    "statewide scholarship programs and education grants for students",
+    "state resident scholarships, state education agency grants, and official eligibility requirements",
+    "state scholarship compendiums, public higher education aid programs, and current application cycles",
+  ],
+  academic: [
+    "academic merit scholarships for students, grades, honors, and achievement",
+    "GPA, class rank, academic competition, and high-achievement student scholarships",
+    "official merit award criteria, academic recognition programs, and application deadlines",
+  ],
+  humanities: [
+    "humanities, history, culture, social science, and writing scholarships for students",
+    "literature, languages, anthropology, cultural heritage, philosophy, and history student awards",
+    "research, archives, public humanities, and social-science scholarship application programs",
+  ],
+  leadership: [
+    "student leadership, organization officer, civic engagement, and youth leadership scholarships",
+    "student government, youth councils, nonprofit leadership, and civic leadership awards",
+    "official leadership recognition scholarships and community impact application criteria",
+  ],
+  community_service: [
+    "volunteer service, nonprofit involvement, and community service scholarships",
+    "civic engagement, public service, volunteer leadership, and community impact awards",
+    "service-learning, volunteer recognition, and nonprofit participation student scholarships",
+  ],
+  language: [
+    "world language learning, multilingual students, and language study scholarships",
+    "bilingual achievement, language immersion, translation, and world-language student awards",
+    "language proficiency competitions, heritage language programs, and application criteria",
+  ],
+  employment: [
+    "employer sponsored scholarships, workplace scholarships, and career training awards",
+    "employee family scholarships, trade associations, apprenticeships, and workforce education grants",
+    "career pathway, industry association, and employer foundation application programs",
+  ],
+  arts: [
+    "visual art, design, theater, music, speech, and creative student scholarships",
+    "portfolio awards, creative writing, performing arts, film, and design scholarships",
+    "arts foundations, juried student competitions, and official sponsor application criteria",
+  ],
+  incoming_college: [
+    "incoming college student scholarships and first year university awards",
+    "new undergraduate, admitted student, department, and college-specific scholarships",
+    "official university freshman award criteria, college application deadlines, and merit programs",
+  ],
+  national: [
+    "national scholarships open to students across the United States",
+    "nationwide student awards from foundations, nonprofits, and corporate sponsors",
+    "national scholarship competitions, broad eligibility, and official application cycles",
+  ],
+  general: [
+    "general student scholarships with broad eligibility requirements",
+    "student grants, education awards, and scholarships without narrow subject restrictions",
+    "general scholarship directories, official sponsor pages, and current application requirements",
+  ],
 };
 export function isSafeHttpsUrl(value) {
   if (typeof value !== "string" || value.length > 2048) return false;
@@ -77,16 +136,53 @@ export function normalizeTitle(value) {
 }
 export function buildSearchJobs(state, graduationYear, categories) {
   const jobs = [];
-  for (const category of categories) {
+  const selectedCategories = [...new Set(Array.isArray(categories) ? categories : [])]
+    .filter((category) => ALLOWED_CATEGORIES.includes(category))
+    .slice(0, MAX_CATEGORIES);
+  for (const category of selectedCategories) {
     const variations = CATEGORY_VARIATIONS[category] || [];
     for (let variationIndex = 0; variationIndex < variations.length; variationIndex += 1) {
       const variation = variations[variationIndex];
       const query = clean(`${variation} ${state} ${graduationYear} scholarship application eligibility`, 600);
       for (let page = 1; page <= MAX_SEARCH_PAGE; page += 1) {
         jobs.push({ category, query, page, variation: variationIndex + 1 });
-      }    }
+      }
+    }
   }
-  return jobs;
+  return jobs.slice(0, MAX_SEARCH_REQUESTS);
+}
+export function scoreCandidateQuality({ title = "", excerpt = "", domain = "", state = "", year = "" } = {}) {
+  const titleText = clean(title, 220).toLowerCase();
+  const excerptText = clean(excerpt, 1800).toLowerCase();
+  const searchableText = `${titleText} ${excerptText}`;
+  const host = clean(domain, 180).toLowerCase();
+  const reasons = [];
+  let score = 0;
+  const titleOpportunity = /scholarship|fellowship|grant|bursary|student award|education award/.test(titleText);
+  const opportunitySignal = /scholarship|fellowship|grant|bursary|student award|education award/.test(searchableText);
+  if (titleOpportunity) { score += 3; reasons.push("Opportunity-specific title"); }
+  else if (opportunitySignal) { score += 1; reasons.push("Mentions a scholarship or award"); }
+  if (/eligible|eligibility|application|apply|deadline|criteria|requirements/.test(searchableText)) {
+    score += 2;
+    reasons.push("Contains application or eligibility details");
+  }
+  if (/student|undergraduate|high school|high-school|graduating senior|college applicant/.test(searchableText)) {
+    score += 1;
+    reasons.push("Identifies a student audience");
+  }
+  if (state && stateMatchesText(searchableText, state)) {
+    score += 2;
+    reasons.push("Matches the selected state");
+  }
+  if (year && searchableText.includes(String(year))) {
+    score += 2;
+    reasons.push("Mentions the graduation year");
+  }
+  if (host.endsWith(".gov") || host.endsWith(".edu")) {
+    score += 1;
+    reasons.push("Institutional host signal; authority remains unverified");
+  }
+  return { score, reasons, isUseful: opportunitySignal && score >= MIN_CANDIDATE_QUALITY_SCORE };
 }
 function calculateRelevance(title, excerpt, domain, state, year) {
   const searchableText = `${title} ${excerpt}`;
@@ -191,58 +287,115 @@ export async function runBoundedSearches(gatewayBase, gatewayToken, jobs, {
   await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, () => worker()));
   return outcomes;
 }
-function countDistinctCategoryResults(outcomes, category) {
+function countQualityCategoryResults(outcomes, category, state = "", graduationYear = "") {
   const unique = new Set();
   for (const outcome of outcomes) {
     if (!outcome.ok || outcome.job.category !== category) continue;
     for (const item of outcome.results) {
       const title = clean(item?.title, 220);
       if (!title || !isSafeHttpsUrl(item?.url)) continue;
-      try { unique.add(`${canonicalizeUrl(item.url)}|${normalizeTitle(title)}`); } catch { /* malformed result */ }
+      try {
+        const url = canonicalizeUrl(item.url);
+        const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+        const quality = scoreCandidateQuality({
+          title,
+          excerpt: item?.content,
+          domain,
+          state,
+          year: graduationYear,
+        });
+        if (quality.isUseful) unique.add(`${url}|${normalizeTitle(title)}`);
+      } catch { /* malformed result */ }
     }
   }
   return unique.size;
 }
+
+export function calculateReciprocalRankFusion(rankings, { rankConstant = RRF_RANK_CONSTANT } = {}) {
+  const lists = Array.isArray(rankings) ? rankings.filter(Array.isArray) : [];
+  const constant = Math.max(1, Math.min(1_000, Math.floor(Number(rankConstant) || RRF_RANK_CONSTANT)));
+  const fused = new Map();
+  for (const ranking of lists) {
+    const seen = new Set();
+    for (let index = 0; index < ranking.length; index += 1) {
+      const item = ranking[index];
+      const title = clean(item?.title, 220);
+      if (!title || !isSafeHttpsUrl(item?.url)) continue;
+      let url;
+      try { url = canonicalizeUrl(item.url); } catch { continue; }
+      const key = `${url}|${normalizeTitle(title)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const requestedRank = Number(item?.rank);
+      const rank = Number.isSafeInteger(requestedRank) && requestedRank > 0 ? requestedRank : index + 1;
+      const entry = fused.get(key) ?? { url, title, score: 0, appearances: 0 };
+      entry.score += 1 / (constant + rank);
+      entry.appearances += 1;
+      fused.set(key, entry);
+    }
+  }
+  const maximumScore = lists.length ? lists.length / (constant + 1) : 0;
+  return [...fused.values()].map((item) => ({
+    ...item,
+    consensusScore: maximumScore > 0 ? Math.min(1, item.score / maximumScore) : 0,
+  })).sort((left, right) =>
+    right.score - left.score || left.title.localeCompare(right.title),
+  );
+}
+
 /**
- * Search each selected category broadly first, then expand only categories
- * whose first pages yielded too few distinct, usable source leads.
- * The full four-query fallback remains available for low-yield categories.
+ * Search three complementary query intents per category, expanding only when
+ * the candidate pool lacks enough distinct, opportunity-specific leads.
+ * The 24-request ceiling stays below the gateway's shared 30/minute ceiling.
  */
 export async function runAdaptiveSearches(gatewayBase, gatewayToken, jobs, {
-  minimumUniqueResults = MIN_UNIQUE_RESULTS_PER_CATEGORY,
+  minimumQualityResults = MIN_QUALITY_RESULTS_PER_CATEGORY,
+  minimumUniqueResults,
+  maxSearchRequests = MAX_SEARCH_REQUESTS,
   totalBudgetMs = MAX_TOTAL_SEARCH_BUDGET_MS,
+  state = "",
+  graduationYear = "",
   clock = () => Date.now(),
   ...searchOptions
 } = {}) {
-  const threshold = Math.max(1, Math.min(15, Math.floor(Number(minimumUniqueResults) || MIN_UNIQUE_RESULTS_PER_CATEGORY)));
+  const requestedThreshold = minimumUniqueResults ?? minimumQualityResults;
+  const threshold = Math.max(1, Math.min(15, Math.floor(Number(requestedThreshold) || MIN_QUALITY_RESULTS_PER_CATEGORY)));
+  const requestBudget = Math.max(1, Math.min(MAX_SEARCH_REQUESTS, Math.floor(Number(maxSearchRequests) || MAX_SEARCH_REQUESTS)));
+  const requestedRetries = Number(searchOptions.maxRetries ?? MAX_RETRIES);
+  const configuredRetries = Number.isFinite(requestedRetries)
+    ? Math.max(0, Math.min(MAX_RETRIES, Math.floor(requestedRetries)))
+    : MAX_RETRIES;
   const deadlineAt = clock() + Math.max(1, Math.min(MAX_TOTAL_SEARCH_BUDGET_MS, Number(totalBudgetMs) || MAX_TOTAL_SEARCH_BUDGET_MS));
   const outcomes = [];
-  const categoryKeys = new Map();
-  for (const job of jobs) if (!categoryKeys.has(job.category)) categoryKeys.set(job.category, new Set());
-  for (const [variation, page] of [[1, 1], [1, 2], [2, 1], [2, 2]]) {
-    if (deadlineAt - clock() <= 0) break;
-    const stageJobs = jobs.filter((job) =>
+  let upstreamAttemptsUsed = 0;
+  const stages = [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2]];
+  for (const [variation, page] of stages) {
+    const remainingAttempts = requestBudget - upstreamAttemptsUsed;
+    if (deadlineAt - clock() <= 0 || remainingAttempts < 1) break;
+    const eligibleStageJobs = jobs.filter((job) =>
       Number(job.variation ?? 1) === variation &&
       Number(job.page) === page &&
-      (variation === 1 && page === 1 || (categoryKeys.get(job.category)?.size ?? 0) < threshold)
+      countQualityCategoryResults(outcomes, job.category, state, graduationYear) < threshold
     );
-    if (!stageJobs.length) continue;
+    if (!eligibleStageJobs.length) continue;
+    let stageRetries = configuredRetries;
+    let maxJobsInStage = Math.floor(remainingAttempts / (1 + stageRetries));
+    if (maxJobsInStage < eligibleStageJobs.length && remainingAttempts >= eligibleStageJobs.length) {
+      // Use remaining slots for full category coverage rather than reserving
+      // retries that cannot fit for the entire stage.
+      stageRetries = 0;
+      maxJobsInStage = eligibleStageJobs.length;
+    }
+    const stageJobs = eligibleStageJobs.slice(0, maxJobsInStage);
+    if (!stageJobs.length) break;
     const stageOutcomes = await runBoundedSearches(gatewayBase, gatewayToken, stageJobs, {
       ...searchOptions,
+      maxRetries: stageRetries,
       deadlineAt,
       clock,
     });
     outcomes.push(...stageOutcomes);
-    for (const outcome of stageOutcomes) {
-      if (!outcome.ok) continue;
-      const keys = categoryKeys.get(outcome.job.category) ?? new Set();
-      categoryKeys.set(outcome.job.category, keys);
-      for (const item of outcome.results) {
-        const title = clean(item?.title, 220);
-        if (!title || !isSafeHttpsUrl(item?.url)) continue;
-        try { keys.add(`${canonicalizeUrl(item.url)}|${normalizeTitle(title)}`); } catch { /* malformed result */ }
-      }
-    }
+    upstreamAttemptsUsed += stageOutcomes.reduce((total, outcome) => total + 1 + (outcome.retryAttempts || 0), 0);
   }
   return outcomes;
 }
@@ -282,10 +435,15 @@ export function createDiscoveryResultCache({
 }
 export function normalizeAndRankResults(outcomes, discoveredAt, state, graduationYear, { randomUUID = () => crypto.randomUUID() } = {}) {
   const unique = new Map();
+  const rankingLists = new Map();
   let rawResultCount = 0;
   for (const outcome of outcomes) {
     if (!outcome.ok) continue;
-    for (const item of outcome.results) {
+    const listId = `${outcome.job.category}:${Number(outcome.job.variation ?? 1)}`;
+    if (!rankingLists.has(listId)) rankingLists.set(listId, []);
+    const ranking = rankingLists.get(listId);
+    for (let index = 0; index < outcome.results.length; index += 1) {
+      const item = outcome.results[index];
       rawResultCount += 1;
       if (!isSafeHttpsUrl(item?.url)) continue;
       const title = clean(item.title, 220);
@@ -295,20 +453,93 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
         normalizedUrl = canonicalizeUrl(item.url);
         domain = new URL(normalizedUrl).hostname.toLowerCase().replace(/^www\./, "");
       } catch { continue; }
+      ranking.push({
+        title,
+        url: normalizedUrl,
+        rank: (Math.max(1, Number(outcome.job.page) || 1) - 1) * 15 + index + 1,
+      });
       const excerpt = clean(item.content, 1800);
-      const normalized = { title, source_url: normalizedUrl, source_domain: domain, excerpt, discovery_category: outcome.job.category, discovery_categories: [outcome.job.category], discovery_query: outcome.job.query, discovery_queries: [outcome.job.query], discovery_page: outcome.job.page, discovery_pages: [outcome.job.page], published_at: clean(item.publishedDate, 80) || null, search_engine: "searxng" };
+      const normalized = {
+        title,
+        source_url: normalizedUrl,
+        source_domain: domain,
+        excerpt,
+        discovery_category: outcome.job.category,
+        discovery_categories: [outcome.job.category],
+        discovery_query: outcome.job.query,
+        discovery_queries: [outcome.job.query],
+        discovery_page: outcome.job.page,
+        discovery_pages: [outcome.job.page],
+        published_at: clean(item.publishedDate, 80) || null,
+        search_engine: "searxng",
+      };
       const key = `${normalizedUrl}|${normalizeTitle(title)}`;
       const previous = unique.get(key);
-      if (!previous) { unique.set(key, normalized); continue; }
+      if (!previous) {
+        unique.set(key, normalized);
+        continue;
+      }
       const preferred = excerpt.length > String(previous.excerpt ?? "").length ? normalized : previous;
       const fallback = preferred === normalized ? previous : normalized;
-      unique.set(key, { ...fallback, ...preferred, excerpt: preferred.excerpt || fallback.excerpt || "", discovery_category: String(preferred.discovery_category || fallback.discovery_category), discovery_categories: [...new Set([...(previous.discovery_categories || []), outcome.job.category])], discovery_queries: [...new Set([...(previous.discovery_queries || []), outcome.job.query])], discovery_pages: [...new Set([...(previous.discovery_pages || []), outcome.job.page])] });
+      unique.set(key, {
+        ...fallback,
+        ...preferred,
+        excerpt: preferred.excerpt || fallback.excerpt || "",
+        discovery_category: String(preferred.discovery_category || fallback.discovery_category),
+        discovery_categories: [...new Set([...(previous.discovery_categories || []), outcome.job.category])],
+        discovery_queries: [...new Set([...(previous.discovery_queries || []), outcome.job.query])],
+        discovery_pages: [...new Set([...(previous.discovery_pages || []), outcome.job.page])],
+      });
     }
   }
+
+  const fused = calculateReciprocalRankFusion([...rankingLists.values()]);
+  const fusionByKey = new Map(fused.map((item) => [`${item.url}|${normalizeTitle(item.title)}`, item]));
   const results = [...unique.values()].map((item) => {
     const match = calculateRelevance(item.title, item.excerpt || "", item.source_domain, state, graduationYear);
-    return { id: randomUUID(), title: item.title, provider: null, award_text: null, deadline: null, deadline_text: null, deadline_timezone: null, deadline_not_published: false, last_checked_date: null, source_authority: "unverified-lead", source_evidence_url: null, source_url: item.source_url, discovery_source_url: null, discovery_category: item.discovery_category, discovery_categories: item.discovery_categories, discovery_queries: item.discovery_queries, discovery_pages: item.discovery_pages, source_domain: item.source_domain, excerpt: item.excerpt, published_at: item.published_at, search_engine: "searxng", relevance_score: match.score, relevance_reasons: match.reasons, verification_state: "unverified_lead", discovered_at: discoveredAt, source_checked_at: null, extracted_rules: { short_source_summary: item.excerpt, uncertainties: ["Sponsor identity, award amount, deadline, and eligibility rules have not been confirmed on the official sponsor page.", "Search ranking is a relevance aid, not an eligibility decision."] } };
-  }).sort((a, b) => Number(b.relevance_score) - Number(a.relevance_score) || String(a.title).localeCompare(String(b.title))).slice(0, MAX_RESULTS);
+    const fusion = fusionByKey.get(`${item.source_url}|${normalizeTitle(item.title)}`);
+    return {
+      id: randomUUID(),
+      title: item.title,
+      provider: null,
+      award_text: null,
+      deadline: null,
+      deadline_text: null,
+      deadline_timezone: null,
+      deadline_not_published: false,
+      last_checked_date: null,
+      source_authority: "unverified-lead",
+      source_evidence_url: null,
+      source_url: item.source_url,
+      discovery_source_url: null,
+      discovery_category: item.discovery_category,
+      discovery_categories: item.discovery_categories,
+      discovery_queries: item.discovery_queries,
+      discovery_pages: item.discovery_pages,
+      source_domain: item.source_domain,
+      excerpt: item.excerpt,
+      published_at: item.published_at,
+      search_engine: "searxng",
+      relevance_score: match.score,
+      relevance_reasons: match.reasons,
+      search_consensus_score: fusion?.consensusScore ?? 0,
+      search_consensus_count: fusion?.appearances ?? 1,
+      verification_state: "unverified_lead",
+      discovered_at: discoveredAt,
+      source_checked_at: null,
+      extracted_rules: {
+        short_source_summary: item.excerpt,
+        uncertainties: [
+          "Sponsor identity, award amount, deadline, and eligibility rules have not been confirmed on the official sponsor page.",
+          "Search ranking is a relevance aid, not an eligibility decision.",
+        ],
+      },
+    };
+  }).sort((a, b) =>
+    Number(b.relevance_score) - Number(a.relevance_score) ||
+    Number(b.search_consensus_score) - Number(a.search_consensus_score) ||
+    String(a.title).localeCompare(String(b.title)),
+  ).slice(0, MAX_RESULTS);
   return { results, rawResultCount };
 }
 async function readRequestBody(req) {
@@ -417,7 +648,7 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     }
 
     const jobs = buildSearchJobs(state, graduationYear, categories);
-    const outcomes = await runAdaptiveSearches(gatewayBase, gatewayToken, jobs, { fetchImpl, concurrency: searchConcurrency });
+    const outcomes = await runAdaptiveSearches(gatewayBase, gatewayToken, jobs, { fetchImpl, concurrency: searchConcurrency, state, graduationYear });
     const successfulQueries = outcomes.filter((outcome) => outcome.ok).length;
     const failedQueries = outcomes.length - successfulQueries;
     const retryAttempts = outcomes.reduce((total, outcome) => total + (outcome.retryAttempts || 0), 0);

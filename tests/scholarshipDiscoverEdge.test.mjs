@@ -13,10 +13,10 @@ const baseBody = { profile: { state: "Texas", graduationYear: "2027" }, categori
 const deps = (overrides = {}) => ({ getEnv: (key) => key === "SEARXNG_GATEWAY_URL" ? "https://gateway.example" : "x".repeat(64), now: () => new Date("2026-11-13T12:00:00.000Z"), randomUUID: (() => { let n = 0; return () => `uuid-${++n}`; })(), fetchImpl: async () => response({ results: [] }), ...overrides });
 
 test("the public category allowlist contains exactly fourteen categories", () => assert.equal(categories.length, 14));
-test("search job generation creates two variations and two pages per selected category", () => {
+test("search job generation creates three distinct variations and two pages per selected category", () => {
   const jobs = buildSearchJobs("Texas", 2027, ["local", "arts"]);
-  assert.equal(jobs.length, 8);
-  assert.deepEqual(jobs.map((job) => job.page), [1, 2, 1, 2, 1, 2, 1, 2]);
+  assert.equal(jobs.length, 12);
+  assert.deepEqual(jobs.map((job) => job.page), [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]);
   assert.ok(jobs.every((job) => job.query.includes("Texas") && job.query.includes("2027")));
 });
 test("progressive search stops expanding categories once they yield eight distinct leads", async () => {
@@ -28,8 +28,9 @@ test("progressive search stops expanding categories once they yield eight distin
       const parsed = new URL(url);
       calls.push({ query: parsed.searchParams.get("q"), page: Number(parsed.searchParams.get("pageno")) });
       return response({ results: Array.from({ length: 8 }, (_, index) => ({
-        title: `Synthetic ${calls.length} ${index}`,
+        title: `Student Scholarship ${calls.length} ${index}`,
         url: `https://results-${calls.length}-${index}.example/award`,
+        content: "Eligible students may apply for this scholarship award."
       })) });
     },
   });
@@ -52,18 +53,18 @@ test("progressive search expands only underfilled categories and preserves full 
       const page = Number(parsed.searchParams.get("pageno"));
       calls.push({ category, page, query });
       const results = category === "local" && page === 1
-        ? Array.from({ length: 8 }, (_, index) => ({ title: `Local ${index}`, url: `https://local-${index}.example/a` }))
+        ? Array.from({ length: 8 }, (_, index) => ({ title: `Local Student Scholarship ${index}`, url: `https://local-${index}.example/a`, content: "Eligible local students may apply for this scholarship before the deadline." }))
         : [];
       return response({ results });
     },
   });
 
-  assert.equal(outcomes.length, 5);
-  assert.equal(calls.length, 5);
+  assert.equal(outcomes.length, 7);
+  assert.equal(calls.length, 7);
   assert.equal(calls.filter((call) => call.category === "local").length, 1);
-  assert.equal(calls.filter((call) => call.category === "state").length, 4);
+  assert.equal(calls.filter((call) => call.category === "state").length, 6);
   assert.deepEqual(calls.filter((call) => call.category === "state").map((call) => [call.page, call.query.includes("statewide")]), [
-    [1, true], [2, true], [1, false], [2, false],
+    [1, true], [2, true], [1, false], [2, false], [1, false], [2, false],
   ]);
 });
 
@@ -88,7 +89,7 @@ test("handler serves a fresh cache hit without another provider request and repo
     return response({ results: Array.from({ length: 8 }, (_, index) => ({
       title: `Synthetic Scholarship ${index}`,
       url: `https://fund-${index}.example/award`,
-      content: "Scholarship for students.",
+      content: "Scholarship for Texas graduating high-school students, class of 2027. Eligible applicants can apply before the deadline.",
     })) });
   } }));
 
@@ -276,7 +277,7 @@ test("handler accepts four categories at most and ignores arbitrary profile fiel
   const body = { profile: { state: "Texas", graduationYear: "2027", school: "PRIVATE-SCHOOL-SENTINEL", gpa: "PRIVATE-GPA-SENTINEL", email: "PRIVATE-EMAIL-SENTINEL" }, categories: [...categories, "invalid"] };
   const result = await handler(request(body));
   assert.equal(result.status, 200);
-  assert.equal(sent.length, 16);
+  assert.equal(sent.length, 24);
   assert.ok(sent.every((query) => !/PRIVATE-SCHOOL-SENTINEL|PRIVATE-GPA-SENTINEL|PRIVATE-EMAIL-SENTINEL/.test(query)));
 });
 test("gateway bearer secret is trimmed before constructing the Authorization header", async () => {
@@ -312,7 +313,7 @@ test("partial upstream failures return successful results with a warning", async
   const result = await handler(request(baseBody));
   assert.equal(result.status, 200);
   const body = await result.json();
-  assert.equal(body.summary.failedQueries, 3);
+  assert.equal(body.summary.failedQueries, 5);
   assert.equal(body.results.length, 1);
   assert.equal(body.warnings.length, 1);
 });
@@ -336,7 +337,7 @@ test("does not cache incomplete provider responses", async () => {
   assert.equal(second.status, 200);
   assert.equal(firstBody.summary.cacheHit, false);
   assert.equal(secondBody.summary.cacheHit, false);
-  assert.equal(calls, 14);
+  assert.equal(calls, 21);
 });
 
 test("handler reports adaptive search savings and bounded retry attempts", async () => {
@@ -359,8 +360,8 @@ test("handler reports adaptive search savings and bounded retry attempts", async
   assert.equal(result.status, 200);
   assert.equal(calls, 2);
   assert.equal(body.summary.requestedQueries, 1);
-  assert.equal(body.summary.potentialQueries, 4);
-  assert.equal(body.summary.queriesAvoided, 3);
+  assert.equal(body.summary.potentialQueries, 6);
+  assert.equal(body.summary.queriesAvoided, 5);
   assert.equal(body.summary.retryAttempts, 1);
   assert.equal(body.summary.cacheHit, false);
 });
@@ -415,7 +416,7 @@ test("total gateway authentication failure exposes safe status diagnostics witho
   const body = await result.json();
 
   assert.equal(result.status, 502);
-  assert.deepEqual(body.summary.failureReasons, [{ code: "http_401", count: 4 }]);
+  assert.deepEqual(body.summary.failureReasons, [{ code: "http_401", count: 6 }]);
   assert.doesNotMatch(JSON.stringify(body), new RegExp(token));
 });
 
