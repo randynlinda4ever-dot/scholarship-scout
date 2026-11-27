@@ -26,6 +26,7 @@ import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveC
 import { hasPendingAuthCallback, hasPendingAuthCallbackError } from './lib/authRedirect.js';
 import { PRIVACY_REQUEST_TYPES, PRIVACY_REQUESTER_TYPES, buildPrivacyRequestMailto } from './lib/privacyRequests.js';
 import { BrandMark } from './components/BrandMark';
+import { workspacePathToTab, workspaceTabToPath } from './lib/workspaceRoutes.js';
 import './App.css';
 import './brand-system.css';
 
@@ -196,7 +197,18 @@ const googleSearch = (query: string) => `https://www.google.com/search?q=${encod
 const createWorkspaceItemId = () => `workspace-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 function App() {
-  const [tab, setTab] = useState('Overview');
+  const [tab, setTab] = useState(() => workspacePathToTab(window.location.pathname));
+  useEffect(() => {
+    const targetPath = workspaceTabToPath(tab);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ scholarshipScoutTab: tab }, "", targetPath);
+    }
+  }, [tab]);
+  useEffect(() => {
+    const syncTabFromPath = () => setTab(workspacePathToTab(window.location.pathname));
+    window.addEventListener("popstate", syncTabFromPath);
+    return () => window.removeEventListener("popstate", syncTabFromPath);
+  }, []);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('scout-sidebar-collapsed') === 'true'; } catch { return false; }
