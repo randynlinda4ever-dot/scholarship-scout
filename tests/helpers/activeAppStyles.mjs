@@ -12,7 +12,6 @@ export async function readActiveAppStyles() {
     'public/brand-theme.css',
     'src/brand-system.css',
     'src/index.css',
-    'src/styles/base.css',
     'src/components/LegalAcceptanceGate.css',
     'src/lib/localVaultGate.css',
   ].map(read));
