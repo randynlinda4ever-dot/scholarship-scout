@@ -139,7 +139,18 @@ function isScholarshipDirectoryLandingUrl(value, title = "") {
       "scholarships-by-state", "scholarship-by-state", "scholarships-by-major",
     ].includes(segment));
     if (explicitDirectoryPath) return true;
-    if (/^(?:top|best|list of|browse|all)\s+(?:\d+\s+)?(?:[a-z0-9&,'’-]+\s+){0,5}(?:scholarships?|grants?|fellowships?)\b/i.test(String(title ?? "").trim())) return true;
+    const scholarshipSegmentIndex = pathSegments.findIndex((segment) => /^scholarships?$/.test(segment));
+    if (scholarshipSegmentIndex >= 0) {
+      const trailingSegments = pathSegments.slice(scholarshipSegmentIndex + 1);
+      if (trailingSegments.some((segment) => /^for-[a-z-]+-students?$/.test(segment))) return true;
+      if (trailingSegments.length === 1 && normalizeUsState(trailingSegments[0])) return true;
+      if (new URL(value).searchParams.has("state")) return true;
+    }
+    const titleText = String(title ?? "").trim();
+    const stateIndexTitle = titleText.match(/^(.+?)\s+scholarships\b/i);
+    if (stateIndexTitle && normalizeUsState(stateIndexTitle[1])) return true;
+    if (/^(?:alphabetical\s+)?(?:index|directory|list|database|catalog(?:ue)?)\b.*\bscholarships?\b/i.test(titleText)) return true;
+    if (/^(?:top|best|list of|browse|all)\s+(?:\d+\s+)?(?:[a-z0-9&,'’-]+\s+){0,5}(?:scholarships?|grants?|fellowships?)\b/i.test(titleText)) return true;
 
     const genericTitleTerms = new Set([
       "scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards",
