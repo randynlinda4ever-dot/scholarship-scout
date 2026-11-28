@@ -5,7 +5,6 @@ import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../public/adsense-consent.js", import.meta.url), "utf8");
 const configSource = await readFile(new URL("../public/adsense-config.js", import.meta.url), "utf8");
-const repo = "randynlinda4ever-dot/scholarship-scout";
 
 function makeNode(tagName, registry) {
   const listeners = new Map();
@@ -13,6 +12,7 @@ function makeNode(tagName, registry) {
   const node = {
     tagName: tagName.toUpperCase(),
     children: [],
+    parentNode: null,
     style: {},
     className: "",
     textContent: "",
@@ -20,9 +20,22 @@ function makeNode(tagName, registry) {
     checked: false,
     disabled: false,
     appendChild(child) {
+      child.parentNode = this;
       this.children.push(child);
       if (child.id) registry.set(child.id, child);
       return child;
+    },
+    insertBefore(child, reference) {
+      child.parentNode = this;
+      const index = this.children.indexOf(reference);
+      this.children.splice(index < 0 ? this.children.length : index, 0, child);
+      if (child.id) registry.set(child.id, child);
+      return child;
+    },
+    append(...nodes) { nodes.forEach((child) => this.appendChild(child)); },
+    replaceChildren(...nodes) {
+      this.children = [];
+      nodes.forEach((child) => this.appendChild(child));
     },
     addEventListener(type, callback) {
       const callbacks = listeners.get(type) || [];
@@ -187,7 +200,7 @@ test("preview hosts never initialize AdSense, even with saved consent", () => {
   assert.equal(app.externalScripts.length, 0);
 });
 
-test("only the six public scholarship-guide pages include a single ad placement", async () => {
+test("only the five public scholarship-guide pages include a single ad placement", async () => {
   const pages = [
     "scholarship-guides/index.html",
     "scholarship-guides/high-school-juniors.html",
