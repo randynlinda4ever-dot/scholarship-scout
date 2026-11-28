@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from "./helpers/readActiveAppStyles.mjs";
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const cloudApi = await readFile(new URL('../src/lib/scholarshipApi.ts', import.meta.url), 'utf8');
-const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const styles = await readActiveAppStyles();
 test('email sign-in and Google authentication live on Start/Home, not Settings', async () => { const home = await readFile(new URL('../src/features/home/StartHomePage.tsx', import.meta.url), 'utf8'); assert.match(home, /type="email"/); assert.match(home, /onEmailSubmit/); assert.match(home, /Continue with Google/); assert.match(app, /Connected account/); assert.doesNotMatch(app, /id="cloud-email"|settings-auth-form/); });
 test('live scholarship search is public while account management stays in Settings', () => { const cloudSearch=app.slice(app.indexOf("{tab === 'Cloud Search'"),app.indexOf("{tab === 'Scholarships'")); const settings=app.slice(app.indexOf("{tab === 'Settings'"),app.indexOf("{tab === 'Discovery'")); assert.match(cloudSearch,/Search without an account/); assert.match(settings,/Cross-device encrypted vault/); assert.doesNotMatch(settings,/id="cloud-email"|settings-auth-form/); assert.doesNotMatch(app,/Cloud account required|ensureCloudUser\(/); assert.doesNotMatch(cloudApi,/ensureAnonymousUser/); assert.match(cloudApi,/runLiveScholarshipDiscovery[\s\S]*?const client = await requireClient\(\)/); });
 test('theme preference is toggleable and persisted locally', () => { assert.match(app,/localStorage\.getItem\('scout-theme'\)/); assert.match(app,/localStorage\.setItem\('scout-theme', theme\)/); assert.match(app,/data-theme=\{theme\}/); assert.match(app,/aria-pressed=\{theme === 'light'\}/); assert.match(styles,/\.theme-toggle/); });
