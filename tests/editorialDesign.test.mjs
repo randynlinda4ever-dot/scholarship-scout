@@ -16,7 +16,7 @@ test('the active brand system uses editorial display and interface typography', 
   assert.match(appCss, /DM Sans/);
   assert.match(tokens, /--editorial-display:\s*'Source Serif 4'/);
   assert.match(tokens, /--interface-font:\s*'DM Sans'/);
-  assert.match(brand, /h1,\s*h2\s*\{[^}]*Source Serif 4/);
+  assert.match(design, /h1, h2 \{ font-family: 'Source Serif 4'/);
 });
 
 test('desktop navigation remains persistent and readable', () => {
