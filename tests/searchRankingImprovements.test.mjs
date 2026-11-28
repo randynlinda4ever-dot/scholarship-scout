@@ -341,3 +341,55 @@ test("deduplication retains award and deadline evidence found in a second snippe
   assert.ok(result.evidence_excerpt.includes(result.deadline_text));
   assert.ok(result.excerpt.includes("supports graduating seniors"));
 });
+
+test("scholarship directory landing pages are excluded as individual opportunities", () => {
+  const { results } = normalizeAndRankResults([{
+    ok: true,
+    job: { category: "humanities", query: "senior scholarships", variation: 1, page: 1 },
+    results: [{
+      title: "High School Senior (Class of 2027) Scholarships",
+      url: "https://www.scholarships.com/financial-aid/college-scholarships/scholarship-directory/school-year/high-school-senior",
+      content: "Browse scholarships for high school seniors.",
+    }],
+  }], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(results.length, 0);
+});
+
+test("duplicate search snippets are not concatenated into false award and deadline evidence", () => {
+  const url = "https://directory.example/scholarship-directory/seniors";
+  const outcomes = [
+    {
+      ok: true,
+      job: { category: "humanities", query: "senior scholarships", variation: 1, page: 1 },
+      results: [{ title: "High School Senior Scholarships", url, content: "Niche $50,000 No Essay Scholarship." }],
+    },
+    {
+      ok: true,
+      job: { category: "humanities", query: "history scholarships", variation: 2, page: 1 },
+      results: [{ title: "High School Senior Scholarships", url, content: "Texas History Essay Contest, Amount: $4,000, Due Date: January 31, 2027." }],
+    },
+  ];
+  const { results } = normalizeAndRankResults(outcomes, "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(results.length, 0, "directory result must be filtered before clue extraction");
+});
+
+test("duplicate result snippets stay source-local and cannot combine unrelated award and deadline clues", () => {
+  const url = "https://foundation.example/awards/senior-program";
+  const outcomes = [
+    {
+      ok: true,
+      job: { category: "humanities", query: "senior scholarships", variation: 1, page: 1 },
+      results: [{ title: "Texas Community Scholarship", url, content: "Niche $50,000 No Essay Scholarship." }],
+    },
+    {
+      ok: true,
+      job: { category: "humanities", query: "history scholarships", variation: 2, page: 1 },
+      results: [{ title: "Texas Community Scholarship", url, content: "Texas History Essay Contest, Amount: $4,000, Due Date: January 31, 2027." }],
+    },
+  ];
+  const { results } = normalizeAndRankResults(outcomes, "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].award_text, null, "the unrelated Niche award must not be attached to this scholarship");
+  assert.equal(results[0].deadline, null, "the unrelated essay-contest deadline must not be attached to this scholarship");
+  assert.doesNotMatch(results[0].evidence_excerpt, /Niche|Texas History Essay Contest/);
+});

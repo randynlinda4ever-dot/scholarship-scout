@@ -137,7 +137,7 @@ test("canonical URL removes tracking and fragments and sorts remaining query par
   assert.equal(canonicalizeUrl("https://example.org/path/?z=2&utm_source=mail&a=1#top"), "https://example.org/path?a=1&z=2");});test("normalization deduplicates canonical URL/title records and merges provenance", () => {
   const jobA = { category: "local", query: "local search", page: 1 };
   const jobB = { category: "state", query: "state search", page: 2 };
-  const outcomes = [{ ok: true, job: jobA, results: [{ title: "Texas Student Scholarship", url: "https://www.example.org/award?utm_source=a", content: "short" }] }, { ok: true, job: jobB, results: [{ title: "Texas Student Scholarship", url: "https://example.org/award#details", content: "A longer description for the same scholarship." }] }];
+  const outcomes = [{ ok: true, job: jobA, results: [{ title: "Texas Student Scholarship", url: "https://www.example.org/award?utm_source=a", content: "short" }] }, { ok: true, job: jobB, results: [{ title: "Texas Student Scholarship", url: "https://example.org/award#details", content: "A longer description for the same Texas Community scholarship." }] }];
   const { results, rawResultCount } = normalizeAndRankResults(outcomes, "2026-11-13T12:00:00.000Z", "Texas", 2027, { randomUUID: () => "fixed-id" });
   assert.equal(rawResultCount, 2);
   assert.equal(results.length, 1);
