@@ -112,12 +112,12 @@
 
   function closePreferences() {
     removePreferences();
-    if (privacyButton) privacyButton.focus();
+    if (privacyButton) privacyButton.focus?.();
   }
 
   function openPreferences() {
     if (preferences) {
-      preferences.querySelector?.("button")?.focus();
+      preferences.querySelector?.("button")?.focus?.();
       return;
     }
 
@@ -160,7 +160,7 @@
     panel.appendChild(actions);
     preferences.appendChild(panel);
     document.body.appendChild(preferences);
-    enable.focus();
+    enable.focus?.();
   }
 
   function showBanner() {
@@ -280,7 +280,7 @@
       showBanner();
     }
     addPrivacyLink();
-    if (privacyButton) privacyButton.hidden = false;
+    if (privacyButton) privacyButton.hidden = !consent;
   }
 
   window.addEventListener(MANAGE_EVENT, openPreferences);
