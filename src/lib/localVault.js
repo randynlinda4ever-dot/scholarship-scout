@@ -390,7 +390,7 @@ async function ensureAuthRecordsStored(entries, authStorage = secureAuthStorage)
       await authStorage.setItem(targetKey, entry.value);
     }
     const verified = await authStorage.getItem(targetKey);
-    if (typeof verified !== "string") {
+    if (verified !== entry.value) {
       throw new Error("The account session could not be verified in encrypted authentication storage.");
     }
   }
