@@ -52,6 +52,16 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+      - name: Emit generated lockfile for exact repository commit
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const encoded = readFileSync("package-lock.json").toString("base64");
+          for (let offset = 0, index = 0; offset < encoded.length; offset += 3000, index += 1) {
+            console.log(`LOCKFILE_CHUNK_${String(index).padStart(3, "0")}=${encoded.slice(offset, offset + 3000)}`);
+          }
+          NODE
+
       - name: Install locked dependencies
         run: npm ci
 
