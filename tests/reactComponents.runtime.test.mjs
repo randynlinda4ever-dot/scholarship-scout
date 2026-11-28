@@ -10,16 +10,36 @@ let components;
 test('load React components through the production Vite TypeScript transform', async (t) => {
   vite = await createServer({ configFile: './vite.config.ts', server: { middlewareMode: true }, appType: 'custom' });
   t.after(async () => { await vite?.close(); });
-  const [brand, nav, status, home, cards] = await Promise.all([
+  const [brand, nav, status, home, cards, trackerDetails] = await Promise.all([
     vite.ssrLoadModule('/src/components/BrandMark.tsx'),
     vite.ssrLoadModule('/src/components/NavGlyph.tsx'),
     vite.ssrLoadModule('/src/components/StatusPills.tsx'),
     vite.ssrLoadModule('/src/features/home/StartHomePage.tsx'),
     vite.ssrLoadModule('/src/components/ScholarshipCards.tsx'),
+    vite.ssrLoadModule('/src/components/TrackerDetailsButton.tsx'),
   ]);
-  components = { ...brand, ...nav, ...status, ...home, ...cards };
+  components = { ...brand, ...nav, ...status, ...home, ...cards, ...trackerDetails };
   assert.equal(typeof components.BrandMark, 'function');
   assert.equal(typeof components.NavGlyph, 'function');
+});
+
+test('TrackerDetailsButton exposes an accessible button and opens the selected scholarship', () => {
+  const item = { id: 'tracker-details-runtime', name: 'North Star Community Scholarship' };
+  let selected = null;
+  const element = components.TrackerDetailsButton({
+    item,
+    onOpen: (value) => { selected = value; },
+  });
+
+  assert.equal(element.type, 'button');
+  assert.equal(element.props.type, 'button');
+  assert.equal(element.props.className, 'secondary tracker-details');
+  assert.equal(element.props['aria-label'], 'Open details for North Star Community Scholarship');
+  assert.equal(element.props.children, '›');
+
+  element.props.onClick();
+  assert.equal(selected, item);
+  assert.match(renderToStaticMarkup(element), /Open details for North Star Community Scholarship/);
 });
 
 test('BrandMark renders the decorative official brand asset accessibly', () => {
