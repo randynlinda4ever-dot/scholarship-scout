@@ -2,7 +2,7 @@
  * Capabilities confirmed from the current scholarship-discover Edge Function.
  * Keep this separate from source-only capabilities.
  */
-export const DEPLOYED_DISCOVERY_FUNCTION_VERSION = 19;
+export const DEPLOYED_DISCOVERY_FUNCTION_VERSION = 21;
 
 const DEPLOYED_CATEGORIES = new Set([
   "local",
