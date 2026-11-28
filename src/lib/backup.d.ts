@@ -1,14 +1,16 @@
 import type { ApplicationWorkspace } from "./applicationWorkspace.js";
+import type { ResourceWorkspace } from "./resourceWorkspace.js";
 
 export type ScoutBackup<TProfile = Record<string, string>, TScholarship = Record<string, unknown>> = {
   format: "scholarship-scout-backup";
-  version: 2;
+  version: 3;
   exportedAt: string;
   profile: TProfile;
   profileDraft: TProfile;
   scholarships: TScholarship[];
   applicationProgress: Record<string, boolean[]>;
   applicationWorkspace: ApplicationWorkspace;
+  resourceWorkspace: ResourceWorkspace;
 };
 
 export type ScoutBackupValidation<TProfile = Record<string, string>, TScholarship = Record<string, unknown>> =
@@ -18,6 +20,7 @@ export type ScoutBackupValidation<TProfile = Record<string, string>, TScholarshi
       scholarships: TScholarship[];
       applicationProgress: Record<string, boolean[]>;
       applicationWorkspace: ApplicationWorkspace;
+      resourceWorkspace: ResourceWorkspace;
     } }
   | { ok: false; error: string };
 
@@ -28,6 +31,7 @@ export function buildScoutBackup<TProfile extends Record<string, unknown>, TScho
   applicationProgress?: Record<string, boolean[]>,
   applicationWorkspace?: ApplicationWorkspace,
   profileDraft?: TProfile,
+  resourceWorkspace?: ResourceWorkspace,
 ): ScoutBackup<TProfile, TScholarship>;
 
 export function validateScoutBackup<TProfile = Record<string, string>, TScholarship = Record<string, unknown>>(

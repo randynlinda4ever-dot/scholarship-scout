@@ -16,10 +16,10 @@ const valid = () => buildScoutBackup(
   applicationWorkspace,
 );
 
-test("backup captures profile, profile draft, tracker, checklist, and workspace in version two", () => {
+test("backup captures profile, profile draft, tracker, checklist, workspace, and resources in version three", () => {
   const backup = valid();
   assert.equal(backup.format, "scholarship-scout-backup");
-  assert.equal(backup.version, 2);
+  assert.equal(backup.version, 3);
   assert.deepEqual(backup.profile, profile);
   assert.deepEqual(backup.profileDraft, profile);
   assert.deepEqual(backup.scholarships, scholarships);

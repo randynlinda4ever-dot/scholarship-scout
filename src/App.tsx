@@ -27,6 +27,8 @@ import { hasPendingAuthCallback, hasPendingAuthCallbackError } from './lib/authR
 import { PRIVACY_REQUEST_TYPES, PRIVACY_REQUESTER_TYPES, buildPrivacyRequestMailto } from './lib/privacyRequests.js';
 import { BrandMark } from './components/BrandMark';
 import { workspacePathToTab, workspaceTabToPath } from './lib/workspaceRoutes.js';
+import { createResourceWorkspace, normalizeResourceWorkspace } from './lib/resourceWorkspace.js';
+import { ResourcesPage } from './features/resources/ResourcesPage';
 import './App.css';
 import './brand-system.css';
 
@@ -352,6 +354,7 @@ function App() {
       return normalizeApplicationWorkspace(raw ? JSON.parse(raw) : {});
     } catch { return {}; }
   });
+  const [resourceWorkspace, setResourceWorkspace] = useState(() => normalizeResourceWorkspace(readLocalJson('scout-resource-workspace')));
   const [prepScholarshipId, setPrepScholarshipId] = useState('');
   const [backupDialogMode, setBackupDialogMode] = useState<'closed' | 'export' | 'import'>('closed');
   const [backupPassword, setBackupPassword] = useState('');
@@ -648,6 +651,15 @@ function App() {
     setApplicationWorkspace(next);
     void flushLocalVault().catch(() => setAlert('Application workspace is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
   };
+  const saveResourceWorkspace = (next: ReturnType<typeof createResourceWorkspace>) => {
+    const normalized = normalizeResourceWorkspace(next);
+    if (!saveJson('scout-resource-workspace', normalized)) {
+      setAlert('Resource changes could not be saved. Previously saved resource data was preserved.');
+      return;
+    }
+    setResourceWorkspace(normalized);
+    void flushLocalVault().catch(() => setAlert('Resource changes are active in this tab, but encrypted browser storage could not finish saving. Retry before locking or reloading.'));
+  };
   const closeBackupDialog = () => {
     setBackupDialogMode('closed');
     setBackupPassword('');
@@ -685,7 +697,7 @@ function App() {
     backupBusyRef.current = true;
     setBackupBusy(true);
     try {
-      const backup = buildScoutBackup(profile, items, new Date(), applicationProgress, applicationWorkspace, profileDraft);
+      const backup = buildScoutBackup(profile, items, new Date(), applicationProgress, applicationWorkspace, profileDraft, resourceWorkspace);
       const validation = validateScoutBackup(backup, Object.keys(initialProfile));
       if (!validation.ok) {
         setAlert(validation.error);
@@ -748,6 +760,7 @@ function App() {
       'scout-scholarships',
       'scout-application-progress',
       'scout-application-workspace',
+      'scout-resource-workspace',
     ];
     let previousStorage: Record<string, string | null>;
     try {
@@ -763,6 +776,7 @@ function App() {
       'scout-scholarships': restoredScholarships,
       'scout-application-progress': restoredProgress,
       'scout-application-workspace': restoredWorkspace,
+      'scout-resource-workspace': normalizeResourceWorkspace(imported.resourceWorkspace),
     });
     if (!storageResult.ok) {
       setAlert(storageResult.rollbackSucceeded
@@ -806,7 +820,8 @@ function App() {
     setItems(restoredScholarships);
     setApplicationProgress(restoredProgress);
     setApplicationWorkspace(restoredWorkspace);
-    setNotice('Backup imported. Your profile, tracker, checklists, and application workspaces were restored locally.');
+    setResourceWorkspace(normalizeResourceWorkspace(imported.resourceWorkspace));
+    setNotice('Backup imported. Your profile, tracker, checklists, application workspaces, and resources were restored locally.');
     return true;
   };
   const confirmRestoreLocalBackup = async () => {
@@ -1231,6 +1246,9 @@ function App() {
     { title: 'TRACK', items: [
       { tab: 'Scholarships', label: 'My scholarships', description: 'Awards, deadlines, and applications', icon: 'book', count: true },
     ]},
+    { title: 'RESOURCES', items: [
+      { tab: 'Resources', label: 'Resources', description: 'Worksheets, checklists, and guides', icon: 'book-stack' },
+    ]},
     { title: 'YOUR SETUP', items: [
       { tab: 'Eligibility filters', label: 'My profile', description: 'Personalize search and eligibility', icon: 'user' },
       { tab: 'Settings', label: 'Settings', description: 'Appearance, privacy, and account', icon: 'settings' },
@@ -1569,6 +1587,14 @@ function App() {
         <div className="table-card"><div className="table-title"><b>Tracked opportunities</b><span>{filtered.length} shown · eligibility and application status are tracked separately</span></div>{filtered.length===0 && items.length===0 ? <Empty onAdd={()=>openAdd()}/> : hasFilteredEmptyState ? <FilteredEmpty onClear={clearTrackerFilters}/> : <div className="table-wrap"><table><thead><tr><th>OPPORTUNITY</th><th>AWARD AMOUNT / BASIS</th><th>DEADLINE</th><th>URGENCY</th><th>APPLICATION</th><th>PRIORITY</th><th>ELIGIBILITY</th><th>SOURCE REVIEW</th><th scope="col">DETAILS</th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td data-label="Opportunity"><button type="button" className="tracker-open" aria-label={'Review ' + item.name} onClick={()=>setSelected(item)}>{item.name}</button><small>{item.provider}</small>{item.tags?.length ? <small>{item.tags.join(' · ')}</small> : null}</td><td data-label="Award amount / basis"><b>{item.award || 'Amount not recorded'}</b>{item.awardBasis ? <small>{item.awardBasis}</small> : null}{item.awardCurrencyBasis ? <small>{item.awardCurrencyBasis}</small> : null}</td><td data-label="Deadline">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : milestone.key === "opening" ? formatDate(item.openDate) : "Date not confirmed")}</small>)}</td><td data-label="Urgency">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: <DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></small>)}</td><td data-label="Application"><ApplicationStatusPill status={item.applicationStatus || 'Not started'}/></td><td data-label="Priority"><PriorityPill priority={item.priority || 'Medium'}/></td><td data-label="Eligibility"><StatusPill status={summarizeEligibilityAssessment(assessments.get(item.id)).status as Status}/></td><td data-label="Source review"><SourceStatusPill item={item}/></td><td data-label="Details"><button type="button" className="secondary tracker-details" aria-label={"Open details for " + item.name} onClick={() => setSelected(item)}>›</button></td></tr>)}</tbody></table></div>}</div>
         <p className="footnote">“Eligible” means every structured rule entered in Scout passed and the official source review was marked complete. It is not an award guarantee; sponsor decisions and unentered requirements may still apply.</p>
       </div>}
+
+      {tab === 'Resources' && <ResourcesPage
+        workspace={resourceWorkspace}
+        scholarships={items}
+        onWorkspaceChange={saveResourceWorkspace}
+        onOpenTracker={() => setTab('Scholarships')}
+        onOpenApplicationPrep={(id) => { setPrepScholarshipId(id); setTab('Application prep'); }}
+      />}
 
       {tab === 'Eligibility filters' && <div className="page narrow">
         <div className="page-heading"><div><div className="eyebrow">PERSONAL MATCHING PROFILE</div><h1>Your profile</h1><p>These details guide scholarship discovery and eligibility checks. Update anything that is missing or outdated.</p></div></div>
