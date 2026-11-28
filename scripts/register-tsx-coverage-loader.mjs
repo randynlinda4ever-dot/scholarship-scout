@@ -36,6 +36,13 @@ function sourceCandidate(base) {
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (
+      specifier === "./supabaseClient" &&
+      context.parentURL?.startsWith("file:") &&
+      context.parentURL.split(/[?#]/, 1)[0].endsWith("/src/lib/scholarshipApi.ts") &&
+      globalThis.__SCOUT_TEST_SCHOLARSHIP_API__ === true
+    ) return {url:"scholarship-scout:test-discovery-supabase-client",shortCircuit:true};
+
+    if (
       specifier === "./lib/supabaseClient" &&
       context.parentURL?.startsWith("file:") &&
       context.parentURL.split(/[?#]/, 1)[0].endsWith("/src/App.tsx") &&
@@ -59,6 +66,13 @@ registerHooks({
     return nextResolve(specifier,context);
   },
   load(url, context, nextLoad) {
+    if (url === "scholarship-scout:test-discovery-supabase-client") {
+      return {
+        format:"module",
+        shortCircuit:true,
+        source:"export async function getSupabaseClient(){return globalThis.__SCOUT_DISCOVERY_TEST_CLIENT__;}",
+      };
+    }
     if (url === "scholarship-scout:test-supabase-client") {
       return {
         format:"module",

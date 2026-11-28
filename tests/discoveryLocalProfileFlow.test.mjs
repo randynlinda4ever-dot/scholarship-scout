@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { createServer } from "vite";
 import { buildLiveDiscoveryPayload } from "../src/lib/liveDiscoveryProfile.js";
 
 const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
@@ -49,13 +48,7 @@ test("live discovery sends only approved filters and ranks results with the full
               evidence_excerpt: "The Central Texas Anthropology Scholarship supports graduating Texas high school seniors interested in anthropology.",
               discovery_category: "local",
             }],
-            summary: {
-              requestedQueries: 1,
-              successfulQueries: 1,
-              failedQueries: 0,
-              pagesChecked: 1,
-              rawResultCount: 1,
-            },
+            summary: {requestedQueries:1,successfulQueries:1,failedQueries:0,pagesChecked:1,rawResultCount:1},
             warnings: [],
           },
           error: null,
@@ -63,37 +56,13 @@ test("live discovery sends only approved filters and ranks results with the full
       },
     },
   };
-
-  const mockId = "\0scholarship-scout-test-supabase-client";
-  const vite = await createServer({
-    configFile: "./vite.config.ts",
-    server: { middlewareMode: true },
-    appType: "custom",
-    plugins: [{
-      name: "discovery-flow-supabase-client-test-double",
-      enforce: "pre",
-      resolveId(source, importer) {
-        if (
-          source === "./supabaseClient" &&
-          importer?.replace(/\\/g, "/").endsWith("/src/lib/scholarshipApi.ts")
-        ) return mockId;
-        return null;
-      },
-      load(id) {
-        if (id === mockId) {
-          return "export async function getSupabaseClient() { return globalThis.__SCOUT_DISCOVERY_TEST_CLIENT__; }";
-        }
-        return null;
-      },
-    }],
-  });
-
-  t.after(async () => {
-    await vite.close();
+  globalThis.__SCOUT_TEST_SCHOLARSHIP_API__ = true;
+  t.after(() => {
     delete globalThis.__SCOUT_DISCOVERY_TEST_CLIENT__;
+    delete globalThis.__SCOUT_TEST_SCHOLARSHIP_API__;
   });
+  const api = await import("../src/lib/scholarshipApi.ts?discovery-contract-test");
 
-  const api = await vite.ssrLoadModule("/src/lib/scholarshipApi.ts");
   const profile = {
     state: "Texas",
     graduationYear: "2027",
