@@ -551,21 +551,21 @@ test("Upstash limiter fails closed for missing config, missing trusted address, 
 test("discovery validates real US states and a moving graduation-year window", async () => {
   const handler = createScholarshipDiscoveryHandler(deps());
   let requestIndex = 50;
-  const submit = (profile) => handler(request(
-    { ...baseBody, profile },
+  const submit = (filters) => handler(request(
+    { ...baseBody, ...filters },
     { "cf-connecting-ip": `192.0.2.${requestIndex++}` },
   ));
   for (const state of [".", "---", "'", "Narnia"]) {
-    const result = await submit({ ...baseBody.profile, state });
+    const result = await submit({ state });
     assert.equal(result.status, 400, state);
   }
-  assert.equal((await submit({ ...baseBody.profile, graduationYear: "2025" })).status, 400);
-  assert.equal((await submit({ ...baseBody.profile, graduationYear: "2036" })).status, 400);
+  assert.equal((await submit({ graduationYear: "2025" })).status, 400);
+  assert.equal((await submit({ graduationYear: "2036" })).status, 400);
   for (const graduationYear of ["2027.5", "2027junk", " 2027 ", "202"]) {
-    const result = await submit({ ...baseBody.profile, graduationYear });
+    const result = await submit({ graduationYear });
     assert.equal(result.status, 400, graduationYear);
   }
-  assert.equal((await submit({ ...baseBody.profile, state: "TX" })).status, 200);
+  assert.equal((await submit({ state: "TX" })).status, 200);
 });
 
 test("filters state scholarship directory and ranked-list landing pages", () => {

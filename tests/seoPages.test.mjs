@@ -109,8 +109,9 @@ test("public guides preserve the actual discovery privacy boundary", async () =>
   assert.match(projectedFields, /state:/);
   assert.match(projectedFields, /graduationYear:/);
   assert.doesNotMatch(projectedFields, /\b(?:gpa|school|plannedMajor|activities|email)\s*:/i);
-  assert.match(api, /const safeProfile = pickLiveDiscoveryProfile\(profile\)/);
-  assert.match(api, /body: \{ profile: safeProfile, categories \}/);
+  assert.match(api, /buildLiveDiscoveryPayload\(profile, categories\)/);
+  assert.match(api, /body: payload/);
+  assert.doesNotMatch(api, /body:\s*\{\s*profile\s*:/);
   assert.match(gpa, /GPA.*(?:not sent|stays local|remains local|is not included)/i);
   assert.match(major, /major.*(?:not sent|local|not included)/i);
   assert.match(texas, /Texas Higher Education Coordinating Board/);
