@@ -10,15 +10,14 @@ let components;
 test('load React components through the production Vite TypeScript transform', async (t) => {
   vite = await createServer({ configFile: './vite.config.ts', server: { middlewareMode: true }, appType: 'custom' });
   t.after(async () => { await vite?.close(); });
-  const [brand, nav, status, home, boundary, cards] = await Promise.all([
+  const [brand, nav, status, home, cards] = await Promise.all([
     vite.ssrLoadModule('/src/components/BrandMark.tsx'),
     vite.ssrLoadModule('/src/components/NavGlyph.tsx'),
     vite.ssrLoadModule('/src/components/StatusPills.tsx'),
     vite.ssrLoadModule('/src/features/home/StartHomePage.tsx'),
-    vite.ssrLoadModule('/src/components/AppErrorBoundary.tsx'),
     vite.ssrLoadModule('/src/components/ScholarshipCards.tsx'),
   ]);
-  components = { ...brand, ...nav, ...status, ...home, ...cards, AppErrorBoundary: boundary.default };
+  components = { ...brand, ...nav, ...status, ...home, ...cards };
   assert.equal(typeof components.BrandMark, 'function');
   assert.equal(typeof components.NavGlyph, 'function');
 });
@@ -115,4 +114,30 @@ test('CloudResultCard keeps cloud results as list items and gates tracker action
   assert.match(html, /role="listitem"/);
   assert.match(html, /Synthetic Award/);
   assert.match(html, /Verification not deployed/);
+});
+
+test('all shared status presentation components render their public labels', () => {
+  const item = { name: 'Synthetic award', sourceUrl: 'https://example.org/award', deadline: '2099-01-01' };
+  const assessment = { status: 'Needs information', checks: [{ label: 'Residency', outcome: 'unknown' }] };
+  const elements = [
+    React.createElement(components.ApplicationStatusPill, { status: 'Not started' }),
+    React.createElement(components.PriorityPill, { priority: 'Medium' }),
+    React.createElement(components.SourceStatusPill, { item }),
+    React.createElement(components.DeadlineUrgencyPill, { deadline: '2099-01-01', timeZone: 'UTC' }),
+    React.createElement(components.EvidenceCompletenessList, { item }),
+    React.createElement(components.EligibilityMatchSummary, { assessment }),
+  ];
+  const html = elements.map(renderToStaticMarkup).join('');
+  assert.match(html, /Not started/);
+  assert.match(html, /Medium/);
+  assert.match(html, /Fresh|Stale|Unverified/);
+  assert.match(html, /Sponsor evidence completeness/);
+  assert.match(html, /More information needed/);
+});
+
+test('Empty renders the true no-record state separately from filtered-empty state', () => {
+  const html = renderToStaticMarkup(React.createElement(components.Empty, { onAdd: () => {} }));
+  assert.match(html, /No scholarships in this view/);
+  assert.match(html, /Add scholarship/);
+  assert.doesNotMatch(html, /No scholarships match these filters/);
 });
