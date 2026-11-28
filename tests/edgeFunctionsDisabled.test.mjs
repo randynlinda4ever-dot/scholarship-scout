@@ -43,8 +43,9 @@ test("live discovery allows only generic reusable categories", () => {
 });
 
 test("SearXNG results remain unverified leads until sponsor evidence is reviewed", () => {
-  assert.match(functionSource, /award_text:\s*null/);
-  assert.match(functionSource, /deadline:\s*null/);
+  assert.match(functionSource, /award_text:\s*searchSignals\.awardText/);
+  assert.match(functionSource, /deadline:\s*searchSignals\.deadline/);
+  assert.match(functionSource, /extractScholarshipSearchSignals/);
   assert.match(functionSource, /source_authority:\s*"unverified-lead"/);
   assert.match(functionSource, /verification_state:\s*"unverified_lead"/);
   assert.match(functionSource, /provider:\s*null/);

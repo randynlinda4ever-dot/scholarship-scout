@@ -15,7 +15,7 @@ test('search action row avoids repeating the page title', () => {
 });
 
 test('public access and privacy explanation appears only once', () => {
-  assert.match(cloudSearch, /Public search works without signing in or creating an account/);
+  assert.match(cloudSearch, /Search without an account/);
   assert.doesNotMatch(cloudSearch, /Public search �?" no account required/);
   assert.doesNotMatch(cloudSearch, /Search requests are rate-limited and contain only state/);
 });
@@ -27,7 +27,7 @@ test('all supported search categories can be selected without an arbitrary four-
 });
 
 test('connected account panel does not duplicate persistent Settings navigation', () => {
-  assert.match(cloudSearch, /Sign in to save sponsor records to your account/);
+  assert.match(cloudSearch, /Sign in only if you want to save sponsor records to your account/);
   assert.doesNotMatch(cloudSearch, />Manage account<\/button>/);
 });
 

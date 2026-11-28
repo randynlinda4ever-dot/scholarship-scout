@@ -1,4 +1,4 @@
-import { sanitizePublicHttpsUrl } from "./evidence.js";
+﻿import { sanitizePublicHttpsUrl } from "./evidence.js";
 import { stateMatchesText } from "../../supabase/functions/_shared/us-states.mjs";
 
 function cleanText(value, maxLength = 2000) {
@@ -63,26 +63,46 @@ function resultCompleteness(item) {
     asStringArray(item.discovery_categories).length * 40;
 }
 
+function extractSearchSignals(value) {
+  const text = cleanText(value, 3600);
+  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
+  const awardText = sentences.find((sentence) =>
+    /(?:\$\s?\d|\b(?:USD|CAD|EUR|GBP)\s?\d|\d[\d,]*(?:\.\d{1,2})?\s?(?:dollars|euros|pounds)\b)/i.test(sentence) &&
+    /scholarship|fellowship|grant|bursary|award|tuition/i.test(sentence) &&
+    !/application fee|processing fee|household income|family income|income limit|cost of attendance/i.test(sentence)
+  ) || null;
+  const deadlineText = sentences.find((sentence) =>
+    /deadline|apply by|submit by|due by|applications? (?:are )?due|due date|applications? close|closes? on|closing date|must be submitted by/i.test(sentence) &&
+    /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b|\b20\d{2}-\d{2}-\d{2}\b/i.test(sentence)
+  ) || null;
+  const dateText = deadlineText?.match(/\b20\d{2}-\d{2}-\d{2}\b|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b/i)?.[0];
+  const parsedDate = dateText ? new Date(dateText) : null;
+  const deadline = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString().slice(0, 10) : null;
+  return { awardText: awardText ? cleanText(awardText, 280) : null, deadline, deadlineText: deadline ? cleanText(deadlineText, 280) : null };
+}
+
 function relevance(item, profile = {}) {
   const searchableText = `${item.title} ${item.excerpt}`;
   const searchable = searchableText.toLowerCase();
   const reasons = [];
-  let score = 0;
+  let earned = 0;
+  let available = 0;
   const state = cleanText(profile.state, 60).toLowerCase();
   const county = cleanText(profile.county, 80).toLowerCase();
   const year = cleanText(profile.graduationYear, 4);
 
-  if (state && stateMatchesText(searchableText, state)) {
-    score += 4;
-    reasons.push("Matches your state");
+  if (state) {
+    available += 15;
+    if (stateMatchesText(searchableText, state)) { earned += 15; reasons.push("Matches your state"); }
   }
-  if (county && searchable.includes(county)) {
-    score += 4;
-    reasons.push("Mentions your county");
+  if (county) {
+    available += 10;
+    if (` ${searchable.replace(/[^a-z0-9]+/g, " ").trim()} `.includes(` ${county.replace(/[^a-z0-9]+/g, " ").trim()} `)) { earned += 10; reasons.push("Mentions your county"); }
   }
-  if (year && searchable.includes(year)) {
-    score += 4;
-    reasons.push(`Mentions class of ${year}`);
+  if (year) {
+    available += 15;
+    const yearMentioned = new RegExp(`(?:class\\s+of\\s+${year}|${year}\\s+graduates?|graduating\\s+(?:in\\s+)?${year})\\b`, "i").test(searchable);
+    if (yearMentioned) { earned += 15; reasons.push(`Mentions class of ${year}`); }
   }
 
   const keywordFields = [
@@ -101,8 +121,9 @@ function relevance(item, profile = {}) {
     const matchedTerm = relatedProfileTerms(keyword).find((term) => searchable.includes(term));
     return matchedTerm ? { keyword, matchedTerm, related: matchedTerm !== keyword } : null;
   }).filter(Boolean);
-  if (keywordMatches.length) {
-    score += Math.min(keywordMatches.length * 3, 9);
+  if (keywords.length) {
+    available += 20;
+    earned += Math.min(20, keywordMatches.filter((match) => !match.related).length * 10 + keywordMatches.filter((match) => match.related).length * 6);
     const directMatches = keywordMatches.filter((match) => !match.related).map((match) => match.keyword);
     const relatedMatches = keywordMatches.filter((match) => match.related).map((match) => match.keyword);
     if (directMatches.length) reasons.push(`Matches your interests: ${directMatches.slice(0, 3).join(", ")}`);
@@ -112,7 +133,8 @@ function relevance(item, profile = {}) {
   const consensusCount = Number(item.search_consensus_count) || 0;
   const consensusScore = Number(item.search_consensus_score) || 0;
   if (consensusCount >= 2 && consensusScore > 0) {
-    score += Math.min(2, Math.round(consensusScore * 200) / 100);
+    available += 10;
+    earned += Math.min(10, consensusScore * 10);
     reasons.push("Found across multiple search variations");
   }
 
@@ -122,29 +144,30 @@ function relevance(item, profile = {}) {
   const collegeProfile = /college|undergraduate|university/.test(grade);
   const mentionsHighSchool = /high school|high-school|graduating senior|graduating student|class of/.test(searchable);
   const mentionsCollege = /college student|undergraduate|university student|enrolled college/.test(searchable);
-  if ((highSchoolProfile && mentionsHighSchool) || (collegeProfile && mentionsCollege)) {
-    score += 3;
-    reasons.push(highSchoolProfile ? "Mentions high-school study level" : "Mentions college study level");
+  if (highSchoolProfile || collegeProfile) {
+    available += 10;
+    if ((highSchoolProfile && mentionsHighSchool) || (collegeProfile && mentionsCollege)) {
+      earned += 10;
+      reasons.push(highSchoolProfile ? "Matches your high-school study level" : "Matches your college study level");
+    }
   }
 
-  if (/scholarship|fellowship|grant|student award/.test(searchable)) {
-    score += 2;
-    reasons.push("Mentions a scholarship or award");
-  }
-  if (mentionsHighSchool) {
-    score += 2;
-    reasons.push("Mentions high-school or senior applicants");
-  }
+  available += 5;
+  if (/scholarship|fellowship|grant|student award/.test(searchable)) { earned += 5; reasons.push("Identifies a scholarship or award"); }
+  available += 5;
+  if (item.award_text) { earned += 2.5; reasons.push("Includes an award amount"); }
+  if (item.deadline && item.deadline_text) { earned += 2.5; reasons.push("Includes a dated deadline"); }
   try {
     const host = new URL(item.source_url).hostname.toLowerCase();
+    available += 5;
     if (host.endsWith(".gov") || host.endsWith(".edu")) {
-      score += 1;
-      reasons.push("Institutional domain signal (still requires sponsor verification)");
+      earned += 5;
+      reasons.push("Institutional domain signal (sponsor still needs verification)");
     }
   } catch {
     // Unsafe URLs are filtered before scoring.
   }
-  return { score, reasons };
+  return { score: available ? Math.round((earned / available) * 100) : 0, reasons };
 }
 
 /**
@@ -177,13 +200,27 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
     // from a search result (or a neighboring deduplicated result) into the UI.
     const consensusScoreValue = Number(raw.search_consensus_score);
     const consensusCountValue = Number(raw.search_consensus_count);
+    const excerpt = cleanText(raw.excerpt, 1800);
+    const evidenceExcerpt = cleanText(raw.evidence_excerpt, 3600) || excerpt;
+    const signals = extractSearchSignals(`${title}. ${evidenceExcerpt}`);
+    const awardText = cleanText(raw.award_text, 280);
+    const safeAwardText = awardText && evidenceExcerpt.includes(awardText) ? awardText : signals.awardText;
+    const deadlineText = cleanText(raw.deadline_text, 280);
+    const safeDeadlineText = deadlineText && evidenceExcerpt.includes(deadlineText) ? deadlineText : signals.deadlineText;
+    const safeDeadline = safeDeadlineText && signals.deadline ? signals.deadline : null;
     const normalized = {
       id: cleanText(raw.id, 100) || sourceUrl,
       title,
       provider: null,
       source_url: sourceUrl,
       source_domain: domain,
-      excerpt: cleanText(raw.excerpt, 1800),
+      excerpt,
+      evidence_excerpt: evidenceExcerpt,
+      award_text: safeAwardText,
+      award_evidence_text: safeAwardText,
+      award_evidence_url: safeAwardText ? sourceUrl : null,
+      deadline: safeDeadline || null,
+      deadline_text: safeDeadline ? safeDeadlineText : null,
       search_consensus_score: Number.isFinite(consensusScoreValue) ? Math.max(0, Math.min(1, consensusScoreValue)) : 0,
       search_consensus_count: Number.isSafeInteger(consensusCountValue) ? Math.max(0, Math.min(24, consensusCountValue)) : 0,
       published_at: cleanText(raw.published_at, 40),
@@ -192,9 +229,6 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
       discovery_categories: categoryValues,
       discovery_queries: queryValues,
       discovery_pages: pageValues,
-      award_text: null,
-      deadline: null,
-      deadline_text: null,
       deadline_timezone: null,
       deadline_not_published: false,
       last_checked_date: null,
@@ -219,6 +253,18 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
       ...fallback,
       ...preferred,
       excerpt: cleanText(preferred.excerpt, 1800) || cleanText(fallback.excerpt, 1800),
+      evidence_excerpt: [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600),
+      ...(() => {
+        const evidence = [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600);
+        const signals = extractSearchSignals(`${title}. ${evidence}`);
+        return {
+          award_text: signals.awardText,
+          award_evidence_text: signals.awardText,
+          award_evidence_url: signals.awardText ? sourceUrl : null,
+          deadline: signals.deadline,
+          deadline_text: signals.deadlineText,
+        };
+      })(),
       discovery_category: preferred.discovery_category || fallback.discovery_category,
       discovery_categories: [...new Set([
         ...asStringArray(previous.discovery_categories),

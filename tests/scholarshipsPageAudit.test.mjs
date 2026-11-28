@@ -38,7 +38,7 @@ test("the tracker keeps application progress, personal priority, eligibility and
     /Archive filter/,
     /Sort tracker records/,
   ]) assert.match(trackerPage + details, category);
-  assert.match(trackerPage, /eligibility and application status are tracked separately/);
+  assert.match(trackerPage, /eligibility and application status are separate/);
   assert.match(trackerPage, /not an award guarantee/i);
 });
 

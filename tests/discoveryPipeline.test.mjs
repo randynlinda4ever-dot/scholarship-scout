@@ -231,7 +231,7 @@ test("ranks study-level matches without treating absent level information as a m
   ], { grade: "High school senior" });
 
   assert.equal(results[0].id, "school");
-  assert.ok(results[0].relevance_reasons.includes("Mentions high-school study level"));
+  assert.ok(results[0].relevance_reasons.includes("Matches your high-school study level"));
 });
 
 test("does not collapse distinct awards that share a title and sponsor domain", () => {
@@ -293,4 +293,30 @@ test("canonical URL sorting collapses equivalent query parameter order", () => {
     id: "two", title: "Same award", source_url: "https://example.org/award?a=1&b=2",
   }]);
   assert.equal(first[0].source_url, second[0].source_url);
+});
+
+
+test("profile fit does not confuse a deadline year with graduation year or match partial words", () => {
+  const profile = { county: "Travis", graduationYear: "2027", interests: "art" };
+  const results = rankAndDeduplicateLiveResults([
+    {
+      id: "deadline-year",
+      title: "Texas Scholarship",
+      source_url: "https://example.org/deadline",
+      excerpt: "Applications close on May 1, 2027. Open to students from Travisville.",
+    },
+    {
+      id: "profile-match",
+      title: "Travis County Class of 2027 Art Scholarship",
+      source_url: "https://example.org/profile-match",
+      excerpt: "For Travis County students in the class of 2027 who study art.",
+    },
+  ], profile);
+
+  const weak = results.find((item) => item.id === "deadline-year");
+  const strong = results.find((item) => item.id === "profile-match");
+  assert.ok(strong.relevance_score > weak.relevance_score);
+  assert.ok(!weak.relevance_reasons.includes("Mentions your county"));
+  assert.ok(!weak.relevance_reasons.some((reason) => /your interests/.test(reason)));
+  assert.ok(!weak.relevance_reasons.some((reason) => /class of 2027/.test(reason)));
 });

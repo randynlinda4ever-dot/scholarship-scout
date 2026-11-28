@@ -31,6 +31,7 @@ export type LiveScholarship = {
   discovery_source_url: string | null;
   discovery_category: string;
   excerpt: string;
+  evidence_excerpt?: string;
   verification_state: string;
   discovered_at: string | null;
   record_created_at?: string | null;

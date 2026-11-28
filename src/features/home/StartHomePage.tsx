@@ -50,16 +50,15 @@ export function StartHomePage({
 
       <section className="start-home-hero" aria-labelledby="start-home-title">
         <div className="start-home-hero-copy">
-          <p className="start-home-eyebrow">A clearer path to college funding</p>
-          <h1 id="start-home-title">Find opportunities. Keep your next steps together.</h1>
+          <p className="start-home-eyebrow">Scholarship planning, in one place.</p>
+          <h1 id="start-home-title">Find scholarships. Stay on top of applications.</h1>
           <p className="start-home-lead">
-            Research public scholarship opportunities, organize deadlines, and prepare applications
-            in one student-focused workspace.
+            Find public scholarships, track deadlines, and organize applications in one place.
           </p>
           <div className="start-home-feature-list">
-            <div><span aria-hidden="true">01</span><p><b>Discover scholarships</b><small>Search broad public leads and verify details with each official sponsor.</small></p></div>
-            <div><span aria-hidden="true">02</span><p><b>Stay organized</b><small>Track deadlines, application progress, essays, and supporting documents.</small></p></div>
-            <div><span aria-hidden="true">03</span><p><b>Use practical resources</b><small>Plan your search with checklists, worksheets, college-cost comparisons, and scam guidance.</small></p></div>
+            <div><span aria-hidden="true">01</span><p><b>Discover scholarships</b><small>Find public awards, then confirm details with the sponsor.</small></p></div>
+            <div><span aria-hidden="true">02</span><p><b>Stay organized</b><small>Track deadlines, essays, documents, and progress.</small></p></div>
+            <div><span aria-hidden="true">03</span><p><b>Use practical resources</b><small>Use checklists, cost comparisons, and scam guidance.</small></p></div>
           </div>
         </div>
 
@@ -73,8 +72,8 @@ export function StartHomePage({
           </div>
           <p className="start-home-auth-copy">
             {isAnonymous
-              ? "A temporary browser account is active. Connect Google to keep its saved sponsor records attached to an account you can access again."
-              : "Create an account or sign in with a secure email link or Google. Your local workspace stays encrypted in this browser."}
+              ? "This temporary browser account has saved sponsor records. Connect Google to keep access to them."
+              : "Sign in with email or Google. Your workspace stays encrypted in this browser."}
           </p>
 
           {!authReady ? <p className="start-home-session-status" role="status">Checking for an existing account session…</p> : null}
@@ -121,10 +120,10 @@ export function StartHomePage({
           {!online ? <p className="start-home-message" role="status">You are offline. Connect to the internet to sign in or create an account.</p> : null}
           {message ? <p className="start-home-message" role="status" aria-live="polite">{message}</p> : null}
           {!isAnonymous ? <p className="start-home-signup-note">New to Scholarship Scout? Continuing with email or Google can create your account.</p> : null}
-          <p className="start-home-auth-footnote">A local vault passphrase is set up once on this browser. After successful account sign-in, this browser can unlock it automatically on future visits. Keep the passphrase for recovery on a new device or after clearing browser data.</p>
+          <p className="start-home-auth-footnote">Set a local vault passphrase once on this browser. Keep it safe: you’ll need it to recover your workspace on a new device or after clearing browser data.</p>
           <div className="start-home-guest-divider"><span>or</span></div>
           <button type="button" className="start-home-guest" onClick={onContinueGuest}>Continue without an account</button>
-          <p className="start-home-guest-warning">Guest mode stores work only in this browser. You must enter your vault passphrase again after leaving or reopening the browser. Private browsing, browser cleanup, device loss, or storage limits may mean your work is not saved. Guest mode does not provide account or cross-device recovery.</p>
+          <p className="start-home-guest-warning">Guest mode stores work only in this browser. Enter your vault passphrase to reopen it. Browser cleanup, private browsing, or device loss can erase access. Guest mode has no account recovery.</p>
         </section>
       </section>
 
@@ -137,12 +136,12 @@ export function StartHomePage({
         <article>
           <span>02 / PRIVATE WORKSPACE</span>
           <h2>Your student records stay local</h2>
-          <p>Your profile, tracker, application drafts, and Resources worksheets are encrypted in this browser. Public discovery sends only state, expected graduation year, and selected category IDs.</p>
+          <p>Your profile, tracker, drafts, and worksheets stay encrypted in this browser. Public search sends only state, expected graduation year, and selected category IDs.</p>
         </article>
         <article>
           <span>03 / ACCOUNT</span>
           <h2>Sign in once on this device</h2>
-          <p>Your account keeps your cloud sign-in available. A separate non-exportable browser key can remember this device without sending your vault passphrase to the account provider.</p>
+          <p>Sign in to access your account. A separate browser key can unlock this device without sending your vault passphrase to the account provider.</p>
         </article>
       </section>
 

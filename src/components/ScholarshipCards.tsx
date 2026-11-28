@@ -14,11 +14,25 @@ export function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tra
   return <article className="cloud-result-card" role="listitem">
     <div className="candidate-top"><span className="status status-needs-information">{item.verification_state === 'human_verified' ? 'Sponsor-reviewed record' : item.verification_state === 'needs_human_review' ? 'Needs sponsor review' : 'Unverified lead'}</span><span>{(item.discovery_categories || [item.discovery_category]).map((category)=>category.replace(/_/g,' ')).join(' · ')}</span></div>
     <h3>{item.title}</h3><p className="candidate-provider">{item.provider || 'Sponsor not confirmed'} · {item.source_domain || (()=>{try{return new URL(item.source_url).hostname.replace(/^www[.]/,'')}catch{return 'Source domain unavailable'}})()}</p>
-    <div className="cloud-result-meta"><span>{item.award_text || 'Award not extracted'}</span><span>{item.open_date ? `Opens ${item.open_date}` : "Opening date not confirmed"}</span><span>{item.deadline ? `Deadline ${item.deadline}` : "Deadline not confirmed"}</span></div>
-    <p className="candidate-description">{rules?.short_source_summary || item.excerpt || 'Open the source page and review the official sponsor rules.'}</p>
-    {item.relevance_score !== undefined && <div className="research-relevance"><b>Research relevance: {item.relevance_score}</b>{item.relevance_reasons?.length ? <small>{item.relevance_reasons.join(' · ')}</small> : null}</div>}
-    <small className="candidate-source">Discovery date: {item.discovered_at ? new Date(item.discovered_at).toLocaleString() : 'Not recorded'} · Cloud record created: {item.record_created_at ? new Date(item.record_created_at).toLocaleString() : 'Date not recorded'} · Sponsor rules last checked: {item.source_checked_at || 'Not recorded'}</small>
-    {item.discovery_pages?.length ? <small className="candidate-source">Search pages checked: {item.discovery_pages.join(', ')} · Found in {item.discovery_queries?.length || 1} query variation(s)</small> : null}
+    <div className="cloud-result-meta" aria-label="Award and deadline clues from search snippets">
+      <span><b>Award</b> {item.award_text || 'Not found in snippet'}</span>
+      <span><b>Deadline</b> {item.deadline_text || (item.deadline ? item.deadline : 'Not found in snippet')}</span>
+    </div>
+    {(item.award_text || item.deadline_text) && <small className="candidate-source">Snippet details only. Confirm dates and award terms on the sponsor page.</small>}
+    <p className="candidate-description">{rules?.short_source_summary || item.excerpt || 'Open the source page for award and application details.'}</p>
+    {item.relevance_score !== undefined && (() => {
+      const score = Math.max(0, Math.min(100, Math.round(item.relevance_score)));
+      const level = score >= 70 ? 'Strong' : score >= 40 ? 'Moderate' : 'Limited';
+      return <section className="research-relevance" aria-label={`Profile match: ${score} out of 100, ${level}`}>
+        <div className="research-relevance-head"><b>Profile match</b><strong>{score}/100 · {level}</strong></div>
+        <div className="research-relevance-track" role="meter" aria-label="Profile match score" aria-valuemin={0} aria-valuemax={100} aria-valuenow={score} aria-valuetext={`${score} out of 100, ${level} profile match`}>
+          <span style={{ width: `${score}%` }} />
+        </div>
+        <small>Calculated on this device from available profile details and search evidence. 0–39 limited · 40–69 moderate · 70–100 strong. Not an eligibility decision.</small>
+        {item.relevance_reasons?.length ? <details><summary>Why this ranked here</summary><small>{item.relevance_reasons.join(' · ')}</small></details> : null}
+      </section>;
+    })()}
+
     {sanitizePublicHttpsUrl(item.source_evidence_url || '') && <p><a className="source-link" href={sanitizePublicHttpsUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noreferrer">Open supporting rules / evidence ↗</a></p>}
     {rules?.eligibility_requirements?.length ? <div className="extracted-rules"><b>Extracted sponsor rules — provisional</b>{rules.eligibility_requirements.map((rule,index)=><div key={index}><span>{rule.mandatory?'Required':'Selection / preference'}{rule.needs_human_confirmation?' · Confirm with sponsor':''}</span><p>{rule.requirement}</p>{rule.evidence&&<small>Evidence: {rule.evidence}</small>}</div>)}</div>:null}
     {rules?.uncertainties?.length ? <div className="uncertainty-list"><b>Still unclear</b><ul>{rules.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
