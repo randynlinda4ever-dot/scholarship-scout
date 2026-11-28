@@ -1,3 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 
 const styles = await readActiveAppStyles();
