@@ -19,7 +19,7 @@ test("parses full, abbreviated, ordinal, ISO, and US numeric deadline dates", ()
 });
 
 test("rejects impossible, unsupported, or ambiguous dates", () => {
-  for (const input of ["February 30, 2026", "02/30/2026", "15/12/2026", "May 1, 27", "2026-02-30", "Dec 15, 2026 and Jan 2, 2027"]) {
+  for (const input of ["February 30, 2026", "02/30/2026", "04/05/2027", "15/12/2026", "May 1, 27", "2026-02-30", "Dec 15, 2026 and Jan 2, 2027"]) {
     assert.equal(parseStrictSearchDate(input), null, input);
   }
 });
