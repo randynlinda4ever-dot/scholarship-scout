@@ -17,6 +17,7 @@ import { isLiveDiscoveryCategorySupported } from './lib/liveDiscoveryCapabilitie
 import { getProfileReadiness } from './lib/profileReadiness.js';
 import { buildManualSearchQueries } from './lib/manualSearchQueries.js';
 import { validateProfileChanges } from './lib/profileValidation.js';
+import { extractProfileDetails, mergeExtractedProfileDetails } from './lib/profileDocumentImport.js';
 import { COUNTRY_OPTIONS, US_STATE_OPTIONS, PROFILE_CITIZENSHIP_OPTIONS } from './lib/profileLocations.js';
 import { APPLICATION_STATUSES, TRACKER_PRIORITIES, MAX_TRACKER_RECORDS, filterAndSortTrackerRecords, getApplicationStatusCounts, normalizeTrackerRecord, type ApplicationStatus, type TrackerPriority } from './lib/trackerManagement.js';
 import { buildTrackerCsvReport } from './lib/trackerReport.js';
@@ -264,6 +265,9 @@ function App() {
   const [items, setItems] = useState<Scholarship[]>(loadScholarships);
   const [profile, setProfile] = useState<Profile>(() => mergeProfile(readLocalJson('scout-profile')));
   const [profileDraft, setProfileDraft] = useState<Profile>(() => mergeProfile(readLocalJson('scout-profile-draft') ?? readLocalJson('scout-profile')));
+  const [profileImportPreview, setProfileImportPreview] = useState<Record<string, string> | null>(null);
+  const [profileImportFileName, setProfileImportFileName] = useState('');
+  const [profileImportError, setProfileImportError] = useState('');
   const profilePersistenceRef = useRef<Profile>(profile);
   const profileSaveGenerationRef = useRef(0);
   const [query, setQuery] = useState('');
@@ -1985,6 +1989,39 @@ function App() {
       {tab === 'Eligibility filters' && <div className="page narrow">
         <div className="page-heading"><div><div className="eyebrow">PERSONAL MATCHING PROFILE</div><h1>Your profile</h1><p>These details guide scholarship discovery and eligibility checks. Update anything that is missing or outdated.</p></div></div>
         <div className="filter-intro"><b>How the filters work</b><p>Location, citizenship, school year, GPA, and class rank are hard eligibility comparisons when a sponsor specifies them. Activities, service, work, and interests help find strong matches. Financial need and other sensitive factors are not inferred; unknown conditions are flagged.</p></div>
+        <section className="panel profile-import-panel" aria-labelledby="profile-import-heading">
+          <div className="panel-heading"><div><h3 id="profile-import-heading">Fill your profile from a document</h3><p className="muted">Upload a text-based resume or transcript. Scholarship Scout reads it on this device and suggests profile details.</p></div><span className="source-tag">ON-DEVICE</span></div>
+          <label className="field profile-import-picker"><span>Choose a resume or transcript file</span><input type="file" accept=".txt,.md,.csv,.html,.htm,text/plain,text/markdown,text/csv,text/html" onChange={async (event) => {
+            const file = event.currentTarget.files?.[0];
+            setProfileImportPreview(null);
+            setProfileImportError('');
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { setProfileImportError('Choose a file smaller than 5 MB.'); event.currentTarget.value = ''; return; }
+            const extension = file.name.split('.').pop()?.toLowerCase();
+            if (!['txt', 'md', 'csv', 'html', 'htm'].includes(extension || '')) { setProfileImportError('This file type is not supported yet. Use a text, Markdown, CSV, or HTML export.'); event.currentTarget.value = ''; return; }
+            try {
+              let source = await file.text();
+              if (extension === 'html' || extension === 'htm') {
+                const document = new DOMParser().parseFromString(source, 'text/html');
+                source = document.body.textContent || '';
+              }
+              const extracted = extractProfileDetails(source);
+              if (!Object.keys(extracted).length) { setProfileImportError('No supported profile details were found. Try a text-based export with labeled fields such as GPA, school, graduation year, ACT, or activities.'); event.currentTarget.value = ''; return; }
+              setProfileImportFileName(file.name);
+              setProfileImportPreview(extracted);
+            } catch {
+              setProfileImportError('The file could not be read. Try exporting it as plain text and upload it again.');
+            }
+          }}/></label>
+          <p className="profile-search-hint">Your document is processed locally and is not uploaded to Scholarship Scout’s servers. PDF and Word document parsing are not enabled yet; export those documents as text first. Scanned images require OCR and are not read.</p>
+          {profileImportError ? <p className="field-error" role="alert">{profileImportError}</p> : null}
+          {profileImportPreview ? <div className="profile-import-review" aria-live="polite">
+            <b>Review extracted details from {profileImportFileName}</b>
+            <p>{Object.keys(profileImportPreview).length} details found. Existing profile values will be kept; only empty fields will be filled.</p>
+            <ul>{Object.entries(profileImportPreview).map(([key, value]) => <li key={key}><b>{key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}:</b> {value}</li>)}</ul>
+            <div className="action-row"><button type="button" onClick={() => { saveProfile(mergeExtractedProfileDetails(profileDraft, profileImportPreview) as Profile); setProfileImportPreview(null); setProfileImportError(''); }}>Apply details to my profile</button><button type="button" className="text-button" onClick={() => setProfileImportPreview(null)}>Discard</button></div>
+          </div> : null}
+        </section>
         <div className="panel profile-readiness-panel">
           <div className="panel-heading"><div><h3>Profile readiness</h3><p className="muted">Complete the core details first. The rest are optional ways to improve discovery.</p></div><span className="source-tag">{profileReadiness.core.completedCount}/{profileReadiness.core.totalCount} core details</span></div>
           <div className="profile-readiness-meter"><strong>{profileReadiness.core.percent}%</strong><progress max={100} value={profileReadiness.core.percent} aria-label="Core profile completeness"/></div>
