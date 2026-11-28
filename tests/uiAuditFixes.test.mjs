@@ -39,9 +39,8 @@ test('light-theme muted copy meets WCAG AA on every base surface', () => {
       'muted text must meet 4.5:1 on ' + name,
     );
   }
-  const placeholder = css.match(/\.shell\[data-theme="light"\] input::placeholder,[\s\S]*?textarea::placeholder\s*\{\s*color:\s*(#[0-9a-f]{6})/i)?.[1];
-  assert.ok(placeholder, 'light-theme placeholder color is explicitly set');
-  assert.ok(contrastRatio(placeholder, '#FFFFFF') >= 4.5, 'placeholder text meets 4.5:1 on white inputs');
+  assert.match(css, /input::placeholder,\\s*textarea::placeholder\\s*\\{\\s*color:\\s*var\\(--muted\\)/);
+  assert.ok(contrastRatio(muted, '#FFFFFF') >= 4.5, 'placeholder text inherits the contrast-safe light-theme muted token');
 });
 
 test('scholarship name and provider are required, field-associated, and validated inline', () => {
