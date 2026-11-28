@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
+
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const fields = await readFile(new URL('../src/components/WorkspaceFields.tsx', import.meta.url), 'utf8');
-const css = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const css = await readActiveAppStyles();
 const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
 
 function luminance(hex) {
