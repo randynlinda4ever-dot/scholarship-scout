@@ -1992,11 +1992,11 @@ function App() {
         <section className="panel profile-import-panel" aria-labelledby="profile-import-heading">
           <div className="panel-heading"><div><h3 id="profile-import-heading">Fill your profile from a document</h3><p className="muted">Upload a text-based resume or transcript. Scholarship Scout reads it on this device and suggests profile details.</p></div><span className="source-tag">ON-DEVICE</span></div>
           <label className="field profile-import-picker"><span>Choose a resume or transcript file</span><input type="file" accept=".txt,.md,.csv,.html,.htm,text/plain,text/markdown,text/csv,text/html" onChange={async (event) => {
-            const file = event.currentTarget.files?.[0];
+            const input = event.currentTarget;\n            const file = input.files?.[0];
             setProfileImportPreview(null);
             setProfileImportError('');
             if (!file) return;
-            if (file.size > 5 * 1024 * 1024) { setProfileImportError('Choose a file smaller than 5 MB.'); event.currentTarget.value = ''; return; }
+            if (file.size > 5 * 1024 * 1024) { setProfileImportError('Choose a file smaller than 5 MB.'); input.value = ''; return; }
             const extension = file.name.split('.').pop()?.toLowerCase();
             if (!['txt', 'md', 'csv', 'html', 'htm'].includes(extension || '')) { setProfileImportError('This file type is not supported yet. Use a text, Markdown, CSV, or HTML export.'); event.currentTarget.value = ''; return; }
             try {
@@ -2007,7 +2007,7 @@ function App() {
               }
               const extracted = extractProfileDetails(source);
               if (!Object.keys(extracted).length) { setProfileImportError('No supported profile details were found. Try a text-based export with labeled fields such as GPA, school, graduation year, ACT, or activities.'); event.currentTarget.value = ''; return; }
-              setProfileImportFileName(file.name);
+              if (!Object.keys(extracted).length) { setProfileImportError('No supported profile details were found. Try a text-based export with labeled fields such as GPA, school, graduation year, ACT, or activities.'); input.value = ''; return; }\n              setProfileImportFileName(file.name);
               setProfileImportPreview(extracted);
             } catch {
               setProfileImportError('The file could not be read. Try exporting it as plain text and upload it again.');
