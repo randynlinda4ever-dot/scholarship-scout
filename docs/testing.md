@@ -20,6 +20,11 @@ The project contains unit tests for profile validation, discovery and URL safety
 - `tests/consentPreflight.test.mjs` verifies that the first-party consent assets do not bypass the legal acceptance and local-vault preflight. `tests/securityHeaders.test.mjs` checks the narrow script, image, and connect CSP allowlist.
 - The parent/guardian-controlled GA4 property must be configured according to [the GTM setup checklist](google-analytics-gtm-setup.md); repository tests cannot verify the external container's published tags or GA4 receipt. Production analytics remains incomplete until the adult account owner confirms the event configuration in GA4 Realtime.
 
+## AdSense privacy and page boundaries
+
+- `tests/adsenseConsent.test.mjs` checks the disabled-by-default configuration, no request before adult-authorized opt-in, non-personalized requests, the teen age-treatment marker, storage-failure behavior, preview-host isolation, and the five-page public placement allowlist.
+- AdSense is not verified as live by repository tests. The adult publisher must obtain site approval, provide the real publisher and ad-unit IDs, configure category and privacy controls, and verify serving in the parent-owned AdSense account before enabling the feature flag.
+
 ## Authentication and public-search regression tests
 
 - `tests/authRedirect.test.mjs` checks callback origin handling, path preservation, and HTTPS enforcement.
