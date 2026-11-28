@@ -1675,7 +1675,7 @@ function App() {
           {label:'Eligible',value:[...assessments.values()].filter(x=>x.status==='Eligible').length,sub:'All saved rules passed',icon:'check-circle'},
           {label:'Need information',value:[...assessments.values()].filter(x=>x.status==='Needs information').length,sub:'At least one rule needs review',icon:'info'},
           {label:'Deadline milestones in 7 days',value:deadlinesDueSoon,sub:overdueDeadlines ? `${overdueDeadlines} past due · date-only estimates` : 'Date-only estimates; confirm sponsor cutoff',icon:'calendar-clock'}
-        ].map(x=><div className="stat" key={x.label}><div className="stat-top"><span>{x.label}</span><b><NavGlyph name={x.icon as GlyphName}/></b></div><strong>{x.value}</strong><small>{x.sub}</small></div>)}</div>
+        ].map(x=><div className="stat" key={x.label}><div className="stat-top"><span>{x.label}</span><b><NavGlyph name={x.icon as NavGlyphName}/></b></div><strong>{x.value}</strong><small>{x.sub}</small></div>)}</div>
         <div className="panel application-pipeline-summary">
           <div className="panel-heading"><div><h3>Application progress</h3><p className="muted">Application status is separate from eligibility.</p></div><button className="text-button" onClick={()=>setTab('Scholarships')}>Manage tracker →</button></div>
           <div className="application-pipeline-grid">
