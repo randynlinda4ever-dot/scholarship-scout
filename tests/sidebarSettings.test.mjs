@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
+
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const styles = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const styles = await readActiveAppStyles();
 
 test("desktop sidebar has an explicit, persistent collapse toggle with fixed hover geometry", () => {
   assert.match(app, /className="sidebar-collapse-toggle"/);
