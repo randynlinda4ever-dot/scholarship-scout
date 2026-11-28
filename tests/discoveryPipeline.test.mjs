@@ -56,6 +56,45 @@ test("frontend rejects a competing scholarship's award and deadline continuation
   assert.doesNotMatch(result.evidence_excerpt, /Blue River Essay Contest/);
 });
 
+test("frontend merges snippets from title variants for one canonical scholarship page", () => {
+  const url = "https://northstar.example/scholarship";
+  const results = rankAndDeduplicateLiveResults([
+    {
+      title: "North Star Community Scholarship",
+      source_url: url + "?utm_source=first",
+      excerpt: "The North Star Community Scholarship supports graduating Texas seniors.",
+      evidence_excerpt: "North Star Community Scholarship. The North Star Community Scholarship supports graduating Texas seniors.",
+    },
+    {
+      title: "North Star Community Scholarship 2027",
+      source_url: url,
+      excerpt: "The North Star Community Scholarship awards $3,000. Applications close on Dec 15th, 2026.",
+      evidence_excerpt: "North Star Community Scholarship 2027. The North Star Community Scholarship awards $3,000. Applications close on Dec 15th, 2026.",
+    },
+  ]);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].deadline, "2026-12-15");
+  assert.match(results[0].award_text, /\$3,000/);
+});
+
+test("frontend drops list pages while retaining a specific scholarship page on an audience route", () => {
+  const results = rankAndDeduplicateLiveResults([
+    {
+      title: "Scholarships for High School Seniors",
+      source_url: "https://sponsor.example/scholarships/for-high-school-seniors",
+      excerpt: "Browse scholarships for high school seniors and compare award opportunities.",
+    },
+    {
+      title: "North Star Community Scholarship",
+      source_url: "https://sponsor.example/scholarships/for-high-school-seniors/north-star-community",
+      excerpt: "The North Star Community Scholarship awards $3,000 to graduating seniors. Apply by December 10, 2026.",
+      evidence_excerpt: "North Star Community Scholarship. The North Star Community Scholarship awards $3,000 to graduating seniors. Apply by December 10, 2026.",
+    },
+  ]);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].title, "North Star Community Scholarship");
+});
+
 test("offers distinct discovery categories for leadership, language, employment, and broad awards", () => {
   const ids = new Set(DISCOVERY_CATEGORY_OPTIONS.map((item) => item.id));
   for (const id of ["local", "academic", "humanities", "leadership", "community_service", "language", "employment", "national", "general"]) {

@@ -720,6 +720,72 @@ test("edge discovery keeps complementary snippets for the same scholarship witho
   assert.match(result.deadline_text, /December 10, 2026/);
 });
 
+test("edge discovery merges complementary award and deadline snippets for one canonical page", () => {
+  const longDescription = "The program supports graduating students across several counties. Applicants submit a transcript and a short statement. Selection considers service, leadership, and academic effort. ".repeat(5);
+  const outcome = {
+    ok: true,
+    job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+    results: [
+      {
+        title: "North Star Community Scholarship",
+        url: "https://northstar.example/scholarship?utm_source=first",
+        content: "The North Star Community Scholarship supports graduating Texas seniors. " + longDescription,
+      },
+      {
+        title: "North Star Community Scholarship 2027",
+        url: "https://northstar.example/scholarship",
+        content: "The North Star Community Scholarship is open to graduating seniors. The award is $3,000. Applications close December 10, 2026.",
+      },
+    ],
+  };
+  const { results } = normalizeAndRankResults([outcome], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].award_text, "The award is $3,000.");
+  assert.equal(results[0].deadline, "2026-12-10");
+  assert.match(results[0].deadline_text, /December 10, 2026/);
+  assert.ok(results[0].evidence_excerpt.includes("supports graduating Texas seniors"));
+});
+
+test("edge discovery rejects scholarship lists but retains a specific award page under a broad audience route", () => {
+  const makeOutcome = (title, url, content) => ({
+    ok: true,
+    job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+    results: [{ title, url, content }],
+  });
+  const list = normalizeAndRankResults([makeOutcome(
+    "Scholarships for High School Seniors",
+    "https://sponsor.example/scholarships/for-high-school-seniors",
+    "Browse scholarships for high school seniors and compare award opportunities.",
+  )], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  const actual = normalizeAndRankResults([makeOutcome(
+    "North Star Community Scholarship",
+    "https://sponsor.example/scholarships/for-high-school-seniors/north-star-community",
+    "The North Star Community Scholarship awards $3,000 to graduating seniors. Apply by December 10, 2026.",
+  )], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(list.results.length, 0);
+  assert.equal(actual.results.length, 1);
+  assert.equal(actual.results[0].title, "North Star Community Scholarship");
+});
+
+test("edge discovery deduplicates title variants for one page but preserves same-title awards at different URLs", () => {
+  const urlA = "https://northstar.example/scholarship";
+  const urlB = "https://other.example/scholarship";
+  const outcome = {
+    ok: true,
+    job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+    results: [
+      { title: "North Star Community Scholarship", url: urlA, content: "The North Star Community Scholarship is open to Texas seniors." },
+      { title: "North Star Community Scholarship 2027", url: urlA + "?utm_source=search", content: "The North Star Community Scholarship awards $3,000. Apply by December 10, 2026." },
+      { title: "North Star Community Scholarship", url: urlB, content: "The North Star Community Scholarship offers a separate award from another sponsor." },
+    ],
+  };
+  const { results } = normalizeAndRankResults([outcome], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(results.length, 2);
+  assert.equal(results.filter((item) => item.source_url === urlA).length, 1);
+  assert.equal(results.find((item) => item.source_url === urlA).deadline, "2026-12-10");
+  assert.equal(results.find((item) => item.source_url === urlB).deadline, null);
+});
+
 test("progressive search stops launching new stages when the overall budget is exhausted", async () => {
   const jobs = buildSearchJobs("Texas", 2027, ["local", "arts"]);
   let now = 0;
