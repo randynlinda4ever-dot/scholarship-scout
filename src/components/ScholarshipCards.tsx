@@ -1,11 +1,13 @@
 import type { EligibilityAssessment } from '../eligibility.js';
 import type { LiveScholarship } from '../lib/scholarshipApi';
 import type { Scholarship, Status } from '../domain/types.js';
-import { sanitizePublicHttpsUrl, getSourceAttribution } from '../lib/evidence.js';
+import { getScholarshipSourcePageUrl, getSourceAttribution } from '../lib/evidence.js';
 import { summarizeEligibilityAssessment } from '../lib/eligibilitySummary.js';
 import { SourceStatusPill, StatusPill } from './StatusPills.js';
 
 export function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tracked:boolean;onTrack:()=>void}) {
+  const sourcePageUrl = getScholarshipSourcePageUrl(item.source_url);
+  const evidencePageUrl = getScholarshipSourcePageUrl(item.source_evidence_url || '');
   const rules = item.extracted_rules as {
     eligibility_requirements?:Array<{requirement?:string;mandatory?:boolean;evidence?:string;needs_human_confirmation?:boolean}>;
     uncertainties?:string[]; short_source_summary?:string; application_fee?:boolean|null;
@@ -33,13 +35,14 @@ export function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tra
       </section>;
     })()}
 
-    {sanitizePublicHttpsUrl(item.source_evidence_url || '') && <p><a className="source-link" href={sanitizePublicHttpsUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noreferrer">Open supporting rules / evidence ↗</a></p>}
+    {evidencePageUrl && <p><a className="source-link" href={evidencePageUrl} target="_blank" rel="noreferrer">Open supporting rules / evidence ↗</a></p>}
     {rules?.eligibility_requirements?.length ? <div className="extracted-rules"><b>Extracted sponsor rules — provisional</b>{rules.eligibility_requirements.map((rule,index)=><div key={index}><span>{rule.mandatory?'Required':'Selection / preference'}{rule.needs_human_confirmation?' · Confirm with sponsor':''}</span><p>{rule.requirement}</p>{rule.evidence&&<small>Evidence: {rule.evidence}</small>}</div>)}</div>:null}
     {rules?.uncertainties?.length ? <div className="uncertainty-list"><b>Still unclear</b><ul>{rules.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
     {rules?.application_documents?.length ? <div className="extracted-rules"><b>Application documents</b><ul>{rules.application_documents.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
     {rules?.application_steps?.length ? <div className="extracted-rules"><b>Application steps</b><ol>{rules.application_steps.map((item,index)=><li key={index}>{item}</li>)}</ol></div>:null}
     {rules?.application_fee === true ? <div className="risk-flag">⚠ The sponsor-page extraction indicates an application fee. Verify directly with the sponsor and do not pay to apply.</div>:null}
-    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.source_url) && <a href={sanitizePublicHttpsUrl(item.source_url) || undefined} target="_blank" rel="noreferrer">Open source page ↗</a>}<button className="secondary" disabled={true} title="Sponsor verification Edge Function is not deployed">Verification not deployed</button><button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
+    <div className="candidate-actions">{sourcePageUrl && <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer">Open scholarship page ↗</a>}<button className="secondary" disabled={true} title="Sponsor verification Edge Function is not deployed">Verification not deployed</button><button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
+    {!sourcePageUrl && <small className="candidate-source">A direct scholarship page URL was not returned. The sponsor homepage is intentionally not shown as the scholarship page.</small>}
     <small className="candidate-source">Cloud records are not automatically refreshed. Re-check the current official sponsor page before relying on any detail.</small>
   </article>;
 }
@@ -48,6 +51,7 @@ const formatDate = (value?: string) => value ? new Date(value + 'T12:00:00').toL
 
 export function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessment:EligibilityAssessment;added:boolean;onAdd:()=>void}) {
   const summary = summarizeEligibilityAssessment(assessment);
+  const sourcePageUrl = getScholarshipSourcePageUrl(item.sourceUrl);
   return <div className="candidate-card">
     <div className="candidate-top"><StatusPill status={summary.status as Status}/><SourceStatusPill item={item}/></div>
     <div className="candidate-deadline">{item.deadlineText && item.deadlineText !== item.deadline ? item.deadlineText : (item.deadline ? formatDate(item.deadline) : item.deadlineNotPublished ? 'No deadline published by sponsor' : 'Deadline not confirmed')} {item.deadlineTimezone ? `· ${item.deadlineTimezone}` : ''}</div>
@@ -55,7 +59,8 @@ export function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;as
     <p className="candidate-description">{item.notes}</p>
     <div className="candidate-match"><b>Profile check</b><span>{summary.passed.length} pass · {summary.unknown.length} unknown · {summary.failed.length} fail</span></div>
     <small className="candidate-source">{summary.caveat}</small>
-    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.sourceUrl) && <a href={sanitizePublicHttpsUrl(item.sourceUrl) || undefined} target="_blank" rel="noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
+    <div className="candidate-actions">{sourcePageUrl && <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
+    {!sourcePageUrl && <small className="candidate-source">A direct scholarship page URL has not been saved for this record.</small>}
     <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
   </div>;
 }

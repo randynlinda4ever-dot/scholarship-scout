@@ -12,6 +12,7 @@ export function parseSponsorDeadlineTime(value: string): { time: string; timeZon
 export function normalizeSourceCheckDate(value: string, now?: Date): string;
 export function isSafeHttpsUrl(url: string): boolean;
 export function sanitizePublicHttpsUrl(url: string): string | null;
+export function getScholarshipSourcePageUrl(url: string): string | null;
 export function isSameOfficialSponsorSource(sponsorUrl: string, evidenceUrl: string): boolean;
 export function isInactiveCriterionValue(value: unknown): boolean;
 export function hasAwardEvidence(record: object): boolean;

@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const app = await read("src/App.tsx");
+const cards = await read("src/components/ScholarshipCards.tsx");
+const evidence = await read("src/lib/evidence.js");
 const api = await read("src/lib/scholarshipApi.ts");
 const liveProfile = await read("src/lib/liveDiscoveryProfile.js");
 const discovery = await read("src/lib/discovery.js");
@@ -39,14 +41,17 @@ test("dynamic scholarship links use sanitized URLs, including legacy local recor
     "selected.sourceUrl",
     "selected.evidenceUrl",
     "selected.discoverySourceUrl",
-    "item.source_evidence_url",
-    "item.source_url",
-    "item.sourceUrl",
     "item.evidence.sourceUrl",
   ]) {
     assert.ok(app.includes(`sanitizePublicHttpsUrl(${expression}`), `missing URL sanitization for ${expression}`);
   }
-  assert.doesNotMatch(app, /href=\{(?:selected\.(?:sourceUrl|evidenceUrl|discoverySourceUrl)|item\.(?:source_url|sourceUrl|source_evidence_url))\}/);
+  assert.match(app, /getScholarshipSourcePageUrl\(item\.source_evidence_url/);
+  assert.match(app, /getScholarshipSourcePageUrl\(item\.source_url/);
+  assert.match(app, /getScholarshipSourcePageUrl\(item\.sourceUrl/);
+  assert.match(cards, /getScholarshipSourcePageUrl\(item\.source_url\)/);
+  assert.match(cards, /getScholarshipSourcePageUrl\(item\.sourceUrl\)/);
+  assert.match(evidence, /const sanitized = sanitizePublicHttpsUrl\(value\)/);
+  assert.doesNotMatch(app + cards, /href=\{(?:selected\.(?:sourceUrl|evidenceUrl|discoverySourceUrl)|item\.(?:source_url|sourceUrl|source_evidence_url))\}/);
 });
 
 test("client application source contains no console logging calls", () => {

@@ -90,6 +90,21 @@ export function sanitizePublicHttpsUrl(value) {
   }
 }
 
+/**
+ * Returns a safe, page-specific URL for a scholarship result. A bare sponsor
+ * homepage is not presented as an "Open source page" destination.
+ */
+export function getScholarshipSourcePageUrl(value) {
+  const sanitized = sanitizePublicHttpsUrl(value);
+  if (!sanitized) return null;
+  try {
+    const url = new URL(sanitized);
+    return url.pathname !== "/" || url.searchParams.size > 0 ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function safeHttps(value) {
   return isSafeHttpsUrl(value);
 }
