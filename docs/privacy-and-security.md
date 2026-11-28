@@ -28,7 +28,7 @@ The browser Supabase client uses the publishable key only. Its persistent Auth s
 
 The current browser API reads and writes the active user's `public.scholarships` sponsor records. The active identity may be an anonymous browser user or an existing permanent account. Cloud fields include scholarship title, sponsor, official HTTPS URL, award range/text, deadline, structured sponsor criteria, evidence references, and verification status. Free-form notes, evidence excerpts, and the local source-evidence revision history are intentionally excluded.
 
-The live database also contains `student_profiles`, `scholarship_sources`, and `eligibility_checks`, which the app does not currently read or write. The opt-in `account_vault_backups` table contains only an end-to-end encrypted envelope, credential identifier, PRF salt, revision, and timestamps; RLS permits only its permanent authenticated owner, and the anonymous Auth claim is explicitly excluded. The November 28 inventory showed zero rows in each public table at inspection time.
+The live database also contains `student_profiles`, `scholarship_sources`, and `eligibility_checks`, which the app does not currently read or write. Student profiles and eligibility assessments remain local-only: the Phase 2 owner-authorized SQL script revokes direct `anon` and `authenticated` Data API privileges from `student_profiles` and `eligibility_checks` while retaining their RLS policies. The script is not applied; the live production grants remain unchanged until platform-owner execution is explicitly authorized. The opt-in `account_vault_backups` table contains only an end-to-end encrypted envelope, credential identifier, PRF salt, revision, and timestamps; RLS permits only its permanent authenticated owner, and the anonymous Auth claim is explicitly excluded. The November 28 inventory showed zero rows in each public table at inspection time.
 
 ## Optional cross-device encrypted vault
 
@@ -54,7 +54,7 @@ Supabase reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=fa
 
 ## Database authorization
 
-All four live public tables have RLS enabled. Each table has one owner policy for the `authenticated` role matching `auth.uid()` to the row's `id` or `owner_id`. The privilege audit confirmed no direct `anon` table SELECT/INSERT, authenticated CRUD, and no authenticated TRUNCATE.
+All five live public tables had RLS enabled at the Phase 2 inspection. Owner policies scope student profiles, scholarship sources, scholarships, eligibility checks, and encrypted account backups to `auth.uid()`. The privilege audit also found authenticated CRUD grants on `student_profiles` and `eligibility_checks`, despite the application's local-only data model. The Phase 2 owner-only SQL script removes those two Data API grants and tightens future `supabase_admin` defaults; it is not applied to production in this phase.
 
 Supabase anonymous Auth users use the `authenticated` role, not the database `anon` role. Keep the existing `auth.uid()` owner checks; do not add broad table policies or grant the database `anon` role access to make anonymous search work.
 
@@ -71,12 +71,13 @@ The local reliability monitor stores only allowlisted generic event categories a
 ## Platform findings and owner actions
 
 - Security Advisor warns that leaked-password protection is disabled. The app currently uses email magic links and optional Google OAuth, not password login. The project owner should enable leaked-password protection before password-based login is added.
+- The deployed `account-delete` version 2 still uses `request.json()` after checking only a supplied `Content-Length`; the current `main` source instead uses `readBoundedJsonBody` to enforce the 2 KiB limit while streaming, including when the length header is absent. This source/deployment mismatch is a production reliability and resource-exhaustion risk. Phase 2 does not deploy; reconcile and verify the deployed function in a separately authorized release.
 - Public live search does not require Anonymous Sign-Ins. Enable anonymous sign-ins only if anonymous cloud scholarship saves are intentionally supported; if enabled, add CAPTCHA/Turnstile and verify the challenge flow.
 - CAPTCHA/Turnstile is not yet wired into public discovery. Cloudflare crawler directives are not a bot challenge. Add server-side Turnstile verification before high-volume public launch; do not rely on CORS or client-only challenge checks.
 - Define a retention/deletion policy for anonymous Auth users and their owned sponsor rows.
 - Anonymous-session email linking is not implemented. Google identity linking is implemented in the app source but requires the Google provider and Supabase manual linking to be enabled; test a real OAuth callback before treating it as available. After successful linking, cloud sponsor rows remain owned by the same Auth user and can be accessed from other devices. Student profiles, essays, and the application workspace remain device-local.
-- Migration `20261127052519_restrict_public_default_privileges_for_postgres.sql` now revokes default grants to `anon` and `authenticated` for future `public` tables, sequences, and functions created by the `postgres` role. The live `pg_default_acl` check confirms those grants are absent and retains `service_role` defaults. The connected SQL role cannot alter defaults owned by `supabase_admin`; its public-schema defaults remain broad and require an owner-level follow-up. Do not treat the whole default-privilege finding as closed.
-- The application HTML now sets a restrictive meta Content Security Policy: same-origin scripts, no objects, same-origin base/forms, the known Supabase endpoint for API/WebSocket connections, and the existing Google Fonts origins. Inline styles remain allowed for current React style attributes; inline scripts and `unsafe-eval` are not allowed. A meta CSP cannot set `frame-ancestors`, HSTS, `X-Content-Type-Options`, or `Permissions-Policy`. Those still require verified Vercel/Cloudflare response-header configuration.
+- Migration `20261127052519_restrict_public_default_privileges_for_postgres.sql` restricts defaults for objects created by `postgres`, but the live `pg_default_acl` check found broad `anon` and `authenticated` defaults still owned by `supabase_admin`. Phase 2 adds `supabase/admin/restrict-supabase-admin-public-default-privileges.sql` as an owner-only operations script to revoke those future-object defaults and remove Data API grants from local-only `student_profiles` and `eligibility_checks`, retaining RLS. The connected `postgres` role is not a member of `supabase_admin`, so the script deliberately refuses to run under that role. The live exposure remains until an authorized platform owner executes the script.
+- The application HTML retains a restrictive meta Content Security Policy: same-origin scripts, no objects, same-origin base/forms, the known Supabase endpoint for API/WebSocket connections, and the existing Google Fonts origins. Inline styles remain allowed for current React style attributes; inline scripts and `unsafe-eval` are not allowed. `vercel.json` now configures HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and production-only framing restrictions. These source settings still require live response-header verification after an authorized deployment.
 - Student records and Supabase session material are now stored as AES-256-GCM ciphertext in IndexedDB after passphrase unlock. The synchronous app storage interface writes to an in-memory map and queues encrypted persistence; failed writes raise a visible warning and prevent the vault from being safely locked until a later write succeeds. The legal receipt and generic reliability events remain plaintext localStorage metadata. The vault does not protect against same-origin script execution while unlocked.
 ## Privacy requests and support
 
@@ -88,15 +89,10 @@ Signed-in cloud accounts can be permanently deleted from Settings. The server ve
 
 The deletion form requires an explicit acknowledgement and the exact text DELETE MY ACCOUNT. A failed session-revocation step prevents Auth-user deletion. A successful cloud deletion is confirmed separately from the local vault operation, so a local cleanup failure is not misreported as a cloud deletion failure.
 
-## Hosting response headers: not yet verified
+## Hosting response headers
 
-The repository's HTML meta Content Security Policy does not replace hosting-level response headers. The production host must be checked independently for these headers; their presence and values are not verified by this source audit:
+`vercel.json` now configures site-wide `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and a restrictive `Permissions-Policy`. The production apex and `www` hosts additionally receive `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. These framing controls are host-scoped so they do not block the separate Anima preview iframe origins used by the preview application.
 
-- `Strict-Transport-Security` with an appropriate max-age and includeSubDomains policy only after all subdomains are HTTPS-ready.
-- `X-Content-Type-Options: nosniff`.
-- `Permissions-Policy` restricting browser capabilities the application does not use.
-- `Content-Security-Policy` response directives including `frame-ancestors 'none'` (this directive cannot be delivered through a meta CSP).
-
-Do not treat these headers as deployed until the production response headers have been fetched and checked. Re-run the check after hosting configuration changes.
+The source configuration is not proof of production behavior. Phase 2 does not deploy; fetch the deployed response headers for the apex and `www` hosts and confirm the values before treating the hosting finding as closed. The HSTS policy intentionally omits `includeSubDomains` until every subdomain is independently verified as HTTPS-ready.
 
 The optional local-data action waits for queued encrypted-vault writes, removes the encrypted IndexedDB vault, and clears Scholarship Scout-owned local and session storage plus the app's Supabase Auth session keys in the current browser profile. It preserves unrelated origin storage. It cannot erase another browser profile or device, separately downloaded backup files, or information independently retained by third-party providers. Those locations must be handled separately by the person who controls them.

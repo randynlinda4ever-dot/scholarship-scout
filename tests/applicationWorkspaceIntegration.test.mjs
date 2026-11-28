@@ -8,7 +8,7 @@ const cloudMappingUrl = new URL("../src/lib/cloudMapping.js", import.meta.url);
 test("application workspace persists to local storage and is included in encrypted backups", async () => {
   const app = await readFile(appUrl, "utf8");
   assert.match(app, /localStorage\.getItem\('scout-application-workspace'\)/);
-  assert.match(app, /saveJson\('scout-application-workspace'/);
+  assert.match(app, /persistLocalJsonState\(\s*'scout-application-workspace'/);
   assert.match(app, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft, resourceWorkspace\)/);
   assert.match(app, /normalizeApplicationWorkspace\(imported\.applicationWorkspace, restoredScholarshipIds\)/);
   assert.match(app, /scout-resource-workspace/);

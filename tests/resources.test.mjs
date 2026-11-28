@@ -121,7 +121,7 @@ test("resource UI persists worksheets locally and follows browser Back/Forward n
     readFile(new URL("../src/features/resources/ResourcesPage.tsx", import.meta.url), "utf8"),
   );
   assert.match(app, /readLocalJson\('scout-resource-workspace'\)/);
-  assert.match(app, /saveJson\('scout-resource-workspace'/);
+  assert.match(app, /persistLocalJsonState\(\s*'scout-resource-workspace'/);
   assert.match(app, /resourceWorkspace\)\)/);
   assert.match(page, /addEventListener\("popstate", syncHash\)/);
   assert.match(page, /removeEventListener\("popstate", syncHash\)/);

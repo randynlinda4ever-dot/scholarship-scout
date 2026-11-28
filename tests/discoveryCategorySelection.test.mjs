@@ -39,11 +39,8 @@ test("a full-category request searches every selected category within the shared
       profile: {
         state: "Texas",
         graduationYear: "2027",
-        school: "PRIVATE-SCHOOL-SENTINEL",
-        gpa: "PRIVATE-GPA-SENTINEL",
-        email: "PRIVATE-EMAIL-SENTINEL",
       },
-      categories: [...ALLOWED_CATEGORIES, "invalid"],
+      categories: ALLOWED_CATEGORIES,
     }),
   });
 

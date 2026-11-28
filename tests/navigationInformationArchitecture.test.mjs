@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const subnav = await readFile(new URL('../src/components/WorkspaceSubnav.tsx', import.meta.url), 'utf8');
+const prepPage = await readFile(new URL('../src/features/workspace/pages/ApplicationPrepPage.tsx', import.meta.url), 'utf8');
 const navStart = app.indexOf('const navGroups:');
 const navEnd = app.indexOf('const activeNavTab', navStart);
 const navigation = app.slice(navStart, navEnd);
@@ -28,7 +30,8 @@ test('tracker and application preparation are grouped under My scholarships', ()
   assert.match(app, /<WorkspaceSubnav label="Scholarship management view"/);
   assert.match(app, /value: 'Scholarships', label: 'Tracker'/);
   assert.match(app, /value: 'Application prep', label: 'Application preparation'/);
-  assert.equal((app.match(/<WorkspaceSubnav label="Scholarship management view"/g) || []).length, 2);
+  assert.equal((app.match(/<WorkspaceSubnav label="Scholarship management view"/g) || []).length, 1);
+  assert.equal((prepPage.match(/<WorkspaceSubnav/g) || []).length, 1);
 });
 
 test('nested pages retain the correct primary navigation selection and breadcrumb', () => {
@@ -38,7 +41,8 @@ test('nested pages retain the correct primary navigation selection and breadcrum
 });
 
 test('workspace sub-navigation uses pressed state and native buttons', () => {
-  assert.match(app, /function WorkspaceSubnav\(/);
-  assert.match(app, /aria-pressed=\{active === option\.value\}/);
-  assert.match(app, /role="group" aria-label=\{label\}/);
+  assert.match(app, /import \{ WorkspaceSubnav \} from '\.\/components\/WorkspaceSubnav'/);
+  assert.match(subnav, /<button/);
+  assert.match(subnav, /aria-pressed=\{active === option\.value\}/);
+  assert.match(subnav, /role="group" aria-label=\{label\}/);
 });

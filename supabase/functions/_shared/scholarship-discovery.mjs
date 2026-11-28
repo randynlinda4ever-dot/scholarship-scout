@@ -779,8 +779,28 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     }
     let body;
     try { body = JSON.parse(rawBody); } catch { return json({ error: "Invalid JSON request." }, 400); }
-    const state = normalizeUsState(clean(body?.profile?.state, 60));
-    const yearValue = body?.profile?.graduationYear;
+    if (!body || typeof body !== "object" || Array.isArray(body) ||
+        Object.keys(body).length !== 2 ||
+        !Object.hasOwn(body, "profile") ||
+        !Object.hasOwn(body, "categories")) {
+      return json({ error: "Only state, graduation year, and selected category IDs are accepted." }, 400);
+    }
+    const profile = body.profile;
+    if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
+        Object.keys(profile).length !== 2 ||
+        !Object.hasOwn(profile, "state") ||
+        !Object.hasOwn(profile, "graduationYear") ||
+        typeof profile.state !== "string") {
+      return json({ error: "Only state and graduation year may be included in the profile filters." }, 400);
+    }
+    const rawCategories = body.categories;
+    if (!Array.isArray(rawCategories) ||
+        rawCategories.length === 0 ||
+        rawCategories.some((value) => typeof value !== "string" || !ALLOWED_CATEGORIES.includes(value))) {
+      return json({ error: "Choose one or more supported scholarship search categories." }, 400);
+    }
+    const state = normalizeUsState(clean(profile.state, 60));
+    const yearValue = profile.graduationYear;
     const rawGraduationYear = typeof yearValue === "number" && Number.isFinite(yearValue)
       ? String(yearValue)
       : typeof yearValue === "string" ? yearValue : "";
@@ -788,9 +808,7 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     const currentYear = now().getUTCFullYear();
     if (!state) return json({ error: "Choose a valid US state or territory for scholarship search." }, 400);
     if (!Number.isInteger(graduationYear) || graduationYear < currentYear || graduationYear > currentYear + 9) return json({ error: "Enter a valid high-school graduation year." }, 400);
-    const rawCategories = Array.isArray(body?.categories) ? body.categories : [];
-    const categories = [...new Set(rawCategories.filter((value) => typeof value === "string" && ALLOWED_CATEGORIES.includes(value)))];
-    if (categories.length === 0) return json({ error: "Choose at least one scholarship search category." }, 400);
+    const categories = [...new Set(rawCategories)];
 
     const cacheKey = `${gatewayBase.href}|${state.toLowerCase()}|${graduationYear}|${[...categories].sort().join(",")}`;
     const cached = cache.get(cacheKey);

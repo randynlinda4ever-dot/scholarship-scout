@@ -63,18 +63,20 @@ export type Scholarship = {
 };
 
 export type Profile = {
+  country: string;
   state: string;
   county: string;
   citizenship: string;
   age: string;
   school: string;
+  schoolCountry: string;
   schoolState: string;
   grade: string;
   graduationYear: string;
   plannedCollege: string;
+  plannedCollegeCountry: string;
   plannedCollegeState: string;
   plannedMajor: string;
-  degreeGoal: string;
   collegeStatus: string;
   gpa: string;
   gpaType: string;
@@ -102,13 +104,14 @@ export type Profile = {
   nseMedalYears: string;
   nseRegistered2027: string;
   fourHMembershipStatus: string;
-  academicStrengths: string;
-  careerInterests: string;
-  awardsHonors: string;
-  preferredCollegeLocation: string;
-  enrollmentPlan: string;
   searchKeywords: string;
   profileVersion: string;
+  degreeGoal?: string;
+  academicStrengths?: string;
+  careerInterests?: string;
+  awardsHonors?: string;
+  preferredCollegeLocation?: string;
+  enrollmentPlan?: string;
 };
 
 export interface CandidateAssessment {

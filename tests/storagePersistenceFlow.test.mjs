@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const storage = await readFile(new URL("../src/lib/browserStorage.js", import.meta.url), "utf8");
 
 function functionSource(startMarker, endMarker) {
   const start = app.indexOf(startMarker);
@@ -12,7 +13,7 @@ function functionSource(startMarker, endMarker) {
 }
 
 test("tracker and dependent workspace records persist as one batch before UI state changes", () => {
-  const source = functionSource("const saveItems =", "const saveApplicationTask =");
+  const source = functionSource("const saveItems =", "const persistLocalJsonState =");
   assert.match(source, /writeJsonStorageBatch\(/);
   assert.ok(source.indexOf("if (!storageResult.ok)") < source.indexOf("setItems(normalized)"));
   assert.ok(source.indexOf("if (!storageResult.ok)") < source.indexOf("setApplicationProgress(retainedProgress)"));
@@ -20,12 +21,16 @@ test("tracker and dependent workspace records persist as one batch before UI sta
   assert.match(source, /void flushLocalVault\(\)\.catch/);
 });
 
-test("checklist and workspace state do not advance when their local write fails", () => {
+test("checklist and workspace state share a write-before-update-before-flush persistence contract", () => {
   const task = functionSource("const saveApplicationTask =", "const saveApplicationWorkspaceEntry =");
-  const workspace = functionSource("const saveApplicationWorkspaceEntry =", "const closeBackupDialog =");
+  const workspace = functionSource("const saveApplicationWorkspaceEntry =", "const saveResourceWorkspace =");
+  const persistence = functionSource("const persistLocalJsonState =", "const saveApplicationTask =");
 
-  assert.ok(task.indexOf("if (!saveJson('scout-application-progress', next))") < task.indexOf("setApplicationProgress(next)"));
-  assert.ok(workspace.indexOf("if (!saveJson('scout-application-workspace', next))") < workspace.indexOf("setApplicationWorkspace(next)"));
-  assert.match(task, /void flushLocalVault\(\)\.catch/);
-  assert.match(workspace, /void flushLocalVault\(\)\.catch/);
+  assert.match(task, /persistLocalJsonState\(\s*'scout-application-progress'/);
+  assert.match(workspace, /persistLocalJsonState\(\s*'scout-application-workspace'/);
+  assert.match(persistence, /writeAndFlushJsonState/);
+  assert.match(persistence, /if \(!ok\) setAlert\(writeError\)/);
+  assert.match(persistence, /else if \(!durable\) setAlert\(flushError\)/);
+  assert.ok(storage.indexOf("if (!writeJsonStorage(key, value, resolveStorage))") < storage.indexOf("updateState(value)"));
+  assert.ok(storage.indexOf("updateState(value)") < storage.indexOf("await flush()"));
 });

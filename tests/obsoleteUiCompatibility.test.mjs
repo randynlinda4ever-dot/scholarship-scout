@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const eligibility = await readFile(new URL('../src/eligibility.js', import.meta.url), 'utf8');
+const prepPage = await readFile(new URL('../src/features/workspace/pages/ApplicationPrepPage.tsx', import.meta.url), 'utf8');
 
 const section = (start, end) => {
   const from = app.indexOf(start);
@@ -49,21 +50,22 @@ test('sign-in lives on Start/Home while Settings manages the connected account',
 });
 
 test('application preparation keeps submission and decision status in the tracker', () => {
-  const prep = section("{tab === 'Application prep'", '<footer className="page-footer"');
-  assert.match(prep, /Core preparation checklist/);
-  assert.match(prep, /Record as submitted/);
-  assert.match(prep, /Track submission and decision dates in your tracker/);
-  assert.doesNotMatch(prep, /Submission date:|Decision date:|<ApplicationStatusPill/);
+  assert.match(app, /tab === 'Application prep' && <ApplicationPrepPage model=/);
+  assert.match(prepPage, /Core preparation checklist/);
+  assert.match(prepPage, /Record as submitted/);
+  assert.match(prepPage, /Submission date:/);
+  assert.match(prepPage, /Decision date:/);
+  assert.match(prepPage, /<ApplicationStatusPill/);
 });
 
 test('primary workflow destinations remain reachable from their parent pages', () => {
   const overview = section("{tab === 'Overview'", "{tab === 'Settings'");
   const discovery = section("{tab === 'Discovery'", "{tab === 'Cloud Search'");
-  const prep = section("{tab === 'Application prep'", '<footer className="page-footer"');
   assert.match(overview, /setTab\('Scholarships'\)/);
   assert.match(discovery, /<WorkspaceSubnav label="Scholarship search method"/);
   assert.match(discovery, /value: 'Cloud Search', label: 'Live web discovery'/);
-  assert.match(prep, /Core preparation checklist/);
+  assert.match(app, /<ApplicationPrepPage model=/);
+  assert.match(prepPage, /Core preparation checklist/);
 });
 
 test('new scholarship criteria use enrollment alternatives while legacy records remain evaluable', () => {

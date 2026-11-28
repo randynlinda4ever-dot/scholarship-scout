@@ -22,3 +22,16 @@ export function writeJsonStorageBatch(
   entries: Record<string, unknown>,
   resolveStorage?: () => JsonBatchStorage | null | undefined,
 ): JsonStorageBatchResult;
+
+export type JsonStatePersistenceResult = {
+  ok: boolean;
+  durable: boolean;
+};
+
+export function writeAndFlushJsonState<T>(options: {
+  key: string;
+  value: T;
+  updateState: (value: T) => void;
+  flush: () => Promise<unknown>;
+  resolveStorage?: () => JsonWriteStorage | null | undefined;
+}): Promise<JsonStatePersistenceResult>;

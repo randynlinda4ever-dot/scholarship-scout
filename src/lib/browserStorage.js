@@ -29,6 +29,31 @@ export function writeJsonStorage(key, value, resolveStorage = () => vaultStorage
 }
 
 /**
+ * Keep a local record's write, in-tab state update, and encrypted flush in
+ * the same order. A successful synchronous write is visible immediately;
+ * a failed encrypted flush is reported without pretending the write was durable.
+ */
+export async function writeAndFlushJsonState({
+  key,
+  value,
+  updateState,
+  flush,
+  resolveStorage = () => vaultStorage,
+}) {
+  if (!writeJsonStorage(key, value, resolveStorage)) {
+    return { ok: false, durable: false };
+  }
+
+  updateState(value);
+  try {
+    await flush();
+    return { ok: true, durable: true };
+  } catch {
+    return { ok: true, durable: false };
+  }
+}
+
+/**
  * Persist several related JSON records as one best-effort transaction.
  *
  * Web Storage has no multi-key transaction API. This helper snapshots every
