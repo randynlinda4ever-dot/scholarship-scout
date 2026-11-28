@@ -10,7 +10,7 @@ The application has a reproducible local test/build path and a recovered local G
 
 ## 1. Source of truth and local checkpoint
 
-- Canonical AgentGrid artifact: `Y9kTsZ0-vazOq3AnWspbAw`
+- Canonical repository: https://github.com/randynlinda4ever-dot/scholarship-scout
 - Application source revision tested: `1701debbcf0a09beb643d0497bb4f4a6aac0ec34`
 - Local workspace: `C:\Users\levih\Projects\ScholarshipScout-SC018-9f2720d`
 - Recorded original local baseline: `9f2720d9f5f242c3b4e477222fd8e99e7e448929`
@@ -21,13 +21,13 @@ The application has a reproducible local test/build path and a recovered local G
 - A later documentation-only commit added the recovery report and updated four documentation files; the latest local tree tracks 145 canonical files.
 - Local working tree after the documentation checkpoint: clean
 
-The AgentGrid history from the recorded baseline to the tested source revision contained three commits affecting six unique files: five regression-test files and `src/lib/evidence.d.ts`. Those changes were synchronized. The changed test files, the declaration, `src/lib/evidence.js`, `package.json`, the shared discovery module, `tests/eligibility.test.mjs`, and `package-lock.json` were compared against the canonical artifact.
+The historical GitHub revision history from the recorded baseline to the tested source revision contained three commits affecting six unique files: five regression-test files and `src/lib/evidence.d.ts`. Those changes were synchronized. The changed test files, the declaration, `src/lib/evidence.js`, `package.json`, the shared discovery module, `tests/eligibility.test.mjs`, and `package-lock.json` were compared against the GitHub source at that time.
 
-**Provenance limitation:** the local workspace originally had no `.git` metadata. The `9f2720d` baseline came from its existing verification record and could not be independently proven from Git history. The new local commit is a recoverable snapshot, not a clone or Git commit equivalent of the AgentGrid revision.
+**Provenance limitation:** the local workspace originally had no `.git` metadata. The `9f2720d` baseline came from its existing verification record and could not be independently proven from Git history. The new local commit is a recoverable snapshot, not a clone or Git commit equivalent of the recorded historical source revision.
 
 ### Repository hygiene repair
 
-The canonical `.gitignore` contained literal backslash-n sequences, so its ignore patterns were not separate rules. It has been repaired in AgentGrid and locally. Verification with `git check-ignore` confirmed that `dist/`, `node_modules/`, and `*.log` are now ignored. Local-only verification files are excluded through `.git/info/exclude`.
+The canonical `.gitignore` contained literal backslash-n sequences, so its ignore patterns were not separate rules. It has been repaired in the GitHub source and local workspace. Verification with `git check-ignore` confirmed that `dist/`, `node_modules/`, and `*.log` are now ignored. Local-only verification files are excluded through `.git/info/exclude`.
 
 ## 2. Reproducible local verification
 

@@ -1,6 +1,6 @@
 # Apex / Scholarship Scout recovery verification — November 25, 2026
 
-> **Historical snapshot notice:** This broader report preserves the earlier SC-054 recovery record and earlier release observations. Its SC-246 gateway/version facts are superseded by [the consolidated SC-246 report](sc246-gateway-recovery-2026-11-25.md), which records AgentGrid HEAD `9eb1e1a99f70f2389a9d4875c48d802d1e5fa6c2`, current Supabase function version 10, and the v9-only traffic-log evidence inspected on November 25. Do not treat the older v9 statements below as current deployment inventory.
+> **Historical snapshot notice:** This broader report preserves the earlier SC-054 recovery record and earlier release observations. Its SC-246 gateway/version facts are superseded by [the consolidated SC-246 report](sc246-gateway-recovery-2026-11-25.md), which records historical implementation snapshot HEAD `9eb1e1a99f70f2389a9d4875c48d802d1e5fa6c2`, current Supabase function version 10, and the v9-only traffic-log evidence inspected on November 25. Do not treat the older v9 statements below as current deployment inventory.
 
 ## Executive decision
 
@@ -8,7 +8,7 @@
 
 This report reconciles the available original SC-054 submission evidence and rechecks the current Scholarship Scout artifact, Supabase deployment, Vercel deployment metadata, and connected execution capabilities. It is an evidence record, not a claim that the full recovery or controlled end-to-end run completed.
 
-Canonical Scholarship Scout artifact: `Y9kTsZ0-vazOq3AnWspbAw`  
+Canonical Scholarship Scout repository: https://github.com/randynlinda4ever-dot/scholarship-scout
 Artifact revision inspected: `680509aa2f339ccdb8eaf58a121dac334a5b7522`  
 Supabase project: `wjrwvempgjvoxlioodse`  
 Supabase function: `scholarship-discover`
@@ -67,7 +67,7 @@ Those commits establish a product-code implementation, not recovery of the missi
 
 ## 2. Current code and test evidence
 
-The current AgentGrid artifact revision is `680509aa2f339ccdb8eaf58a121dac334a5b7522`.
+The GitHub source revision inspected for this historical recovery report was `680509aa2f339ccdb8eaf58a121dac334a5b7522`.
 
 The November 25 Agent-03 audit records a targeted suite result of **145 passed, 0 failed, 0 skipped, 0 cancelled**, using Node.js 22.23.5 in an isolated network-deny sandbox. The targeted files cover discovery, adaptive query execution, URL normalization, retries, cache behavior, evidence completeness, eligibility, and source review.
 
@@ -131,7 +131,7 @@ The available Supabase tool integration exposes no Edge Function secret read/wri
 
 ## 4. Frontend deployment and browser acceptance
 
-Vercel project `scholarship-scout-standalone` has a production deployment marked READY, created November 10, 2026. The deployment metadata returned no Git source/commit metadata and an empty metadata object. Its READY status does not prove that it matches the current AgentGrid artifact revision.
+Vercel project `scholarship-scout-standalone` has a production deployment marked READY, created November 10, 2026. The deployment metadata returned no Git source/commit metadata and an empty metadata object. Its READY status did not prove that it matched the GitHub source revision intended for that historical release.
 
 The connected GitHub integration returned no accessible repositories. Therefore no matching CI workflow run or commit provenance could be established.
 

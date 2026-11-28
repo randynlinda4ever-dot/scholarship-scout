@@ -32,7 +32,7 @@ Anonymous sign-ins are optional and should be enabled only if anonymous cloud sc
 
 ## Email magic-link sign-in
 
-The app uses Supabase email magic links for cloud account access. It sets `emailRedirectTo` to the current app frame's HTTPS origin, rather than the outer AgentGrid artifact page. This matters because the app may run in an embedded preview frame: a redirect to the outer page can store the session on a different browser origin from the running app.
+The app uses Supabase email magic links for cloud account access. It sets `emailRedirectTo` to the current app frame's HTTPS origin, rather than the outer preview-host page. This matters because the app may run in an embedded preview frame: a redirect to the outer page can store the session on a different browser origin from the running app.
 
 Supabase only accepts redirect destinations that match the project's Auth Redirect URLs allow-list. Configure only the exact origins required by the active runtime. Do not add broad wildcard redirects without a documented need. After changing the allow-list, send a fresh magic link and open it in the same browser profile where sign-in was requested. Do not reuse an old email link.
 

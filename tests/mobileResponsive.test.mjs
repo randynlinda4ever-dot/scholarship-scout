@@ -25,7 +25,7 @@ test("mobile layouts preserve touch target sizes and prevent horizontal page ove
   assert.match(styles, /@media \(max-width: 820px\)[\s\S]*?\.primary-nav \.nav-item\s*\{[^}]*min-height:\s*44px/);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.field input[^}]*font-size:\s*16px/);
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.privacy-form-actions > \*[^}]*width:\s*100%/);
-  assert.match(gateStyles, /\.legal-age-fieldset/);
+  assert.match(gateStyles, /\.legal-age-select/);
   assert.match(gateStyles, /\.legal-guardian-check/);
   assert.match(gateStyles, /\.legal-acceptance-check[^}]*align-items:\s*flex-start/);
   assert.match(styles, /\.shell\s*\{[^}]*overflow-x:\s*clip/);

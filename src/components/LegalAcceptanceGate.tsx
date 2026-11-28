@@ -87,7 +87,7 @@ export default function LegalAcceptanceGate({ children }: { children: ReactNode 
           <div className="legal-gate-brand"><BrandMark className="legal-gate-mark"/><span>Scholarship Scout</span></div>
           <p className="legal-gate-kicker">REQUIRED BEFORE ACCESS</p>
           <h1 id="legal-gate-title">Terms of Service &amp; Privacy Notice</h1>
-          <p id="legal-gate-intro">Review the legal and data-use disclosure below. You must reach the end, confirm the statement, and accept before the workspace loads.</p>
+          <p id="legal-gate-intro">Review the full notice, choose an age group, and confirm your agreement before entering the workspace.</p>
           <p className="legal-gate-version">Effective {LEGAL_EFFECTIVE_DATE} · Version {LEGAL_ACCEPTANCE_VERSION}</p>
         </header>
 
@@ -103,23 +103,36 @@ export default function LegalAcceptanceGate({ children }: { children: ReactNode 
 
         <footer className="legal-gate-footer">
           {!readToEnd ? <p className="legal-gate-scroll-hint" role="status">Scroll through the entire notice to enable acceptance.</p> : <p className="legal-gate-scroll-hint" role="status">You have reached the end of the notice.</p>}
-          <fieldset className="legal-age-fieldset">
-            <legend>Who will use Scholarship Scout?</legend>
-            <label><input type="radio" name="legal-age-group" value="adult" checked={ageGroup === "adult"} onChange={() => { setAgeGroup("adult"); setGuardianConfirmed(false); }} /> <span>I am 18 or older</span></label>
-            <label><input type="radio" name="legal-age-group" value="minor" checked={ageGroup === "minor"} onChange={() => { setAgeGroup("minor"); setGuardianConfirmed(false); }} /> <span>I am 13 through 17</span></label>
-            <label><input type="radio" name="legal-age-group" value="under13" checked={ageGroup === "under13"} onChange={() => { setAgeGroup("under13"); setGuardianConfirmed(false); setChecked(false); }} /> <span>I am under 13</span></label>
-          </fieldset>
+          <label className="legal-age-control">
+            <span>Age group</span>
+            <select
+              className="legal-age-select"
+              name="legal-age-group"
+              value={ageGroup}
+              onChange={(event) => {
+                const value = event.target.value as "adult" | "minor" | "under13" | "";
+                setAgeGroup(value);
+                setGuardianConfirmed(false);
+                if (value === "under13") setChecked(false);
+              }}
+            >
+              <option value="">Choose an age group</option>
+              <option value="adult">I am 18 or older</option>
+              <option value="minor">I am 13 through 17</option>
+              <option value="under13">I am under 13</option>
+            </select>
+          </label>
           {ageGroup === "minor" ? <label className="legal-guardian-check">
             <input type="checkbox" checked={guardianConfirmed} onChange={(event) => setGuardianConfirmed(event.target.checked)} />
-            <span><b>Parent or guardian authorization</b> I am this user's parent or legal guardian. I reviewed this notice, understand how Scholarship Scout uses information, and authorize this 13–17 year old to use it.</span>
+            <span><b>Parent or guardian authorization</b> I am this user's parent or legal guardian. I reviewed this notice and authorize this 13–17-year-old to use Scholarship Scout.</span>
           </label> : null}
           {ageGroup === "under13" ? <p className="legal-gate-error" role="alert">Scholarship Scout is not available to children under 13. Do not continue or submit information.</p> : null}
           <label className="legal-acceptance-check">
             <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} disabled={ageGroup === "under13" || ageGroup === ""} />
-            <span>I have read and agree to these Terms of Service and acknowledge the Privacy Notice. I understand the Service's stated limits and my responsibilities when using it.</span>
+            <span>I have read and agree to the Terms of Service and acknowledge the Privacy Notice, including the Service's stated limits and my responsibilities.</span>
           </label>
           {storageError ? <p className="legal-gate-error" role="alert">{storageError}</p> : null}
-          <p className="legal-gate-footnote">Age and guardian selections are stored locally. Scholarship Scout does not verify age or guardian identity.</p>
+          <p className="legal-gate-footnote">Age and guardian selections stay on this device; age and guardian identity are not verified.</p>
           <div className="legal-gate-actions">
             {accepted ? <button type="button" className="legal-gate-secondary" onClick={() => setReviewOpen(false)}>Close without changing acceptance</button> : null}
             <button type="button" className="legal-gate-primary" disabled={!checked || !readToEnd || !ageGroup || ageGroup === "under13" || (ageGroup === "minor" && !guardianConfirmed)} onClick={handleAccept}>Accept and continue</button>

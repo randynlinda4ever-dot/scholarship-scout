@@ -60,7 +60,7 @@ The tests cover same-frame magic-link callback generation, the public live-searc
 - The inspected version-8 source allows local, school_resources, regional, state, academic, humanities, leadership, community_service, language, employment, arts, incoming_college, national, general, caps requests at four categories and 8 KiB, performs two variations/category and up to two pages/variation (up to 16 upstream page requests), uses concurrency four, 12-second upstream timeouts, at most 15 results per upstream page and 40 final results, and a best-effort in-memory per-IP limit of two requests per 60 seconds per isolate. This is not a distributed/robust limiter; no CAPTCHA is implemented.
 - These are deployed-version facts from source inspection, not proof from the historical test run or a statement that repository tests verify live configuration.
 - Cloud scholarship reads and writes still require a real Supabase user and remain owner-scoped through the existing RLS policies.
-- Magic-link callbacks now use the running app frame's HTTPS origin rather than the outer AgentGrid artifact URL.
+- Magic-link callbacks now use the running app frame's HTTPS origin rather than the outer preview-host URL.
 - Supabase's email provider is enabled. The project still needs the current embedded preview callback pattern in its Redirect URLs allow-list for this preview runtime.
 
 ## Live integration validation

@@ -17,5 +17,5 @@ test('magic-link callback returns to the current embedded app origin', () => {
   assert.match(redirect, /locationLike\.origin/);
   assert.match(redirect, /callback\.search = ""/);
   assert.match(redirect, /callback\.hash = ""/);
-  assert.doesNotMatch(api, /SCHOLARSHIP_SCOUT_AUTH_REDIRECT_URL|app\.agentgrid\.io\/artifacts/);
+  assert.doesNotMatch(api, /SCHOLARSHIP_SCOUT_AUTH_REDIRECT_URL/);
 });

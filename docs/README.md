@@ -5,7 +5,7 @@ These documents describe the verified implementation and distinguish current beh
 - [Product and engineering roadmap](roadmap.md) — authoritative priorities for student value, release integrity, Resources, discovery, bug fixes, and optimization.
 - [Roadmap audit — November 27, 2026](roadmap-audit-2026-11-27.md) — evidence-based review of the previous roadmap, current gaps, stale assumptions, and recommended execution order.
 - [Search visibility and public scholarship guides](search-visibility.md) — crawlable scholarship landing pages, canonical routes, sitemap/robots configuration, privacy boundaries, and indexing verification.
-- [Runtime audit — November 27, 2026](runtime-audit-2026-11-27.md) — current AgentGrid revision, Supabase v19 source parity, named gateway validation, database advisors, and release gates.
+- [Runtime audit — November 27, 2026](runtime-audit-2026-11-27.md) — GitHub release state, Supabase v19 source parity, gateway validation, database advisors, and release gates.
 - [Rate-limit decision — November 27, 2026](rate-limit-decision-2026-11-27.md) — current no-Redis design, verified gateway ceiling, explicit limitations, and future scale-up triggers.
 - [Recovery status — November 25, 2026](recovery-status-2026-11-25.md) — historical SC-054 reconciliation, earlier deployed-source parity, gateway failure, and release gates.
 - [Recovery status — November 24, 2026](recovery-status-2026-11-24.md) — earlier local checkpoint and clean-install evidence.

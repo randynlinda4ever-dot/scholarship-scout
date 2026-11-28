@@ -1,44 +1,37 @@
-# Canonical artifact integrity and freshness
+# Repository integrity and release freshness
 
-## Product source of truth
+## Source of truth
 
-The canonical product source of truth for Scholarship Scout is the existing AgentGrid artifact:
+The only source of truth for Scholarship Scout application code is the GitHub repository:
 
-https://app.agentgrid.io/artifacts/Y9kTsZ0-vazOq3AnWspbAw
+https://github.com/randynlinda4ever-dot/scholarship-scout
 
-This identity is intentionally stable. Continue editing this artifact; do not create a duplicate artifact or treat a local orchestration repository, exported copy, preview, or deployment as the canonical product source.
+The `main` branch is the canonical production source branch. Do not maintain or synchronize a second copy of the application in an external authoring platform.
 
-## Resolving the current revision
+## Review procedure
 
-The latest committed revision is the current main commit reported by AgentGrid, not a SHA copied into documentation or retained from an earlier task.
+For every change:
 
-For each inspection or change:
+1. Fetch the latest `origin/main` and record its full commit SHA.
+2. Create a focused branch from that exact base.
+3. Review the changed file list and diff for unintended edits, deletions, secrets, or student data.
+4. Run the repository's required tests, type check, production build, and dependency audit.
+5. Open a pull request targeting `main`; verify the PR head has not changed before merge.
+6. After merge, verify the resulting `main` commit and the production deployment's Git SHA.
+7. Verify the production domain and backend services separately when they are within the task scope.
 
-1. Call AgentGrid artifact-explore on the canonical artifact and inspect its latest history/head.
-2. Record the exact revision returned by that current inspection.
-3. Read the required files at that revision before deciding whether a change is needed.
-4. For an approved source edit, pass that exact revision as artifact-edit's baseRevision. A revision conflict means stop, re-inspect the new head, and reconcile rather than overwriting.
-5. After a commit, use the revision returned by artifact-edit, then re-inspect the artifact to confirm the new head and changed paths.
+Never infer deployment freshness from a deployment's READY state alone. The deployment's Git commit must match the intended merged commit.
 
-Do not pin a commit hash in this policy. A pinned hash becomes stale as soon as another valid commit lands. Freshness is established by resolving the current head from AgentGrid history when the check is performed.
+## Backend boundaries
 
-## Distinguishing product source from runtime services
-
-Vercel deployments are runtime outputs, not the canonical source. A READY deployment does not prove that it was built from the current AgentGrid revision unless trustworthy build provenance links the deployment to that exact source revision.
-
-Supabase is a backend dependency, not the canonical frontend/product source. Its project state, Edge Function versions, and database state must be checked separately when the task requires runtime verification. Do not infer source freshness from backend availability.
-
-A deployment or backend check must never silently replace the canonical artifact identity.
+Supabase is a runtime dependency, not a source-of-truth repository. Verify its project state, deployed Edge Function versions and source, secrets configuration (without reading secret values), database schema, and RLS policies independently. A frontend deployment does not deploy Supabase changes.
 
 ## Integrity checklist
 
-A source-of-truth check is complete only when all applicable statements are evidenced:
-
-- The canonical AgentGrid artifact can be identified by the stable URL above.
-- AgentGrid history identifies the latest committed revision at the time of inspection.
-- The files reviewed or edited are read at that exact revision.
-- Any artifact edit uses the exact inspected revision as baseRevision.
-- The resulting revision and changed paths are recorded.
-- Runtime deployment provenance is described separately; an unlinked or older deployment is not presented as current-source verification.
-
-The artifact history and revision returned by AgentGrid are authoritative for source freshness. Documentation and prior task reports are historical records, not substitutes for a fresh head inspection.
+- The GitHub repository and target branch are identified.
+- The working tree is understood before any edits.
+- The pull request contains only the intended files and preserves unrelated work.
+- Required CI checks pass against the exact PR head.
+- The merge commit is verified on `main`.
+- Production deployment provenance matches the merge commit.
+- Any required Supabase/backend deployment is verified separately.

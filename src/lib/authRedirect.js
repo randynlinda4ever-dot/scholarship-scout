@@ -1,8 +1,7 @@
 /**
  * Return the current app frame's origin for Supabase email callbacks.
- * AgentGrid/Anima embeds the running app in a preview iframe. The callback
- * must return to that same origin so Supabase stores the session where the
- * running app can read it.
+ * The app can run inside a preview iframe. The callback must return to the
+ * same origin so Supabase stores the session where the running app can read it.
  */
 export function getMagicLinkRedirectUrl(locationLike = typeof window === "undefined" ? null : window.location) {
   if (!locationLike?.origin || locationLike.origin === "null") {

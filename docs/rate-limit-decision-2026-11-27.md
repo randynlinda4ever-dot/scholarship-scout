@@ -43,7 +43,7 @@ Before increasing traffic, adding gateway replicas, or moving the gateway off th
 ## Deployment gates
 
 1. Keep the Edge Function's gateway secrets server-side and never log or disclose their values.
-2. Review and deploy the exact GitHub/AgentGrid-synchronized Edge Function source as one versioned file set.
+2. Review and deploy the exact reviewed GitHub Edge Function source as one versioned file set.
 3. Verify CORS preflight for `x-scout-client-id`, the Edge Function 429/503 behavior, the gateway's 30-per-minute 429 behavior, and synthetic discovery.
 4. Preserve the version-19 rollback snapshot and record the new deployed function version/source hash.
 5. Do not promote the frontend to production merely because the Vercel preview is ready; public discovery needs a successful Supabase-to-named-gateway smoke test.

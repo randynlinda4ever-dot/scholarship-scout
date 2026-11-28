@@ -27,11 +27,11 @@ test("legal acceptance declaration includes the runtime age and guardian options
   assert.match(acceptanceTypes, /guardianConfirmed\?/);
 });
 
-test("preflight event handlers only reference an initialized updateButton binding", () => {
-  const declaration = bootstrap.indexOf("let updateButton");
-  const firstListener = bootstrap.indexOf("guardianCheckbox.addEventListener(\"change\", updateButton)");
-  const assignment = bootstrap.indexOf("updateButton = () =>");
-  assert.notEqual(declaration, -1);
-  assert.ok(declaration < firstListener);
-  assert.ok(firstListener < assignment);
+test("preflight event handlers invoke the assigned updateButton callback when users interact", () => {
+  const assignment = bootstrap.indexOf("updateButton = () => {");
+  const checkboxListener = bootstrap.indexOf('checkbox.addEventListener("change", () => updateButton());');
+  const guardianListener = bootstrap.indexOf('guardianCheckbox.addEventListener("change", () => updateButton());');
+  assert.ok(assignment >= 0);
+  assert.ok(checkboxListener > assignment);
+  assert.ok(guardianListener > assignment);
 });
