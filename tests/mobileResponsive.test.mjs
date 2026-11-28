@@ -1,9 +1,7 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const styles = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const styles = await readActiveAppStyles();
 const gateStyles = await readFile(new URL("../src/components/LegalAcceptanceGate.css", import.meta.url), "utf8");
 
 test("mobile navigation is explicitly toggled and announces its expanded state", () => {
