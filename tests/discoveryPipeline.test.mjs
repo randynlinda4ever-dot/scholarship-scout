@@ -32,6 +32,30 @@ test("frontend rejects award and deadline clues from unrelated neighboring snipp
   assert.equal(result.deadline_text, null);
 });
 
+test("frontend retains a title-matched award sentence and an abbreviated ordinal deadline continuation", () => {
+  const [result] = rankAndDeduplicateLiveResults([{
+    title: "North Star Community Scholarship",
+    source_url: "https://northstar.example/scholarship",
+    excerpt: "The North Star Community Scholarship supports graduating seniors. Awards range from $2,500 to $5,000. Applications close on Dec 15th, 2026.",
+    evidence_excerpt: "North Star Community Scholarship. The North Star Community Scholarship supports graduating seniors. Awards range from $2,500 to $5,000. Applications close on Dec 15th, 2026.",
+  }]);
+  assert.match(result.award_text, /\$2,500 to \$5,000/);
+  assert.equal(result.deadline, "2026-12-15");
+  assert.match(result.deadline_text, /Dec 15th, 2026/);
+});
+
+test("frontend rejects a competing scholarship's award and deadline continuations", () => {
+  const [result] = rankAndDeduplicateLiveResults([{
+    title: "North Star Community Scholarship",
+    source_url: "https://northstar.example/scholarship",
+    excerpt: "The North Star Community Scholarship supports graduating seniors. Blue River Essay Contest offers a $4,000 award. The Blue River Essay Contest deadline is December 1, 2026.",
+    evidence_excerpt: "North Star Community Scholarship. The North Star Community Scholarship supports graduating seniors. Blue River Essay Contest offers a $4,000 award. The Blue River Essay Contest deadline is December 1, 2026.",
+  }]);
+  assert.equal(result.award_text, null);
+  assert.equal(result.deadline, null);
+  assert.doesNotMatch(result.evidence_excerpt, /Blue River Essay Contest/);
+});
+
 test("offers distinct discovery categories for leadership, language, employment, and broad awards", () => {
   const ids = new Set(DISCOVERY_CATEGORY_OPTIONS.map((item) => item.id));
   for (const id of ["local", "academic", "humanities", "leadership", "community_service", "language", "employment", "national", "general"]) {
