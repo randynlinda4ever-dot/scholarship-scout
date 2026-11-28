@@ -535,6 +535,10 @@ test("filters state scholarship directory and ranked-list landing pages", () => 
   const cases = [
     { title: "Texas Scholarships - Scholarships.com", url: "https://scholarships.com/financial-aid/college-scholarships/scholarships-by-state/texas-scholarships" },
     { title: "Top 35 Texas Scholarships and Grants for 2026 - 2027", url: "https://collegewhale.com/texas" },
+    { title: "Texas Scholarships (2026-27): Awards for TX Students | Award Scholar", url: "https://awardscholar.com/scholarships/texas" },
+    { title: "Texas Scholarships - U.S. News & World Report", url: "https://usnews.com/education/scholarships/for-texas-students" },
+    { title: "Texas Scholarships & Financial Aid - Niche", url: "https://niche.com/colleges/scholarships?state=TX" },
+    { title: "Alphabetical Index to Scholarships and Other Financial Programs", url: "https://comptroller.texas.gov/programs/education/msp/funding/aid/faidalpha.php" },
   ];
   for (const item of cases) {
     const { results } = normalizeAndRankResults([{
