@@ -69,6 +69,6 @@ test("Google authentication and remembered-device unlock are disclosed in the cu
   assert.ok(terms.includes("does not request access to Gmail, Drive"));
   assert.ok(terms.includes("non-exportable cryptographic key"));
   assert.ok(terms.includes("Permanent accounts can use a one-time email sign-in link or Google OAuth"));
-  assert.ok(acceptance.includes("2026-11-28.8"));
+  assert.ok(acceptance.includes("2026-11-28.9"));
   assert.ok(vault.includes("export async function unlockLocalVaultWithDeviceKey"));
 });
