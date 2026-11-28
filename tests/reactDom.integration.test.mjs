@@ -195,7 +195,9 @@ test("guest workspace supports real navigation, profile edits, tracker validatio
       const country = ui.getByLabelText("Country of residence");
       const state = ui.getByLabelText("State of residence");
       const county = ui.getByRole("textbox", { name: "County" });
-      assert.equal(state.disabled, true);
+      assert.equal(state.disabled, country.value !== "US");
+      await user.selectOptions(country, "");
+      await waitFor(() => assert.equal(state.disabled, true));
       await user.selectOptions(country, "US");
       await waitFor(() => assert.equal(state.disabled, false));
       await user.selectOptions(state, "Texas");
