@@ -32,6 +32,7 @@ export function calculateReciprocalRankFusion(rankings: Array<Array<{ title?: un
 export function runAdaptiveSearches(gatewayBase: URL | string, gatewayToken: string, jobs: SearchJob[], options?: { minimumQualityResults?: number; minimumUniqueResults?: number; maxSearchRequests?: number; totalBudgetMs?: number; state?: string; graduationYear?: number; maxRetries?: number; fetchImpl?: typeof fetch; concurrency?: number; clock?: () => number }): Promise<SearchOutcome[]>;
 export function fetchSearchPage(gatewayBase: URL | string, gatewayToken: string, job: SearchJob, options?: { fetchImpl?: typeof fetch; deadlineAt?: number; clock?: () => number }): Promise<SearchOutcome>;
 export function runBoundedSearches(gatewayBase: URL | string, gatewayToken: string, jobs: SearchJob[], options?: { fetchImpl?: typeof fetch; concurrency?: number; deadlineAt?: number; clock?: () => number }): Promise<SearchOutcome[]>;
+export function extractScholarshipSearchSignals(value: unknown): { awardText: string | null; deadline: string | null; deadlineText: string | null; deadlineNotPublished: boolean };
 export function normalizeAndRankResults(outcomes: SearchOutcome[], discoveredAt: string, state: string, graduationYear: number, options?: { randomUUID?: () => string }): { results: Array<Record<string, unknown>>; rawResultCount: number };
 export function createScholarshipDiscoveryHandler(deps?: {
   fetchImpl?: typeof fetch;

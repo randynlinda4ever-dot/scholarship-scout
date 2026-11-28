@@ -1,5 +1,11 @@
 ﻿import { sanitizePublicHttpsUrl } from "./evidence.js";
 import { stateMatchesText } from "../../supabase/functions/_shared/us-states.mjs";
+import {
+  extractScholarshipSearchSignals,
+  getScholarshipTitleSpecificity,
+  isScholarshipDirectoryLandingPage,
+  matchScholarshipEvidence,
+} from "../../supabase/functions/_shared/search-snippet-evidence.mjs";
 
 function cleanText(value, maxLength = 2000) {
   return String(value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
@@ -18,11 +24,6 @@ function canonicalizeUrl(value) {
   } catch {
     return null;
   }
-}
-
-function normalizedTitle(value) {
-  return cleanText(value, 220).normalize("NFKC").toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
 function asStringArray(value) {
@@ -61,78 +62,6 @@ function resultCompleteness(item) {
   return cleanText(item.excerpt, 1800).length +
     asStringArray(item.discovery_queries).join(" ").length +
     asStringArray(item.discovery_categories).length * 40;
-}
-
-const GENERIC_EVIDENCE_TITLE_TERMS = new Set(["scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards", "student", "students", "high", "school", "senior", "seniors", "class", "college", "undergraduate", "graduate"]);
-
-function titleMatchedEvidence(title, value) {
-  const titleTerms = new Set(normalizedTitle(title).split(" ").filter((term) => term.length > 2 && !GENERIC_EVIDENCE_TITLE_TERMS.has(term)));
-  if (!titleTerms.size) return "";
-  const sentences = String(value ?? "").match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
-  const minimumMatches = Math.min(2, titleTerms.size);
-  const matchesTitle = (sentence) => {
-    const terms = new Set(normalizedTitle(sentence).split(" "));
-    return [...titleTerms].filter((term) => terms.has(term)).length >= minimumMatches;
-  };
-  const hasCompetingNamedEntity = (sentence) => {
-    const phrases = String(sentence).match(/\b(?:[A-Z][a-z]+(?:\s+|$)){2,}/g) || [];
-    return phrases.some((phrase) => phrase.split(/\s+/).filter((word) => {
-      const term = normalizedTitle(word);
-      return term.length > 2 && !GENERIC_EVIDENCE_TITLE_TERMS.has(term) && !titleTerms.has(term);
-    }).length >= 2);
-  };
-  const matched = [];
-  for (let index = 0; index < sentences.length; index += 1) {
-    if (!matchesTitle(sentences[index])) continue;
-    matched.push(sentences[index]);
-    const next = sentences[index + 1];
-    const isGenericDeadlineContinuation = next &&
-      /deadline|apply by|submit by|due by|due date|applications? (?:are )?due|applications? close|closes? on|closing date|must be submitted by/i.test(next) &&
-      !hasCompetingNamedEntity(next);
-    if (isGenericDeadlineContinuation && !matchesTitle(next)) matched.push(next);
-  }
-  return [...new Set(matched)].join(" ");
-}
-
-function parseStrictSearchDate(value) {
-  const raw = String(value ?? "").trim();
-  let year;
-  let month;
-  let day;
-  const iso = raw.match(/^(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/);
-  if (iso) {
-    year = Number(iso[1]);
-    month = Number(iso[2]);
-    day = Number(iso[3]);
-  } else {
-    const named = raw.match(/^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(20\d{2})$/i);
-    if (!named) return null;
-    const monthIndex = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(named[1].slice(0, 3).toLowerCase());
-    if (monthIndex < 0) return null;
-    year = Number(named[3]);
-    month = monthIndex + 1;
-    day = Number(named[2]);
-  }
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function extractSearchSignals(value) {
-  const text = cleanText(value, 3600);
-  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
-  const awardText = sentences.find((sentence) =>
-    /(?:\$\s?\d|\b(?:USD|CAD|EUR|GBP)\s?\d|\d[\d,]*(?:\.\d{1,2})?\s?(?:dollars|euros|pounds)\b)/i.test(sentence) &&
-    /scholarship|fellowship|grant|bursary|award|tuition/i.test(sentence) &&
-    !/application fee|processing fee|household income|family income|income limit|cost of attendance/i.test(sentence)
-  ) || null;
-  const deadlineText = sentences.find((sentence) =>
-    /deadline|apply by|submit by|due by|applications? (?:are )?due|due date|applications? close|closes? on|closing date|must be submitted by/i.test(sentence) &&
-    /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b|\b20\d{2}-\d{2}-\d{2}\b/i.test(sentence)
-  ) || null;
-  const dateText = deadlineText?.match(/\b20\d{2}-\d{2}-\d{2}\b|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b/i)?.[0];
-  const deadline = dateText ? parseStrictSearchDate(dateText) : null;
-  return { awardText: awardText ? cleanText(awardText, 280) : null, deadline, deadlineText: deadline ? cleanText(deadlineText, 280) : null };
 }
 
 function relevance(item, profile = {}) {
@@ -256,11 +185,12 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
     const consensusCountValue = Number(raw.search_consensus_count);
     const rawExcerpt = cleanText(raw.excerpt, 1800);
     const rawEvidenceExcerpt = cleanText(raw.evidence_excerpt, 3600) || rawExcerpt;
-    const evidenceExcerpt = titleMatchedEvidence(title, rawEvidenceExcerpt);
+    if (isScholarshipDirectoryLandingPage(sourceUrl, title, [rawExcerpt, rawEvidenceExcerpt].filter(Boolean).join(" "))) continue;
+    const evidenceExcerpt = matchScholarshipEvidence(title, rawEvidenceExcerpt);
     const excerpt = rawExcerpt;
-    // Re-derive structured clues only from sentences that independently match
-    // this scholarship title; never trust adjacent snippets or supplied fields.
-    const signals = extractSearchSignals(`${title}. ${evidenceExcerpt}`);
+    // Re-derive structured clues only from title-matched evidence; never trust
+    // unrelated snippets or structured clues supplied by the search provider.
+    const signals = extractScholarshipSearchSignals(`${title}. ${evidenceExcerpt}`);
     const safeAwardText = signals.awardText;
     const safeDeadlineText = signals.deadlineText;
     const safeDeadline = signals.deadline;
@@ -294,7 +224,7 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
       verification_state: "unverified_lead",
     };
 
-    const key = `${sourceUrl}|${normalizedTitle(title)}`;
+    const key = sourceUrl;
     const previous = unique.get(key);
     if (!previous) {
       unique.set(key, normalized);
@@ -305,12 +235,16 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
       ? normalized
       : previous;
     const fallback = preferred === normalized ? previous : normalized;
-    const mergedEvidence = titleMatchedEvidence(title, [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600));
+    const preferredTitle = getScholarshipTitleSpecificity(normalized.title) > getScholarshipTitleSpecificity(previous.title)
+      ? normalized.title
+      : previous.title;
+    const mergedEvidence = matchScholarshipEvidence(preferredTitle, [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600));
     const mergedExcerpt = cleanText(preferred.excerpt, 1800) || cleanText(fallback.excerpt, 1800);
-    const mergedSignals = extractSearchSignals(`${title}. ${mergedEvidence}`);
+    const mergedSignals = extractScholarshipSearchSignals(`${preferredTitle}. ${mergedEvidence}`);
     unique.set(key, {
       ...fallback,
       ...preferred,
+      title: preferredTitle,
       excerpt: mergedExcerpt,
       evidence_excerpt: mergedEvidence,
       award_text: mergedSignals.awardText,
