@@ -1,5 +1,6 @@
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import LegalAcceptanceGate from './components/LegalAcceptanceGate';
 import { AnalyticsConsentManager } from './components/AnalyticsConsentManager';
 import './index.css';
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
       <Suspense fallback={<div className="legal-gate-loading" role="status">Loading your workspace…</div>}>
         <App />
       </Suspense>
+      <Analytics />
     </LegalAcceptanceGate>
   </StrictMode>
 );
