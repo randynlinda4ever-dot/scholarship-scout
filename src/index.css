@@ -11,7 +11,7 @@ html, body, #root { margin: 0; min-width: 320px; min-height: 100%; }
 body { min-height: 100vh; background: var(--bg); color: var(--text); }
 button, input, select, textarea { font: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid #C6BDFF;
+  outline: 2px solid #D69A75;
   outline-offset: 3px;
 }
 
