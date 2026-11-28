@@ -3,6 +3,35 @@ import assert from "node:assert/strict";
 import { buildScholarshipQueries, DISCOVERY_CATEGORY_OPTIONS } from "../src/lib/discovery.js";
 import { rankAndDeduplicateLiveResults } from "../src/lib/discoveryPipeline.js";
 
+test("frontend rejects impossible calendar dates instead of normalizing them", () => {
+  const [result] = rankAndDeduplicateLiveResults([{
+    title: "Niche Student Scholarship",
+    source_url: "https://niche.example/scholarship",
+    excerpt: "Niche Student Scholarship deadline is February 30, 2026.",
+    evidence_excerpt: "Niche Student Scholarship deadline is February 30, 2026.",
+    deadline_text: "Niche Student Scholarship deadline is February 30, 2026.",
+    deadline: "2026-02-30",
+  }]);
+  assert.equal(result.deadline, null);
+  assert.equal(result.deadline_text, null);
+});
+
+test("frontend rejects award and deadline clues from unrelated neighboring snippets", () => {
+  const [result] = rankAndDeduplicateLiveResults([{
+    title: "Niche Student Scholarship",
+    source_url: "https://niche.example/scholarship",
+    excerpt: "Niche Student Scholarship offers a $5,000 award. The Texas History Essay Contest deadline is December 1, 2026.",
+    evidence_excerpt: "Niche Student Scholarship. Niche Student Scholarship offers a $5,000 award. The Texas History Essay Contest deadline is December 1, 2026.",
+    award_text: "$5,000 award",
+    deadline_text: "The Texas History Essay Contest deadline is December 1, 2026.",
+    deadline: "2026-12-01",
+  }]);
+
+  assert.match(result.award_text, /\$5,000/);
+  assert.equal(result.deadline, null);
+  assert.equal(result.deadline_text, null);
+});
+
 test("offers distinct discovery categories for leadership, language, employment, and broad awards", () => {
   const ids = new Set(DISCOVERY_CATEGORY_OPTIONS.map((item) => item.id));
   for (const id of ["local", "academic", "humanities", "leadership", "community_service", "language", "employment", "national", "general"]) {
