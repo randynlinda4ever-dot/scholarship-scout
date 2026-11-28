@@ -98,7 +98,7 @@
 .shell[data-theme="light"] .deadline-urgency-overdue { border-color: #d9aebb; background: #f8eaf0; color: #80445a; }
 .shell:not([data-theme="light"]) .status-likely-eligible,
 .shell:not([data-theme="light"]) .status-eligible,
-.shell:not([data-theme="light"]) .source-status-verified { border-color: #B8734F; background: #302d59; color: #D9D0C2; }
+.shell:not([data-theme="light"]) .source-status-verified { border-color: #B8734F; background: var(--surface-soft); color: #D9D0C2; }
 .shell:not([data-theme="light"]) .status-needs-information,
 .shell:not([data-theme="light"]) .status-rules-match-unverified,
 .shell:not([data-theme="light"]) .source-status-needs-review,
