@@ -30,8 +30,40 @@
       "destination": "/scholarship-guides/scholarships-by-major.html"
     },
     {
-      "source": "/((?!api(?:/|$)|assets/|scholarship-guides(?:/|$)|.*\\.[^/]+$).*)",
+      "source": "/((?![.]well-known(?:/|$)|api(?:/|$)|assets/|scholarship-guides(?:/|$)|.*\\.[^/]+$).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/.well-known/api-catalog",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/linkset+json; profile=\"https://www.rfc-editor.org/info/rfc9727\""
+        },
+        {
+          "key": "Link",
+          "value": "<https://scholarship-scout.org/.well-known/api-catalog>; rel=\"api-catalog\""
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://scholarship-scout.org/.well-known/api-catalog>; rel=\"api-catalog\""
+        }
+      ]
     }
   ]
 }

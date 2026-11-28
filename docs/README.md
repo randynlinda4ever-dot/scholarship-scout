@@ -25,5 +25,6 @@ These documents describe the verified implementation and distinguish current beh
 - [Backup format](backup-format.md) — envelope, crypto parameters, validation, and compensated restore process.
 - [Testing](testing.md) — unit, integration, E2E, accessibility, and performance verification.
 - [Deployment](deployment.md) — release controls, environment assumptions, and rollback.
+- [API reference](../public/api-docs.html) — deployed API contracts, authentication, data boundaries, and errors; machine-readable discovery is at `/.well-known/api-catalog`.
 - [QA report](qa-report.md) — verified findings, focused test evidence, and remaining blockers.
 - [Improvement plan](improvement-plan.md) — historical phased upgrade plan; consult the new roadmap for current priorities.

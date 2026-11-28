@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Human-readable documentation for Scholarship Scout's public scholarship discovery and authenticated account deletion APIs.">
+  <title>Scholarship Scout API Reference</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, Segoe UI, sans-serif; color: #172033; background: #f7f8fc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.6; }
+    main { max-width: 900px; margin: 0 auto; padding: 36px 22px 64px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { font-size: clamp(2rem, 5vw, 2.8rem); }
+    h2 { margin-top: 2.4rem; padding-top: 1.2rem; border-top: 1px solid #dce1ec; }
+    h3 { margin-bottom: .4rem; }
+    p, li { max-width: 78ch; }
+    a { color: #174ea6; overflow-wrap: anywhere; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    pre { padding: 16px; overflow-x: auto; border-radius: 10px; background: #111b2f; color: #f0f4ff; }
+    .lead, .note { padding: 14px 16px; border-radius: 10px; background: #eaf0fb; }
+    .method { display: inline-block; padding: 2px 8px; border-radius: 5px; background: #dff4e8; color: #145c35; font-weight: 750; }
+    .warning { background: #fff3da; }
+  </style>
+</head>
+<body>
+<main>
+  <p><a href="/">Scholarship Scout</a> / API reference</p>
+  <h1>Scholarship Scout API Reference</h1>
+  <p class="lead">Machine-readable contract: <a href="/api/openapi.json">OpenAPI 3.1 JSON</a>. Automated discovery entry point: <a href="/.well-known/api-catalog">RFC 9727 API catalog</a>.</p>
+  <p>This reference documents the two deployed application-owned Edge Function APIs. Supabase-managed Auth and database REST interfaces are operated by Supabase and are outside this application-owned OpenAPI document.</p>
+
+  <section id="scholarship-discovery">
+    <h2>Scholarship discovery</h2>
+    <p><span class="method">POST</span> <code>https://wjrwvempgjvoxlioodse.supabase.co/functions/v1/scholarship-discover</code></p>
+    <p>Public, rate-limited discovery. A signed-in Supabase user is not required. Include the project's browser-safe publishable key in the <code>apikey</code> header.</p>
+    <h3>Request</h3>
+    <pre>{
+  "profile": {
+    "state": "TX",
+    "graduationYear": 2027
+  },
+  "categories": ["local", "academic"]
+}</pre>
+    <p><code>state</code> must be a valid US state or territory abbreviation. <code>graduationYear</code> must be an integer from the current UTC year through nine years ahead. Select one to four distinct categories:</p>
+    <p><code>local</code>, <code>school_resources</code>, <code>regional</code>, <code>state</code>, <code>academic</code>, <code>humanities</code>, <code>leadership</code>, <code>community_service</code>, <code>language</code>, <code>employment</code>, <code>arts</code>, <code>incoming_college</code>, <code>national</code>, <code>general</code>.</p>
+    <h3>Response</h3>
+    <p>HTTP 200 returns <code>results</code>, <code>count</code>, <code>provider</code>, <code>warnings</code>, and a search <code>summary</code>. A result is an <code>unverified_lead</code>. It is not sponsor verification, eligibility confirmation, or an application submission.</p>
+    <p>HTTP 400 indicates invalid filters; 413 indicates a request body over 8 KiB; 415 indicates a non-JSON Content-Type; 429 indicates rate limiting and includes <code>Retry-After</code>; 502 indicates all upstream searches failed; 503 indicates unavailable gateway or rate-limit configuration.</p>
+    <div class="note warning"><strong>Privacy boundary:</strong> send only state, graduation year, and selected category IDs. Do not send a student's name, school, grades, class rank, test scores, activities, contact details, essays, or full profile. Discovery leads must be checked at the official sponsor source.</div>
+  </section>
+
+  <section id="account-deletion">
+    <h2>Account deletion</h2>
+    <p><span class="method">POST</span> <code>https://wjrwvempgjvoxlioodse.supabase.co/functions/v1/account-delete</code></p>
+    <p>Authenticated, destructive operation. Include both the project publishable key in <code>apikey</code> and the currently signed-in user's Supabase access token as <code>Authorization: Bearer ...</code>.</p>
+    <h3>Request</h3>
+    <pre>{
+  "confirmation": "DELETE_MY_ACCOUNT"
+}</pre>
+    <p>The server verifies the bearer token and derives the account ID from that verified user. The client cannot supply another user's ID. The server revokes refresh-token sessions before deleting the Auth user.</p>
+    <h3>Response and safety</h3>
+    <p>HTTP 200 returns <code>{"success": true}</code>. A 400 response means confirmation did not match; 401 means the session is missing or invalid; 403 means the request origin is not allowed; 413 means the body exceeded 2 KiB; 500 or 502 means deletion or session revocation could not be completed; 503 means required server configuration is unavailable.</p>
+    <div class="note warning"><strong>Irreversible:</strong> only call this endpoint after the account owner has deliberately confirmed deletion. Refresh-token sessions are revoked globally. Already-issued access-token JWTs may remain valid until their expiry, but cannot be refreshed.</div>
+  </section>
+
+  <h2>Unavailable endpoints</h2>
+  <p>The sponsor-verification function is an undeployed, disabled placeholder and is intentionally not listed as an available API. There is no public health endpoint for either listed function, so the catalog does not publish a <code>status</code> relation.</p>
+</main>
+</body>
+</html>
