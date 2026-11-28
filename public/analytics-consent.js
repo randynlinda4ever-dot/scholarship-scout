@@ -43,6 +43,7 @@
 
   let consent = readConsent();
   let gtmLoaded = false;
+  let lastPageType = null;
   let banner = null;
   let preferences = null;
   let privacyButton = null;
@@ -233,7 +234,9 @@
   }
 
   function sendPageView(pageType) {
-    if (!gtmLoaded || consent !== "granted" || !PAGE_TYPES.has(pageType)) return;
+    if (!PAGE_TYPES.has(pageType)) return;
+    lastPageType = pageType;
+    if (!gtmLoaded || consent !== "granted") return;
     window.dataLayer.push({
       event: "scout_page_view",
       page_type: pageType,
@@ -250,7 +253,7 @@
     removeBanner();
     removePreferences();
     loadGtm();
-    sendPageView(currentPageType());
+    sendPageView(lastPageType || currentPageType());
     addPrivacyLink();
     privacyButton.hidden = false;
   }
