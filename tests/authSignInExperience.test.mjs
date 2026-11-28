@@ -9,12 +9,13 @@ import {
 } from "../src/lib/authCooldown.js";
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
-const [app, home, api, client, bootstrap] = await Promise.all([
+const [app, home, api, client, bootstrap, accountGate] = await Promise.all([
   read("src/App.tsx"),
   read("src/features/home/StartHomePage.tsx"),
   read("src/lib/scholarshipApi.ts"),
   read("src/lib/supabaseClient.ts"),
   read("src/bootstrap.ts"),
+  read("src/features/home/AccountStartGate.tsx"),
 ]);
 
 test("email cooldown counts down and never becomes negative", () => {
@@ -66,4 +67,13 @@ test("sign-in uses the app frame origin and isolated encrypted auth storage", ()
   assert.ok(!api.includes("SCHOLARSHIP_SCOUT_AUTH_REDIRECT_URL"));
   assert.ok(client.includes("detectSessionInUrl: true"));
   assert.ok(client.includes("storage: secureAuthStorage"));
+});
+
+
+test("account sign-in is not rendered until the stored session lookup completes", () => {
+  const gateRender = accountGate.slice(accountGate.lastIndexOf("  return ("));
+  assert.ok(gateRender.indexOf("if (!authReady)") >= 0);
+  assert.ok(gateRender.indexOf("if (!authReady)") < gateRender.indexOf("<StartHomePage"));
+  assert.match(gateRender, /account-session-loading/);
+  assert.match(app, /if \(!cloudAuthReady\) return \([\s\S]*account-session-loading/);
 });
