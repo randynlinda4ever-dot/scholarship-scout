@@ -279,7 +279,7 @@ function renderLegalGate(): void {
   const header = element("header", "legal-preflight-header");
   const brand = element("div", "legal-preflight-brand");
   const brandMark = element("img", "legal-preflight-mark");
-  brandMark.setAttribute("src", "/favicon.svg");
+  brandMark.setAttribute("src", "/brand/scholarship-scout-logo.png");
   brandMark.alt = "";
   brandMark.setAttribute("aria-hidden", "true");
   brand.append(brandMark);

@@ -4,12 +4,13 @@ type BrandMarkProps = {
 
 export function BrandMark({ className }: BrandMarkProps) {
   return (
-    <span
+    <img
       className={className}
+      src="/brand/scholarship-scout-logo.png"
+      alt=""
       aria-hidden="true"
-      data-brand-symbol="placeholder-s"
-    >
-      S
-    </span>
+      data-brand-symbol="graduation-hands"
+      decoding="async"
+    />
   );
 }
