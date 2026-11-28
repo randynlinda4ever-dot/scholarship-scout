@@ -174,8 +174,8 @@ test("guest workspace supports real navigation, profile edits, tracker validatio
       const addButtons = ui.getAllByRole("button", { name: /add scholarship/i });
       await user.click(addButtons[0]);
       const dialog = ui.getByRole("dialog", { name: "Add scholarship rules" });
-      const name = within(dialog).getByRole("textbox", { name: "Scholarship name *" });
-      const provider = within(dialog).getByRole("textbox", { name: "Provider *" });
+      const name = within(dialog).getByRole("textbox", { name: /Scholarship name/ });
+      const provider = within(dialog).getByRole("textbox", { name: /Provider/ });
       const form = document.getElementById("scholarship-editor-form");
       const save = within(dialog).getByRole("button", { name: "Save & check eligibility" });
 
