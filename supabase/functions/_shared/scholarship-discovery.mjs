@@ -16,6 +16,13 @@ const MAX_TOTAL_SEARCH_BUDGET_MS = 22_000;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 import { normalizeUsState, stateMatchesText } from "./us-states.mjs";
 import { createPublicRateLimiter } from "./discovery-rate-limit.mjs";
+import {
+  extractScholarshipSearchSignals,
+  getScholarshipTitleSpecificity,
+  isScholarshipDirectoryLandingPage,
+  matchScholarshipEvidence,
+} from "./search-snippet-evidence.mjs";
+export { extractScholarshipSearchSignals } from "./search-snippet-evidence.mjs";
 export { createPublicRateLimiter, createUpstashRateLimiter, getPublicClientAddress } from "./discovery-rate-limit.mjs";
 export const ALLOWED_CATEGORIES = Object.freeze([
   "local", "school_resources", "regional", "state", "academic", "humanities",
@@ -130,45 +137,6 @@ export function canonicalizeUrl(value) {
   if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
   return url.href;
 }
-function isScholarshipDirectoryLandingUrl(value, title = "") {
-  try {
-    const pathSegments = new URL(value).pathname.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment).toLowerCase());
-    const explicitDirectoryPath = pathSegments.some((segment) => [
-      "scholarship-directory", "scholarships-directory", "scholarship-search",
-      "scholarship-list", "scholarship-listings", "scholarship-database",
-      "scholarships-by-state", "scholarship-by-state", "scholarships-by-major",
-    ].includes(segment));
-    if (explicitDirectoryPath) return true;
-    const scholarshipSegmentIndex = pathSegments.findIndex((segment) => /^scholarships?$/.test(segment));
-    if (scholarshipSegmentIndex >= 0) {
-      const trailingSegments = pathSegments.slice(scholarshipSegmentIndex + 1);
-      if (trailingSegments.some((segment) => /^for-[a-z-]+-students?$/.test(segment))) return true;
-      if (trailingSegments.length === 1 && normalizeUsState(trailingSegments[0])) return true;
-      if (new URL(value).searchParams.has("state")) return true;
-    }
-    const titleText = String(title ?? "").trim();
-    const stateIndexTitle = titleText.match(/^(.+?)\s+scholarships\b/i);
-    if (stateIndexTitle && normalizeUsState(stateIndexTitle[1])) return true;
-    if (/^(?:alphabetical\s+)?(?:index|directory|list|database|catalog(?:ue)?)\b.*\bscholarships?\b/i.test(titleText)) return true;
-    if (/^(?:(?:\d[\d,]*\+?)\s+(?:(?:best|top)\s+)?|(?:best|top)\s+(?:\d+\s+)?)(?:[a-z0-9&,'’-]+\s+){0,6}(?:scholarships?|grants?|fellowships?)\b/i.test(titleText)) return true;
-    if (/^(?:list of|browse|all)\s+(?:\d+\s+)?(?:[a-z0-9&,'’-]+\s+){0,5}(?:scholarships?|grants?|fellowships?)\b/i.test(titleText)) return true;
-
-    const genericTitleTerms = new Set([
-      "scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards",
-      "student", "students", "high", "school", "senior", "seniors", "class", "college", "undergraduate", "graduate",
-      "for", "and", "the", "of", "to", "in", "at", "all", "browse", "find", "available", "search", "directory", "listing", "listings",
-    ]);
-    const normalizedTitle = normalizeTitle(title);
-    const hasOpportunityTerm = /\b(?:scholarships?|fellowships?|grants?|awards?)\b/.test(normalizedTitle);
-    const hasSpecificTitleTerm = normalizedTitle.split(" ").some((term) => term.length > 2 && !genericTitleTerms.has(term) && !/^\d+$/.test(term));
-    const broadAudiencePath = pathSegments.some((segment) => [
-      "high-school", "high-school-senior", "high-school-seniors", "college-student", "college-students",
-      "undergraduate", "undergraduates", "graduate-student", "graduate-students", "students",
-    ].includes(segment));
-    return hasOpportunityTerm && !hasSpecificTitleTerm && broadAudiencePath;
-  } catch { return true; }
-}
-
 export function normalizeTitle(value) {
   return clean(value, 220).normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
@@ -335,7 +303,7 @@ function countQualityCategoryResults(outcomes, category, state = "", graduationY
     if (!outcome.ok || outcome.job.category !== category) continue;
     for (const item of outcome.results) {
       const title = clean(item?.title, 220);
-      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url, item.title)) continue;
+      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingPage(item.url, title, item?.content ?? item?.snippet ?? item?.description)) continue;
       try {
         const url = canonicalizeUrl(item.url);
         const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
@@ -362,15 +330,16 @@ export function calculateReciprocalRankFusion(rankings, { rankConstant = RRF_RAN
     for (let index = 0; index < ranking.length; index += 1) {
       const item = ranking[index];
       const title = clean(item?.title, 220);
-      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url, item.title)) continue;
+      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingPage(item.url, title, item?.content ?? item?.snippet ?? item?.description)) continue;
       let url;
       try { url = canonicalizeUrl(item.url); } catch { continue; }
-      const key = `${url}|${normalizeTitle(title)}`;
+      const key = url;
       if (seen.has(key)) continue;
       seen.add(key);
       const requestedRank = Number(item?.rank);
       const rank = Number.isSafeInteger(requestedRank) && requestedRank > 0 ? requestedRank : index + 1;
       const entry = fused.get(key) ?? { url, title, score: 0, appearances: 0 };
+      if (getScholarshipTitleSpecificity(title) > getScholarshipTitleSpecificity(entry.title)) entry.title = title;
       entry.score += 1 / (constant + rank);
       entry.appearances += 1;
       fused.set(key, entry);
@@ -475,81 +444,6 @@ export function createDiscoveryResultCache({
     clear() { entries.clear(); },
   };
 }
-const MONTHS = Object.freeze({
-  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
-});
-
-function validCalendarDate(year, month, day) {
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-}
-
-function explicitDateIn(text) {
-  const iso = text.match(/\b(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b/);
-  const monthName = text.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?[,]?\s+(20\d{2})\b/i);
-  const matches = [iso, monthName].filter(Boolean);
-  if (matches.length !== 1) return null;
-  const year = Number(iso ? iso[1] : monthName[3]);
-  const month = iso ? Number(iso[2]) : MONTHS[monthName[1].toLowerCase()];
-  const day = Number(iso ? iso[3] : monthName[2]);
-  if (!validCalendarDate(year, month, day)) return null;
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/**
- * Extract only verbatim clues present in a search-result title/snippet.
- * These values are discovery hints, never sponsor verification or inferred facts.
- */
-export function extractScholarshipSearchSignals(value) {
-  const text = clean(value, 1800);
-  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
-  const awardSentence = sentences.find((sentence) =>
-    /(?:\$\s?\d|\b(?:USD|CAD|EUR|GBP)\s?\d|\d[\d,]*(?:\.\d{1,2})?\s?(?:dollars|euros|pounds)\b)/i.test(sentence) &&
-    /scholarship|fellowship|grant|bursary|award|tuition/i.test(sentence) &&
-    !/application fee|processing fee|household income|family income|income limit|cost of attendance/i.test(sentence)
-  ) || null;
-  const deadlineSentence = sentences.find((sentence) =>
-    /deadline|apply by|submit by|due by|applications? (?:are )?due|due date|applications? close|closes? on|closing date|must be submitted by/i.test(sentence) &&
-    explicitDateIn(sentence)
-  ) || null;
-  return {
-    awardText: awardSentence ? clean(awardSentence, 280) : null,
-    deadline: deadlineSentence ? explicitDateIn(deadlineSentence) : null,
-    deadlineText: deadlineSentence ? clean(deadlineSentence, 280) : null,
-    deadlineNotPublished: false,
-  };
-}
-
-const GENERIC_SCHOLARSHIP_TITLE_TERMS = new Set(["scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards", "student", "students", "high", "school", "senior", "seniors", "class", "college", "undergraduate", "graduate"]);
-function getTitleMatchedSnippet(title, excerpt) {
-  const titleTerms = new Set(normalizeTitle(title).split(" ").filter((term) => term.length > 2 && !GENERIC_SCHOLARSHIP_TITLE_TERMS.has(term)));
-  if (!titleTerms.size) return "";
-  const sentences = String(excerpt ?? "").match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
-  const minimumMatches = Math.min(2, titleTerms.size);
-  const matchesTitle = (sentence) => {
-    const terms = new Set(normalizeTitle(sentence).split(" "));
-    return [...titleTerms].filter((term) => terms.has(term)).length >= minimumMatches;
-  };
-  const hasCompetingNamedEntity = (sentence) => {
-    const phrases = String(sentence).match(/\b(?:[A-Z][a-z]+(?:\s+|$)){2,}/g) ?? [];
-    return phrases.some((phrase) => phrase.split(/\s+/).filter((word) => {
-      const term = normalizeTitle(word);
-      return term.length > 2 && !GENERIC_SCHOLARSHIP_TITLE_TERMS.has(term) && !titleTerms.has(term);
-    }).length >= 2);
-  };
-  const matched = [];
-  for (let index = 0; index < sentences.length; index += 1) {
-    if (!matchesTitle(sentences[index])) continue;
-    matched.push(sentences[index]);
-    const next = sentences[index + 1];
-    const isGenericDeadlineContinuation = next &&
-      /deadline|apply by|submit by|due by|due date|applications? (?:are )?due|applications? close|closes? on|closing date|must be submitted by/i.test(next) &&
-      !hasCompetingNamedEntity(next);
-    if (isGenericDeadlineContinuation && !matchesTitle(next)) matched.push(next);
-  }
-  return [...new Set(matched)].join(" ");
-}
 export function normalizeAndRankResults(outcomes, discoveredAt, state, graduationYear, { randomUUID = () => crypto.randomUUID() } = {}) {
   const unique = new Map();
   const rankingsByPath = new Map();
@@ -566,7 +460,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
     for (let resultIndex = 0; resultIndex < outcome.results.length; resultIndex += 1) {
       const item = outcome.results[resultIndex];
       rawResultCount += 1;
-      if (!isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url, item.title)) continue;
+      if (!isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingPage(item.url, item.title, item?.content ?? item?.snippet ?? item?.description)) continue;
 
       const title = clean(item.title, 220);
       if (!title) continue;
@@ -597,7 +491,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
         published_at: clean(item.publishedDate ?? item.published_at ?? item.publishedAt, 80) || null,
         search_engine: "searxng",
       };
-      const key = `${normalizedUrl}|${normalizeTitle(title)}`;
+      const key = normalizedUrl;
       const previous = unique.get(key);
       if (!previous) {
         unique.set(key, normalized);
@@ -606,11 +500,16 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
 
       const preferred = excerpt.length > String(previous.excerpt ?? "").length ? normalized : previous;
       const fallback = preferred === normalized ? previous : normalized;
+      const preferredTitle = getScholarshipTitleSpecificity(normalized.title) > getScholarshipTitleSpecificity(previous.title)
+        ? normalized.title
+        : previous.title;
+      const mergedEvidence = matchScholarshipEvidence(preferredTitle, [previous.excerpt, normalized.excerpt].filter(Boolean).join(" "));
       unique.set(key, {
         ...fallback,
         ...preferred,
-        excerpt: preferred.excerpt || fallback.excerpt || "",
-        evidence_excerpt: preferred.excerpt || fallback.excerpt || "",
+        title: preferredTitle,
+        excerpt: mergedEvidence || preferred.excerpt || fallback.excerpt || "",
+        evidence_excerpt: mergedEvidence,
         discovery_category: String(preferred.discovery_category || fallback.discovery_category),
         discovery_categories: [...new Set([...(previous.discovery_categories || []), category])],
         discovery_queries: [...new Set([...(previous.discovery_queries || []), outcome.job.query])],
@@ -625,21 +524,18 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
   // helper deduplicates within each list so a repeated page-two URL cannot
   // cast a second vote for the same query.
   const fused = calculateReciprocalRankFusion([...rankingsByPath.values()]);
-  const fusedByKey = new Map(fused.map((item) => [
-    `${item.url}|${normalizeTitle(item.title)}`,
-    item,
-  ]));
+  const fusedByKey = new Map(fused.map((item) => [item.url, item]));
   const bestRankByKey = new Map();
   for (const ranking of rankingsByPath.values()) {
     for (const item of ranking) {
-      const key = `${item.url}|${normalizeTitle(item.title)}`;
+      const key = item.url;
       const current = bestRankByKey.get(key);
       if (!current || item.rank < current) bestRankByKey.set(key, item.rank);
     }
   }
 
   const ranked = [...unique.values()].map((item) => {
-    const key = `${item.source_url}|${normalizeTitle(item.title)}`;
+    const key = item.source_url;
     const consensus = fusedByKey.get(key);
     const consensusScore = consensus?.consensusScore ?? 0;
     const consensusCount = consensus?.appearances ?? 0;
