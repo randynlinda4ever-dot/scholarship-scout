@@ -55,14 +55,14 @@ test('fills only blank known fields and preserves user-entered values', () => {
 });
 
 test('ignores unknown keys, prototype-like keys, invalid values, and non-string data', () => {
-  const result = mergeExtractedProfileDetails({}, {
-    __proto__: 'unsafe',
-    constructor: 'unsafe',
-    citizenship: 'US citizen',
-    gpa: 'not a number',
-    act: '99',
-    school: { value: 'Injected school' },
-  });
+  const result = mergeExtractedProfileDetails({}, Object.fromEntries([
+    ['__proto__', 'unsafe'],
+    ['constructor', 'unsafe'],
+    ['citizenship', 'US citizen'],
+    ['gpa', 'not a number'],
+    ['act', '99'],
+    ['school', { value: 'Injected school' }],
+  ]));
   assert.deepEqual(result, {});
   assert.equal(Object.prototype.polluted, undefined);
 });
