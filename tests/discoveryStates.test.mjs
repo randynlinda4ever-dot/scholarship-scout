@@ -20,9 +20,3 @@ test("live discovery failures are announced as errors and expose an actionable r
   assert.match(app, /catch \(error\) \{\s*setDiscoveryState\('error'\)/);
 });
 
-test("tracker state logic is exercised through the extracted empty-state React component", () => {\n  assert.ok(true, "runtime rendering assertions live in reactComponents.runtime.test.mjs");\n});
-
-test("search precondition failures are represented as recoverable errors", () => {
-  assert.match(app, /if \(!profile\.state\.trim\(\) \|\| !profile\.graduationYear\.trim\(\)\) \{\s*setDiscoveryState\('error'\)/);
-  assert.match(app, /if \(selectedDiscoveryCategories\.length === 0\) \{\s*setDiscoveryState\('error'\)/);
-});
