@@ -1,4 +1,4 @@
-export const LEGAL_ACCEPTANCE_VERSION = "2026-11-28.8";
+export const LEGAL_ACCEPTANCE_VERSION = "2026-11-28.10";
 export const LEGAL_ACCEPTANCE_STORAGE_KEY = "scholarship-scout.legal-acceptance";
 
 /**

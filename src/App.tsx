@@ -168,6 +168,24 @@ const formatDeadlineTime = (value?: string) => {
   return `${hour % 12 || 12}:${match[2]} ${hour < 12 ? 'AM' : 'PM'}`;
 };
 const googleSearch = (query: string) => `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+
+function trackAnalyticsPageView(tab: string): void {
+  const pageTypes: Record<string, string> = {
+    Overview: 'overview',
+    Discovery: 'discovery',
+    'Cloud Search': 'cloud_search',
+    Scholarships: 'scholarships',
+    'Application prep': 'application_prep',
+    Resources: 'resources',
+    'Eligibility filters': 'profile',
+    Settings: 'settings',
+  };
+  const pageType = pageTypes[tab];
+  if (!pageType) return;
+  window.dispatchEvent(new CustomEvent('scholarship-scout:page-view', {
+    detail: { pageType },
+  }));
+}
 const createWorkspaceItemId = () => `workspace-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 function App() {
@@ -186,6 +204,9 @@ function App() {
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ scholarshipScoutTab: tab }, "", targetPath);
     }
+  }, [tab]);
+  useEffect(() => {
+    trackAnalyticsPageView(tab);
   }, [tab]);
   useEffect(() => {
     const path = workspaceTabToPath(tab);
@@ -1732,6 +1753,10 @@ function App() {
         <section className="panel settings-section">
           <div className="panel-heading"><div><h3>Legal & privacy</h3><p className="muted">Read the current Terms of Service and full Privacy Notice, including data handling and service limitations.</p></div><span className="source-tag">LEGAL</span></div>
           <button type="button" className="secondary" onClick={() => window.dispatchEvent(new Event('scholarship-scout:review-legal'))}>Review Terms of Service & Privacy Notice</button>
+        </section>
+        <section className="panel settings-section" aria-labelledby="analytics-privacy-title">
+          <div className="panel-heading"><div><h3 id="analytics-privacy-title">Optional site analytics</h3><p className="muted">Analytics is off until you explicitly enable it. Only broad page categories are measured; student profile, eligibility, scholarship search, form, and account details are excluded. Advertising and ad personalization remain disabled.</p></div><span className="source-tag">OPTIONAL</span></div>
+          <button type="button" className="secondary" onClick={() => window.dispatchEvent(new Event('scholarship-scout:manage-analytics'))}>Manage analytics privacy choices</button>
         </section>
         <section className="panel settings-section">
           <div className="panel-heading"><div><h3>Connected account</h3><p className="muted">Your account is required to enter the workspace. Student profile, tracker, essays, and Resources work remain encrypted in this browser.</p></div><span className="status status-eligible">SIGNED IN</span></div>
