@@ -29,7 +29,11 @@ test("unauthenticated visitors are gated; explicit guest mode is a separate opt-
     read("src/App.tsx"), read("src/bootstrap.ts"),
   ]);
   assert.match(app, /const \[cloudAuthReady, setCloudAuthReady\] = useState\(false\)/);
-  assert.ok(app.includes("if (!cloudAuthReady || (!cloudUser && !guestMode) || cloudUser?.is_anonymous)"));
+  assert.ok(app.includes("if (!cloudAuthReady)"));
+  assert.ok(app.includes("if ((!cloudUser && !guestMode) || cloudUser?.is_anonymous)"));
+  const authLoadingGate = app.slice(app.indexOf("if (!cloudAuthReady)"), app.indexOf("if ((!cloudUser"));
+  assert.match(authLoadingGate, /account-session-loading/);
+  assert.doesNotMatch(authLoadingGate, /StartHomePage/);
   assert.ok(app.includes("<StartHomePage"));
   assert.ok(app.includes("setCloudAuthReady(true)"));
   assert.ok(bootstrap.includes("onContinueGuest"));
