@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readActiveAppStyles } from "./helpers/readActiveAppStyles.mjs";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const STATUS = "Rules match — source unverified";
@@ -11,7 +12,7 @@ test("eligibility, summary, App status mapping, CSS, and tests share one exact s
     read("src/eligibility.js"),
     read("src/lib/eligibilitySummary.js"),
     read("src/App.tsx"),
-    read("src/App.css"),
+    readActiveAppStyles(),
   ]);
 
   assert.ok(eligibility.includes(`status = "${STATUS}"`));
