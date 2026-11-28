@@ -1,22 +1,23 @@
-/* Scholarship Scout — Field Notes design system */
+/* Scholarship Scout ΓÇö Midnight Violet design system */
 :root {
-  color-scheme: light;
-  --bg: #f4f1e8;
-  --sidebar: #e9e6da;
-  --surface: #fffdf7;
-  --surface-raised: #f7f4eb;
-  --surface-soft: #eeeadd;
-  --line: #d9d4c5;
-  --line-strong: #b8b29f;
-  --text: #202b24;
-  --text-soft: #455449;
-  --muted: #626f64;
-  --accent: #365b49;
-  --accent-strong: #795b2e;
-  --accent-ink: #fffdf7;
-  --warning: #80551f;
-  --danger: #9a4137;
-  --success: #315f47;
+  color-scheme: dark;
+  --bg: #080e1f;
+  --sidebar: #0c1630;
+  --surface: #121f3e;
+  --surface-raised: #1a2b50;
+  --surface-soft: #23365f;
+  --line: #30446f;
+  --line-strong: #52699a;
+  --text: #f5f4ff;
+  --text-soft: #d7d9f0;
+  --muted: #a1aac9;
+  --accent: #9c91ff;
+  --accent-strong: #c6bdff;
+  --accent-ink: #17152f;
+  --warning: #e8bd79;
+  --danger: #e7a4b5;
+  --success: #b5b1ff;
+  --editorial-display: 'Source Serif 4', Georgia, serif;
   --radius: 10px;
   font-family: 'DM Sans', system-ui, sans-serif;
   background: var(--bg);
@@ -24,46 +25,27 @@
 }
 html { background: var(--bg); scroll-behavior: smooth; }
 body { background: var(--bg); color: var(--text); }
-::selection { background: #c9d5c1; color: #1c3025; }
-:focus-visible { outline-color: #9a713b !important; }
-.shell { --shadow-soft: 0 8px 24px rgba(39,48,38,.055); background: var(--bg); color: var(--text); }
-.shell:not([data-theme="light"]) {
-  color-scheme: dark;
-  --bg: #151e19;
-  --sidebar: #1b2921;
-  --surface: #202e25;
-  --surface-raised: #29392f;
-  --surface-soft: #34463a;
-  --line: #405246;
-  --line-strong: #627565;
-  --text: #f0eee5;
-  --text-soft: #d1d7cb;
-  --muted: #aeb9aa;
-  --accent: #b7c69a;
-  --accent-strong: #e0c27f;
-  --accent-ink: #1d2a20;
-  --warning: #e0c27f;
-  --danger: #e29b8d;
-  --success: #a9c8a9;
-}
+::selection { background: #d8d3ff; color: #241e56; }
+:focus-visible { outline-color: #9c91ff !important; }
+.shell { --shadow-soft: 0 8px 24px rgba(5,10,28,.24); background: var(--bg); color: var(--text); }
 .shell[data-theme="light"] {
   color-scheme: light;
-  --bg: #f4f1e8;
-  --sidebar: #e9e6da;
-  --surface: #fffdf7;
-  --surface-raised: #f7f4eb;
-  --surface-soft: #eeeadd;
-  --line: #d9d4c5;
-  --line-strong: #b8b29f;
-  --text: #202b24;
-  --text-soft: #455449;
-  --muted: #626f64;
-  --accent: #365b49;
-  --accent-strong: #795b2e;
-  --accent-ink: #fffdf7;
-  --warning: #80551f;
-  --danger: #9a4137;
-  --success: #315f47;
+  --bg: #f2f4fc;
+  --sidebar: #e8ebf8;
+  --surface: #ffffff;
+  --surface-raised: #f7f8fe;
+  --surface-soft: #e9edfa;
+  --line: #d9def0;
+  --line-strong: #aeb9da;
+  --text: #20253d;
+  --text-soft: #454d6b;
+  --muted: #56617c;
+  --accent: #6556c8;
+  --accent-strong: #5143a8;
+  --accent-ink: #ffffff;
+  --warning: #875d22;
+  --danger: #93495f;
+  --success: #594dc0;
 }
 h1, h2 { font-family: 'Source Serif 4', Georgia, serif; font-weight: 500; letter-spacing: -.025em; }
 h1 { font-size: clamp(32px, 3.2vw, 44px); line-height: 1.06; }
@@ -88,20 +70,23 @@ p { max-width: 72ch; }
 .sidebar .nav-group { gap: 4px; }
 .sidebar .nav-group-title { height: auto; padding: 0 10px 7px; color: var(--muted); }
 .sidebar .nav-item { min-height: 44px; gap: 10px; padding: 7px 9px; border-radius: 8px; }
-.sidebar .nav-item.active { border-color: transparent; background: #dce5d8; color: #203b2c; box-shadow: inset 3px 0 #456c52; }
-.sidebar .nav-item.active .nav-copy small { color: #4b6450; }
+.sidebar .nav-item.active { border-color: #655bb2; background: #2a2857; color: #eeecff; box-shadow: inset 3px 0 #a99bff; }
+.sidebar .nav-item.active .nav-copy small { color: #dcd7ff; }
 .sidebar .nav-icon { width: 30px; height: 30px; background: transparent; color: var(--text-soft); }
-.sidebar .nav-item.active .nav-icon { background: transparent; color: #365b49; }
+.sidebar .nav-item.active .nav-icon { background: transparent; color: var(--accent-strong); }
+.shell[data-theme="light"] .sidebar .nav-item.active { border-color: #c4c0f2; background: #e4e5fb; color: #2d2858; box-shadow: inset 3px 0 #7669d1; }
+.shell[data-theme="light"] .sidebar .nav-item.active .nav-copy small { color: #51478d; }
+.shell[data-theme="light"] .sidebar .nav-item.active .nav-icon { color: #5143a8; }
 .sidebar .side-bottom { display: grid; }
 .sidebar .secure { background: var(--surface); border-color: var(--line); }
-.sidebar-hover-indicator { display: none; }
+
 .main { min-width: 0; }
 .topbar { min-height: 62px; padding: 10px clamp(22px, 4vw, 54px); background: color-mix(in srgb, var(--bg) 94%, transparent); border-color: var(--line); backdrop-filter: none; }
 .breadcrumb-root { color: var(--muted); }
 .page { width: min(100%, 1400px); padding: 38px clamp(22px, 4vw, 56px) 54px; }
 .welcome, .page-heading { align-items: flex-end; margin-bottom: 30px; }
 .welcome p, .page-heading p { color: var(--muted); font-size: 14px; }
-.eyebrow { color: var(--accent-strong); letter-spacing: .12em; }
+.eyebrow { color: var(--accent); letter-spacing: .12em; }
 .primary, .secondary, .text-button { min-height: 42px; border-radius: 7px; font-size: 12px; }
 .primary { background: var(--accent); color: var(--accent-ink); }
 .primary:hover { background: color-mix(in srgb, var(--accent) 84%, black); }
@@ -124,13 +109,13 @@ p { max-width: 72ch; }
   border-color: var(--line); border-radius: 5px; background: var(--surface-soft); color: var(--text-soft);
 }
 .status-likely-eligible, .status-eligible, .source-status-verified {
-  border-color: #9bb59a; background: #e7efe2; color: #31583b;
+  border-color: #7168b7; background: #302d59; color: #ddd9ff;
 }
 .status-needs-information, .source-status-needs-review, .deadline-urgency-today, .deadline-urgency-due-soon {
-  border-color: #d7bd87; background: #f7efd9; color: #76501e;
+  border-color: #78633c; background: #433a28; color: #f0d69a;
 }
 .status-not-eligible, .source-status-expired, .deadline-urgency-overdue {
-  border-color: #d1aaa0; background: #f5e9e5; color: #80453d;
+  border-color: #80546a; background: #422b40; color: #efc0d5;
 }
 .candidate-card, .cloud-result-card, .source-card, .search-card { padding: 19px; }
 .candidate-card h3, .cloud-result-card h3 { font-size: 16px; line-height: 1.35; }
@@ -139,10 +124,9 @@ p { max-width: 72ch; }
 .candidate-match, .cloud-result-meta { border-color: var(--line); background: var(--surface-raised); }
 .table-card { border-radius: 9px; }
 .table-title { padding: 18px 20px; }
-th { background: var(--surface-soft); color: var(--muted); font-size: 10px; }
+th { background: var(--surface-soft); color: var(--muted); font-size: 11px; }
 td { color: var(--text-soft); font-size: 12px; }
 td b { color: var(--text); font-size: 12px; }
-tbody tr:hover { background: var(--surface-raised); }
 .form-section { padding: 22px; border-color: var(--line); }
 .field { color: var(--text-soft); font-size: 12px; }
 .field input, .field select, .field textarea, .toolbar input, .toolbar select,
@@ -189,21 +173,3 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 380px) {
   .page { padding-right: 12px; padding-left: 12px; }
 }
-/* Keep navigation labels stacked when the desktop rail is expanded. */
-@media (min-width: 821px) {
-  .sidebar .nav-copy { display: grid !important; flex: 1 1 auto; min-width: 0; gap: 3px; }
-  .sidebar .nav-copy b, .sidebar .nav-copy small {
-    display: block !important; max-width: 100%; white-space: normal; overflow-wrap: anywhere;
-  }
-}
-/* A 320px layout viewport can be narrower after a classic scrollbar is reserved. */
-@media (max-width: 380px) {
-  html, body, #root { min-width: 0; width: 100%; }
-  .shell, .sidebar, .main, .page { width: 100%; min-width: 0; }
-  .sidebar .logo > span:last-child { min-width: 0; }
-  .welcome { min-width: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
-}
-

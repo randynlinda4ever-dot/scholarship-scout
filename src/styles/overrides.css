@@ -1,0 +1,215 @@
+/* Keep navigation labels stacked when the desktop rail is expanded. */
+@media (min-width: 821px) {
+  .sidebar .nav-copy { display: grid !important; flex: 1 1 auto; min-width: 0; gap: 3px; }
+  .sidebar .nav-copy b, .sidebar .nav-copy small {
+    display: block !important; max-width: 100%; white-space: normal; overflow-wrap: anywhere;
+  }
+}
+/* A 320px layout viewport can be narrower after a classic scrollbar is reserved. */
+@media (max-width: 380px) {
+  html, body, #root { min-width: 0; width: 100%; }
+  .shell, .sidebar, .main, .page { width: 100%; min-width: 0; }
+  .sidebar .logo > span:last-child { min-width: 0; }
+  .welcome { min-width: 0; }
+}
+@media (max-width: 620px) {
+  .prep-add-form input:not([type="checkbox"]) { min-height: 44px; font-size: 16px; }
+  .close { min-width: 44px; min-height: 44px; }
+  .text-button { min-height: 44px; }
+  .compact-toggle { min-height: 44px; }
+  .tracker-open { display: inline-flex; min-height: 44px; align-items: center; }
+}
+@media (max-width: 380px) {
+  .application-pipeline-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+/* Desktop navigation changes only on explicit toggle; hover never changes rail geometry. */
+.sidebar-collapse-toggle { display: none; }
+@media (min-width: 821px) {
+  .sidebar,
+  .sidebar:hover,
+  .sidebar:focus-within {
+    flex: 0 0 258px;
+    width: 258px;
+    min-width: 258px;
+    padding: 25px 16px 18px;
+    transition: none;
+  }
+  .sidebar.is-collapsed,
+  .sidebar.is-collapsed:hover,
+  .sidebar.is-collapsed:focus-within {
+    flex: 0 0 76px;
+    width: 76px;
+    min-width: 76px;
+    padding: 18px 10px;
+  }
+  .sidebar-header {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .sidebar .logo {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-start;
+    gap: 9px;
+    padding: 3px 0 25px;
+    white-space: normal;
+  }
+  .sidebar .logo > span:last-child {
+    min-width: 0;
+    white-space: normal;
+  }
+  .sidebar-collapse-toggle {
+    display: inline-flex;
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface-raised);
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .sidebar-collapse-toggle:hover {
+    border-color: var(--accent);
+    background: var(--surface-soft);
+  }
+  .sidebar:not(.is-collapsed) .logo > span:last-child,
+  .sidebar:not(.is-collapsed) .workspace-label,
+  .sidebar:not(.is-collapsed) .nav-group-title,
+  .sidebar:not(.is-collapsed) .nav-copy,
+  .sidebar:not(.is-collapsed) .nav-count,
+  .sidebar:not(.is-collapsed) .secure > div,
+  .sidebar:not(.is-collapsed) .version {
+    display: initial !important;
+    max-width: none !important;
+    max-height: none !important;
+    height: auto !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+    transition: none !important;
+  }
+  .sidebar:not(.is-collapsed) .workspace-label {
+    display: flex !important;
+    margin: 4px 8px 18px !important;
+  }
+  .sidebar:not(.is-collapsed) .side-bottom { display: grid !important; }
+  .sidebar:not(.is-collapsed) .nav-group-title { height: auto !important; padding: 0 10px 7px !important; }
+  .sidebar:not(.is-collapsed) .nav-item { justify-content: flex-start !important; gap: 10px !important; padding: 7px 9px !important; }
+  .sidebar:not(.is-collapsed) .nav-icon { margin-inline: 0 !important; }
+
+  .sidebar.is-collapsed .sidebar-header {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+  .sidebar.is-collapsed .sidebar-collapse-toggle { order: -1; }
+  .sidebar.is-collapsed .logo {
+    flex: 0 0 auto;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+  }
+  .sidebar.is-collapsed .logo > span:last-child,
+  .sidebar.is-collapsed .workspace-label,
+  .sidebar.is-collapsed .nav-group-title,
+  .sidebar.is-collapsed .nav-copy,
+  .sidebar.is-collapsed .nav-count,
+  .sidebar.is-collapsed .side-bottom {
+    display: none !important;
+  }
+  .sidebar.is-collapsed .primary-nav { gap: 12px; }
+  .sidebar.is-collapsed .nav-group { gap: 8px; }
+  .sidebar.is-collapsed .nav-item { justify-content: center; gap: 0; padding: 8px 4px; }
+  .sidebar.is-collapsed .nav-icon { margin-inline: auto; }
+}
+
+/* Shared in-page navigation for related workflows. */
+.workspace-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: -8px 0 22px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.workspace-subnav button {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.workspace-subnav button.is-active {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.workspace-subnav button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 620px) {
+  .workspace-subnav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .workspace-subnav button {
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+}
+
+
+/* My Scholarships editor: explicit field groups and a two-step destructive action. */
+.tracker-editor-fields { align-items: start; }
+.tracker-editor-section { grid-column: 1 / -1; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.tracker-editor-section + .tracker-editor-section { margin-top: 2px; }
+.tracker-editor-section-heading { margin: 0 0 14px; }
+.tracker-editor-section-heading h3 { margin: 0 0 5px; font-size: 14px; }
+.tracker-editor-section-heading p, .tracker-editor-subgroup p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.tracker-editor-section .form-grid { align-items: start; }
+.tracker-editor-subgroup { margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.tracker-editor-subgroup > b { display: block; margin-bottom: 5px; font-size: 12px; }
+.tracker-editor-section .criterion-evidence-entry { margin-top: 12px; }
+.tracker-remove-confirmation { grid-column: 1 / -1; padding: 14px; border: 1px solid var(--danger); border-radius: 10px; background: var(--surface-raised); }
+.tracker-remove-confirmation h3 { margin: 0 0 7px; font-size: 14px; }
+.tracker-remove-confirmation p { margin: 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; }
+.tracker-remove-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 13px; }
+
+@media (max-width: 700px) {
+  .tracker-editor-section { padding: 12px; }
+  .tracker-editor-section .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .tracker-remove-actions { justify-content: stretch; }
+  .tracker-remove-actions button { flex: 1 1 100%; }
+}
+
+
+.field-label-row { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; }
+.field-requirement { display:inline-flex; flex:0 0 auto; align-items:center; padding:2px 7px; border:1px solid var(--line-strong); border-radius:999px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.035em; line-height:1.5; text-transform:uppercase; }
+.field-requirement[data-requirement="required"] { color:var(--text); border-color:var(--accent); }
+
