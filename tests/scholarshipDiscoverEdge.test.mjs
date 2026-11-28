@@ -539,6 +539,10 @@ test("filters state scholarship directory and ranked-list landing pages", () => 
     { title: "Texas Scholarships - U.S. News & World Report", url: "https://usnews.com/education/scholarships/for-texas-students" },
     { title: "Texas Scholarships & Financial Aid - Niche", url: "https://niche.com/colleges/scholarships?state=TX" },
     { title: "Alphabetical Index to Scholarships and Other Financial Programs", url: "https://comptroller.texas.gov/programs/education/msp/funding/aid/faidalpha.php" },
+    { title: "30 Best Texas Scholarships - Scholarship Buddy Texas", url: "https://scholarshipbuddytexas.com/scholarships" },
+    { title: "20+ Scholarships in Texas 2027 - 2028 | UScholarships", url: "https://uscholarships.us/scholarships-in/texas" },
+    { title: "30 Best Scholarships in Texas", url: "https://scholarshipbuddy.com/state/tx/texas-scholarships" },
+    { title: "3,570 Scholarships in Texas (November 2026)", url: "https://scholarshipsthatwork.com/scholarships-in-texas" },
   ];
   for (const item of cases) {
     const { results } = normalizeAndRankResults([{
