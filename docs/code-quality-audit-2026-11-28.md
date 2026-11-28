@@ -58,7 +58,7 @@ The active `src/App.tsx` remains a large integration module. Open PR #31 is alre
 | Public HTTP route smoke checks | NOT RUN | Public web fetch could not access the site in this run; domain metadata was verified, but homepage, sitemap, robots, and route HTTP statuses were not independently fetched |
 | Local test/build commands | NOT RUN | No authorized repository shell was available or used; GitHub Actions is the verification source |
 
-The main CI result is baseline evidence, not evidence for this PR. This PR remains unverified until GitHub Actions completes successfully on its exact head SHA. No production deployment was performed.
+The PR's GitHub Actions run #206 completed successfully on exact head SHA `0ae0ced3230d14fabca9ec3697602220dfc98914`. Both `dependency-review` and `quality` jobs succeeded; the quality job completed Node 26.x setup, `npm ci`, `npm audit --audit-level=moderate`, `npm test`, and `npm run build`. The Vercel preview status is blocked by the platform's build-rate limit (`upgradeToPro=build-rate-limit`), and no preview deployment was returned. No production deployment was performed.
 
 ## Privacy, security, and migration impact
 
