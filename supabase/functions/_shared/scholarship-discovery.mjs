@@ -136,8 +136,10 @@ function isScholarshipDirectoryLandingUrl(value, title = "") {
     const explicitDirectoryPath = pathSegments.some((segment) => [
       "scholarship-directory", "scholarships-directory", "scholarship-search",
       "scholarship-list", "scholarship-listings", "scholarship-database",
+      "scholarships-by-state", "scholarship-by-state", "scholarships-by-major",
     ].includes(segment));
     if (explicitDirectoryPath) return true;
+    if (/^(?:top|best|list of|browse|all)\s+(?:\d+\s+)?(?:[a-z0-9&,'’-]+\s+){0,5}(?:scholarships?|grants?|fellowships?)\b/i.test(String(title ?? "").trim())) return true;
 
     const genericTitleTerms = new Set([
       "scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards",

@@ -531,6 +531,21 @@ test("discovery validates real US states and a moving graduation-year window", a
   assert.equal((await submit({ ...baseBody.profile, state: "TX" })).status, 200);
 });
 
+test("filters state scholarship directory and ranked-list landing pages", () => {
+  const cases = [
+    { title: "Texas Scholarships - Scholarships.com", url: "https://scholarships.com/financial-aid/college-scholarships/scholarships-by-state/texas-scholarships" },
+    { title: "Top 35 Texas Scholarships and Grants for 2026 - 2027", url: "https://collegewhale.com/texas" },
+  ];
+  for (const item of cases) {
+    const { results } = normalizeAndRankResults([{
+      ok: true,
+      job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+      results: [{ ...item, content: "Browse scholarships and grants for students in Texas." }],
+    }], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+    assert.equal(results.length, 0, item.url);
+  }
+});
+
 test("filters broad scholarship category pages even when their URL omits directory keywords", () => {
   const outcome = {
     ok: true,
