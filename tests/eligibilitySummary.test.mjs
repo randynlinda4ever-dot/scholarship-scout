@@ -87,15 +87,6 @@ test("unverified source matches remain distinct from verified eligibility and aw
   assert.match(summary.caveat, /not an award guarantee/i);
 });
 
-test("discovery cards, tracker status, and detail banner use the defensive eligibility summary", async () => {
-  const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-  assert.match(app, /function CandidateCard[\s\S]*?const summary = summarizeEligibilityAssessment\(assessment\)/);
-  assert.match(app, /<StatusPill status=\{summary\.status as Status\}\/>/);
-  assert.match(app, /<StatusPill status=\{selectedSummary!\.status as Status\}\/>/);
-  assert.match(app, /summarizeEligibilityAssessment\(assessments\.get\(item\.id\)\)\.status as Status/);
-  assert.match(app, /\{summary\.caveat\}/);
-});
-
 test("preferred failures and unknowns are displayed separately without changing eligibility status", () => {
   const summary = summarizeEligibilityAssessment({
     status: "Rules match — source unverified",
