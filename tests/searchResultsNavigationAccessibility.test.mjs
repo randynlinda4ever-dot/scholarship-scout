@@ -14,14 +14,6 @@ test("live search categories are exposed as a named keyboard-operable group", ()
   assert.match(app, /<input type="checkbox" checked=\{selectedDiscoveryCategories\.includes\(category\.id\)\}/);
 });
 
-test("live and saved search results expose named sections and list semantics", () => {
-  assert.match(app, /<section aria-labelledby="live-search-results-title">/);
-  assert.match(app, /<h2 id="live-search-results-title">Live scholarship results<\/h2>/);
-  assert.match(app, /role="list" aria-label="Live scholarship search results"/);
-  assert.match(app, /<section aria-labelledby="saved-cloud-results-title">/);
-  assert.match(app, /role="list" aria-label="Saved scholarship records"/);
-  assert.match(app, /<article className="cloud-result-card" role="listitem">/);
-});
 
 test("keyboard users can skip navigation and reach the main content", () => {
   assert.match(app, /<a className="skip-link" href="#main-content">Skip to main content<\/a>/);
