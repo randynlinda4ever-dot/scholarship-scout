@@ -305,16 +305,50 @@ test("bounded searches never exceed four active upstream requests", async () => 
   assert.ok(peak <= 4);
   assert.equal(peak, 4);
 });
-test("handler includes all fourteen selected categories within the bounded request budget and ignores arbitrary profile fields", async () => {
+test("discovery rejects profile fields outside the public state and graduation-year projection", async () => {
+  const sent = [];
+  const handler = createScholarshipDiscoveryHandler(deps({
+    fetchImpl: async (url) => { sent.push(url); return response({ results: [] }); },
+  }));
+  const body = {
+    ...baseBody,
+    profile: {
+      ...baseBody.profile,
+      school: "PRIVATE-SCHOOL-SENTINEL",
+      gpa: "PRIVATE-GPA-SENTINEL",
+      email: "PRIVATE-EMAIL-SENTINEL",
+    },
+  };
+
+  const result = await handler(request(body, { "cf-connecting-ip": "192.0.2.210" }));
+
+  assert.equal(result.status, 400);
+  assert.equal(sent.length, 0);
+});
+
+test("discovery rejects unexpected top-level properties before starting a public search", async () => {
+  const sent = [];
+  const handler = createScholarshipDiscoveryHandler(deps({
+    fetchImpl: async (url) => { sent.push(url); return response({ results: [] }); },
+  }));
+
+  const result = await handler(request({
+    ...baseBody,
+    studentProfile: { email: "PRIVATE-EMAIL-SENTINEL" },
+  }, { "cf-connecting-ip": "192.0.2.211" }));
+
+  assert.equal(result.status, 400);
+  assert.equal(sent.length, 0);
+});
+
+test("handler includes all fourteen selected categories within the bounded request budget", async () => {
   const sent = [];
   const handler = createScholarshipDiscoveryHandler(deps({ fetchImpl: async (url) => { sent.push(new URL(url).searchParams.get("q")); return response({ results: [] }); } }));
-  const body = { profile: { state: "Texas", graduationYear: "2027", school: "PRIVATE-SCHOOL-SENTINEL", gpa: "PRIVATE-GPA-SENTINEL", email: "PRIVATE-EMAIL-SENTINEL" }, categories: [...categories, "invalid"] };
-  const result = await handler(request(body));
+  const result = await handler(request({ profile: baseBody.profile, categories }));
   assert.equal(result.status, 200);
   assert.ok(sent.length >= categories.length && sent.length <= 24);
   const categoryQueries = { local: "local and county scholarships", school_resources: "high school counselor scholarship lists", regional: "regional student scholarship programs", state: "statewide scholarship programs", academic: "academic merit scholarships", humanities: "humanities, history", leadership: "student leadership", community_service: "volunteer service", language: "world language learning", employment: "employer sponsored scholarships", arts: "visual art, design", incoming_college: "incoming college student scholarships", national: "national scholarships open", general: "general student scholarships" };
   for (const category of categories) assert.ok(sent.some((query) => query.includes(categoryQueries[category])), "missing first-pass search for " + category);
-  assert.ok(sent.every((query) => !/PRIVATE-SCHOOL-SENTINEL|PRIVATE-GPA-SENTINEL|PRIVATE-EMAIL-SENTINEL/.test(query)));
 });
 test("gateway bearer secret is trimmed before constructing the Authorization header", async () => {
   const token = "x".repeat(64);

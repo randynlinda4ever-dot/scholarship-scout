@@ -16,6 +16,21 @@ The November 27 roadmap baseline was stale. It pointed to commit `ae35778` and d
 
 The roadmap now uses the current main commit and deployment as its baseline. It distinguishes shipped frontend features from open catalog/editorial work and separates verified discovery-function source parity from the remaining account-deletion source mismatch. This was a read-only status audit apart from documentation changes to the roadmap, its companion audit, and the documentation index. No application code, Supabase function, database, Auth setting, secret, or production configuration was changed.
 
+## Release security recheck — November 28, 2026
+
+This read-only recheck supersedes the earlier function-version and default-privilege findings below where they conflict. The project remains ACTIVE_HEALTHY on PostgreSQL 17.11.
+
+| Function | Current live state | Verification |
+|---|---|---|
+| `scholarship-discover` | ACTIVE v28, `verify_jwt=false` | Public discovery only; the payload remains state, graduation year, and selected category IDs |
+| `account-delete` | ACTIVE v4, `verify_jwt=true` | Deployed bundle contains `readBoundedJsonBody(request, 2048)` and its shared helper; no destructive deletion was tested |
+
+The current `public` inventory contains five tables, all with RLS enabled. `student_profiles` and `eligibility_checks` have no direct `anon` or `authenticated` SELECT/INSERT/UPDATE/DELETE grants; `service_role` retains server-side access. The authenticated grants on `scholarships`, `scholarship_sources`, and `account_vault_backups` remain protected by owner-scoped RLS policies.
+
+The live `pg_default_acl` audit confirms that `postgres`-owned defaults in `public` do not grant table, sequence, or function privileges to `anon` or `authenticated`. Managed `supabase_admin` defaults still include API-role privileges, but the ownership query found zero current `public` tables, sequences, or functions owned by that role. Supabase documents that these internal defaults cannot be changed by customers and apply only to objects the internal role creates. The unsupported owner-scoped script and its script-specific test have been removed from PR #26. Keep extensions in `extensions` or another non-exposed schema and recheck after extension or platform changes. See [Supabase's managed default-privilege guidance](https://supabase.com/kb/troubleshooting/cant-change-the-default-privileges-of-supabase_admin-in-the-public-schema-448af9).
+
+The latest Vercel production deployment observed before this PR merge is READY for the existing `main` baseline, not for the PR candidate. The PR preview is separate; verify the exact merged commit and production aliases after merge.
+
 ## 1. Frontend release and product features
 
 ### Release provenance
@@ -148,9 +163,9 @@ Four Dependabot PRs are open: #1 Supabase JS patch; #2 React DOM/types; #3 TypeS
 
 | Priority | Current disposition |
 |---|---|
-| P0.1 backend source alignment | Discovery v20 parity verified; account-delete v2 drift remains open; synthetic live function failure-mode checks remain incomplete. |
+| P0.1 backend source alignment | Discovery v28 and account-delete v4 are active; synthetic live function failure-mode checks and a fresh discovery invocation remain incomplete. The deployed account-delete bundle has the bounded reader and JWT verification enabled. |
 | P0.2 browser workflow matrix | Mobile Terms acceptance viewport checks are complete; full authentication, vault, backups, offline recovery, cross-account isolation, and screen-reader matrix remain open. |
-| P0.3 security / operations | RLS and postgres-owner defaults verified; supabase_admin defaults, site-wide response headers, and leaked-password protection follow-up remain open. |
+| P0.3 security / operations | RLS, local-only table grants, and `postgres` defaults verified. Managed `supabase_admin` defaults remain but zero current `public` objects are owned by that role; extension placement/ownership is a preventive follow-up. Site-wide response-header verification and leaked-password protection remain open. |
 | P0.4 release integrity | Current PR/CI/Preview/production process passed for the latest release; retain as a standing gate. |
 | P1 Resources | Five-tool toolkit shipped; general curated resource catalog, bookmarks, review lifecycle, and ongoing link checks remain future work. |
 | P1 discovery quality | Current adaptive retrieval is deployed, but benchmark judgments and relevance/freshness metrics remain necessary before further algorithm changes. |
@@ -159,6 +174,6 @@ Four Dependabot PRs are open: #1 Supabase JS patch; #2 React DOM/types; #3 TypeS
 
 ## Recommended next three actions
 
-1. Resolve `supabase_admin` default privileges and the site's missing HTTP security headers with their respective database/hosting owners; verify the live ACL and response headers after changes.
-2. Review and reconcile the deployed `account-delete` v2 source with current `main` using a separate PR/backend release, bounded-body tests, a preserved rollback target, and safe synthetic requests.
-3. Complete the remaining real-browser release matrix, then reconcile the active README/AGENTS/runtime docs and review Dependabot PRs #1–#4 independently.
+1. Verify the live HTTP security headers on the production apex and `www` hosts after the Vercel PR merge; source configuration alone is not proof of deployed headers.
+2. Keep future extensions in `extensions` or another non-exposed schema and re-audit `supabase_admin` object ownership after extension or platform changes; do not attempt to alter managed-role defaults.
+3. Complete the remaining real-browser release matrix and reconcile the active README/AGENTS/runtime docs; review Dependabot PRs #1–#4 independently.

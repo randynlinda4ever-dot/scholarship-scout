@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import type { CriteriaImportance, Profile, Scholarship, Status } from './domain/types.js';
 import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites, enableLocalVaultDeviceUnlock, forgetLocalVaultDeviceUnlock, createLocalAccountVaultKeyWrap, getAccountVaultSyncEnvelope, getLocalAccountVaultSyncStatus, setLocalAccountVaultRevision, forgetLocalAccountVaultSync } from './lib/localVault.js';
 import { clearReliabilityEvents, installReliabilityMonitoring, readReliabilityEvents, RELIABILITY_CHANGE_EVENT } from './lib/reliabilityMonitor.js';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
@@ -20,7 +21,7 @@ import { COUNTRY_OPTIONS, US_STATE_OPTIONS, PROFILE_CITIZENSHIP_OPTIONS } from '
 import { APPLICATION_STATUSES, TRACKER_PRIORITIES, MAX_TRACKER_RECORDS, filterAndSortTrackerRecords, getApplicationStatusCounts, normalizeTrackerRecord, type ApplicationStatus, type TrackerPriority } from './lib/trackerManagement.js';
 import { buildTrackerCsvReport } from './lib/trackerReport.js';
 import { getDiscoveryErrorMessage } from './lib/discoveryErrors.js';
-import { writeJsonStorage, writeJsonStorageBatch } from './lib/browserStorage.js';
+import { writeJsonStorage, writeJsonStorageBatch, writeAndFlushJsonState } from './lib/browserStorage.js';
 import { AUTH_EMAIL_COOLDOWN_SECONDS, getAuthCooldownRemainingSeconds, isAuthRateLimitError, isExpiredAuthLinkError } from './lib/authCooldown.js';
 import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveCloudScholarship, sendMagicLink, signInWithGoogle, linkGoogleIdentity, signOutCloudUser, deleteCloudAccount, getAccountVaultBackup, createAccountVaultBackup, updateAccountVaultBackup, deleteAccountVaultBackup, type LiveScholarship, type LiveDiscoverySummary } from './lib/scholarshipApi';
 import { registerAccountVaultPasskey } from './lib/accountVaultPasskey.js';
@@ -33,6 +34,9 @@ import { getWorkspaceScrollPosition, saveWorkspaceScrollPosition } from './lib/w
 import { createResourceWorkspace, normalizeResourceWorkspace } from './lib/resourceWorkspace.js';
 import { ResourcesPage } from './features/resources/ResourcesPage';
 import { StartHomePage } from './features/home/StartHomePage';
+import { ApplicationPrepPage } from './features/workspace/pages/ApplicationPrepPage';
+import { WorkspaceSubnav } from './components/WorkspaceSubnav';
+import { Field, SelectField, CheckField } from './components/WorkspaceFields';
 import './App.css';
 import './brand-system.css';
 
@@ -58,8 +62,7 @@ function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record
   } as T;
 }
 
-type Status = EligibilityAssessment['status'];
-type CriteriaImportance = 'mandatory' | 'preferred';
+
 
 type GlyphName =
   | 'home' | 'search' | 'cloud' | 'book' | 'checklist' | 'user' | 'settings'
@@ -87,43 +90,7 @@ function NavGlyph({ name }: { name: GlyphName }) {
 
   return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{glyphs[name]}</svg>;
 }
-type Scholarship = {
-  id: string; name: string; provider: string; award: string; deadline: string; openDate?: string; openDateTimezone?: string;
-  deadlineText?: string; deadlineTime?: string; deadlineTimezone?: string; deadlineTimezoneText?: string; deadlineNotPublished?: boolean;
-  priorityDeadline?: string; priorityDeadlineText?: string; priorityDeadlineTimezone?: string;
-  sourceUrl: string; evidenceUrl?: string; sourceVerified: boolean; evidenceText: string; notes: string;
-  awardEvidenceText?: string; awardEvidenceUrl?: string; awardCurrencyBasis?: string; awardBasis?: string;
-  /** Transient editor signal; removed before tracker persistence. */
-  sourceReviewConfirmed?: boolean;
-  sourceAuthority?: string; sourceStatus?: 'verified' | 'needs-review' | 'expired'; lastCheckedDate?: string;
-  discoverySourceUrl?: string; discoverySourceLabel?: string; discoveredOn?: string;
-  /** Date this tracker record was created; distinct from discovery and sponsor review. */
-  recordCreatedAt?: string;
-  backendOpportunityId?: string;
-  applicationStatus?: ApplicationStatus; priority?: TrackerPriority; tags?: string[]; archived?: boolean;
-  submittedAt?: string; decisionDate?: string;
-  criteria: EligibilityCriteria;
-  criteriaImportance?: Partial<Record<keyof EligibilityCriteria, CriteriaImportance>>;
-  criteriaEvidence?: Record<string, { excerpt?: string; sourceUrl?: string }>;
-  sourceEvidenceHistory?: Array<{
-    recordedAt: string; sourceUrl?: string; evidenceUrl?: string; evidenceText?: string;
-    awardEvidenceText?: string; awardEvidenceUrl?: string; awardCurrencyBasis?: string; awardBasis?: string;
-    sourceAuthority?: string; lastCheckedDate?: string;
-    criteriaEvidence?: Record<string, { excerpt?: string; sourceUrl?: string }>;
-  }>;
-};
-type Profile = {
-  country: string; state: string; county: string; citizenship: string; age: string; school: string; schoolCountry: string; schoolState: string; grade: string; graduationYear: string;
-  plannedCollege: string; plannedCollegeCountry: string; plannedCollegeState: string; plannedMajor: string; collegeStatus: string;
-  gpa: string; gpaType: string; classRank: string; rankDetails: string; credits: string; programNotes: string;
-  texasGrantNotation: string; act: string; sat: string; apCourses: string; dualCreditCourses: string;
-  academicHonors: string; interests: string; activities: string; serviceHours: string; service: string;
-  employment: string; certifications: string; languages: string; firstGeneration: string;
-  district: string; shhMembershipStatus: string; spanishAchievementStatus: string;
-  nseMedalYears: string; nseRegistered2027: string; fourHMembershipStatus: string;
-  searchKeywords: string;
-  profileVersion: string;
-};
+
 
 const initialProfile: Profile = {
   // Personal student details are intentionally not bundled into the public client.
@@ -689,33 +656,53 @@ function App() {
     void flushLocalVault().catch(() => setAlert('Your changes are active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
     return true;
   };
+  const persistLocalJsonState = <T,>(
+    key: string,
+    value: T,
+    updateState: (value: T) => void,
+    writeError: string,
+    flushError: string,
+  ) => {
+    void writeAndFlushJsonState({
+      key,
+      value,
+      updateState,
+      flush: flushLocalVault,
+    }).then(({ ok, durable }) => {
+      if (!ok) setAlert(writeError);
+      else if (!durable) setAlert(flushError);
+    });
+  };
   const saveApplicationTask = (scholarshipId: string, stepIndex: number, checked: boolean) => {
     const next = updateApplicationProgress(applicationProgress, scholarshipId, stepIndex, checked);
-    if (!saveJson('scout-application-progress', next)) {
-      setAlert('Checklist progress could not be saved. The previously saved checklist was preserved.');
-      return;
-    }
-    setApplicationProgress(next);
-    void flushLocalVault().catch(() => setAlert('Checklist progress is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
+    persistLocalJsonState(
+      'scout-application-progress',
+      next,
+      setApplicationProgress,
+      'Checklist progress could not be saved. The previously saved checklist was preserved.',
+      'Checklist progress is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.',
+    );
   };
   const saveApplicationWorkspaceEntry = (scholarshipId: string, entry: ApplicationWorkspaceEntry) => {
     const validIds = items.map((item) => item.id);
     const next = normalizeApplicationWorkspace({ ...applicationWorkspace, [scholarshipId]: entry }, validIds);
-    if (!saveJson('scout-application-workspace', next)) {
-      setAlert('Application workspace could not be saved. The previously saved workspace was preserved.');
-      return;
-    }
-    setApplicationWorkspace(next);
-    void flushLocalVault().catch(() => setAlert('Application workspace is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.'));
+    persistLocalJsonState(
+      'scout-application-workspace',
+      next,
+      setApplicationWorkspace,
+      'Application workspace could not be saved. The previously saved workspace was preserved.',
+      'Application workspace is active in this tab, but encrypted browser storage could not finish saving. Keep this tab open and retry before locking or reloading.',
+    );
   };
   const saveResourceWorkspace = (next: ReturnType<typeof createResourceWorkspace>) => {
     const normalized = normalizeResourceWorkspace(next);
-    if (!saveJson('scout-resource-workspace', normalized)) {
-      setAlert('Resource changes could not be saved. Previously saved resource data was preserved.');
-      return;
-    }
-    setResourceWorkspace(normalized);
-    void flushLocalVault().catch(() => setAlert('Resource changes are active in this tab, but encrypted browser storage could not finish saving. Retry before locking or reloading.'));
+    persistLocalJsonState(
+      'scout-resource-workspace',
+      normalized,
+      setResourceWorkspace,
+      'Resource changes could not be saved. Previously saved resource data was preserved.',
+      'Resource changes are active in this tab, but encrypted browser storage could not finish saving. Retry before locking or reloading.',
+    );
   };
   const closeBackupDialog = () => {
     setBackupDialogMode('closed');
@@ -1353,9 +1340,9 @@ function App() {
       setExaResults([]);
       setDiscoverySummary(null);
       setDiscoveryState('loading');
-      setCloudMessage('Searching the selected categories. Only your state, graduation year, and category choices are used for matching…');
+      setCloudMessage('Searching the selected categories. Only your state, graduation year, and category choices are sent to the search service; additional profile details stay on this device for matching.');
       const run = await runLiveScholarshipDiscovery(
-        { state: profile.state, graduationYear: profile.graduationYear },
+        profile,
         selectedDiscoveryCategories,
       );
       setExaResults(run.results);
@@ -1999,76 +1986,23 @@ function App() {
         </div>
       </div>}
 
-      {tab === 'Application prep' && <div className="page narrow">
-        <div className="page-heading"><div><div className="eyebrow">APPLICATION PREPARATION</div><h1>Application preparation</h1><p>Organize materials, essays, and deadlines for each scholarship.</p></div></div>
-        <WorkspaceSubnav label="Scholarship management view" active={tab} options={[{ value: 'Scholarships', label: 'Tracker' }, { value: 'Application prep', label: 'Application preparation' }]} onChange={setTab}/>
-        {!prepScholarship ? <div className="panel prep-panel"><h2>Start an application workspace</h2><p className="muted">Add a scholarship to your tracker before preparing its application.</p><button className="secondary" onClick={()=>setTab('Scholarships')}>Open scholarship tracker</button></div> : <>
-          <section className="panel prep-panel">
-            <div className="prep-icon">✎</div><h2>{prepScholarship.name}</h2><p>{prepScholarship.provider} · {prepScholarship.award || 'Award amount not listed'} · Deadline: {prepScholarship.deadline ? formatDate(prepScholarship.deadline) : prepScholarship.deadlineText || 'Not listed'}</p>
-            <label className="field"><span>Scholarship workspace</span><select value={prepScholarship.id} onChange={event=>setPrepScholarshipId(event.target.value)}>{items.map(item=><option key={item.id} value={item.id}>{item.name} — {item.provider}</option>)}</select></label>
-            <div className="application-progress"><div><b>{prepSummary.completed}/{prepSummary.total} items complete</b><strong>{prepSummary.percent}%</strong></div><progress max={100} value={prepSummary.percent}/><small>{prepSummary.requiredDocuments} required · {prepSummary.readyDocuments} ready · {prepSummary.pendingRecommendations} letters pending · {prepSummary.overLimitEssays} essays over limit</small></div>
-            <h3>Core preparation checklist</h3>
-            {APPLICATION_CHECKLIST_STEPS.map((step,index)=><label className="check-row" key={step}><input type="checkbox" checked={Boolean(applicationProgress[prepScholarship.id]?.[index])} onChange={event=>saveApplicationTask(prepScholarship.id,index,event.target.checked)}/><span>{step}</span></label>)}
-            <small className="deadline-footnote">Your preparation notes and drafts stay in this browser and encrypted backups. They are not sent to sponsor records.</small>
-          </section>
-          <div className="prep-section-grid">
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Custom checklist</h3></div><span className="source-tag">{prepWorkspace.customTasks.filter(task=>task.completed).length}/{prepWorkspace.customTasks.length}</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;savePrepWorkspace({...prepWorkspace,customTasks:[...prepWorkspace.customTasks,{id:createWorkspaceItemId(),title,completed:false,dueDate:String(data.get('dueDate')??'')}]});form.reset();}}>
-                <input name="title" aria-label="New checklist task" placeholder="Add a task…" maxLength={160} required/><input type="date" name="dueDate" aria-label="Task due date"/><button type="submit" className="secondary">Add task</button>
-              </form>
-              {prepWorkspace.customTasks.length===0?<p className="muted">No custom tasks yet.</p>:prepWorkspace.customTasks.map(task=><div className="prep-list-row" key={task.id}><label className="check-row"><input type="checkbox" checked={task.completed} onChange={event=>savePrepWorkspace({...prepWorkspace,customTasks:prepWorkspace.customTasks.map(row=>row.id===task.id?{...row,completed:event.target.checked}:row)})}/><span>{task.title}<small>{task.dueDate ? 'Due ' + formatDate(task.dueDate) : 'No due date'}</small></span></label><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,customTasks:prepWorkspace.customTasks.filter(row=>row.id!==task.id)})}>Remove</button></div>)}
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Essay prompts and drafts</h3></div><span className="source-tag">{prepWorkspace.essays.length} prompts</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;const limit=Number(data.get('wordLimit')??0);savePrepWorkspace({...prepWorkspace,essays:[...prepWorkspace.essays,{id:createWorkspaceItemId(),title,prompt:String(data.get('prompt')??''),wordLimit:Number.isInteger(limit)&&limit>0?Math.min(limit,10000):0,draft:''}]});form.reset();}}>
-                <input name="title" aria-label="Essay title" placeholder="Prompt title…" maxLength={160} required/><input name="wordLimit" type="number" min="1" max="10000" aria-label="Word limit" placeholder="Word limit"/><button type="submit" className="secondary">Add prompt</button>
-              </form>
-              {prepWorkspace.essays.length===0?<p className="muted">No essay prompts saved yet.</p>:prepWorkspace.essays.map(essay=>{const words=countApplicationWords(essay.draft);const over=essay.wordLimit>0&&words>essay.wordLimit;return <div className="prep-entry-card" key={essay.id}>
-                <div className="prep-section-heading"><b>{essay.title}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.filter(row=>row.id!==essay.id)})}>Remove</button></div>
-                <label className="field"><span>Essay title</span><input value={essay.title} maxLength={160} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,title:event.target.value}:row)})}/></label>
-                <label className="field"><span>Exact sponsor prompt</span><textarea rows={3} maxLength={5000} value={essay.prompt} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,prompt:event.target.value}:row)})}/></label>
-                <label className="field"><span>Word limit (leave blank when there is none)</span><input type="number" min="1" max="10000" value={essay.wordLimit||''} onChange={event=>{const value=Number(event.target.value);savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,wordLimit:Number.isInteger(value)&&value>0?Math.min(value,10000):0}:row)})}}/></label>
-                <label className="field"><span>Draft — keep your own voice and experiences</span><textarea rows={6} maxLength={20000} value={essay.draft} onChange={event=>savePrepWorkspace({...prepWorkspace,essays:prepWorkspace.essays.map(row=>row.id===essay.id?{...row,draft:event.target.value}:row)})}/></label>
-                <small className={over?'prep-word-count is-over':'prep-word-count'}>{words} words{essay.wordLimit>0?' / ' + essay.wordLimit:' · no word limit entered'}{over?' · over limit':''}</small>
-              </div>;})}
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Recommendation requests</h3></div><span className="source-tag">{prepWorkspace.recommenders.filter(person=>person.status==='Received').length}/{prepWorkspace.recommenders.length} received</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const name=String(data.get('name')??'').trim();if(!name)return;savePrepWorkspace({...prepWorkspace,recommenders:[...prepWorkspace.recommenders,{id:createWorkspaceItemId(),name,role:String(data.get('role')??''),status:'Not requested',requestedAt:'',dueDate:String(data.get('dueDate')??''),receivedAt:'',notes:''}]});form.reset();}}>
-                <input name="name" aria-label="Recommender name" placeholder="Name…" maxLength={120} required/><input name="role" aria-label="Relationship or role" placeholder="Teacher, counselor…" maxLength={120}/><input type="date" name="dueDate" aria-label="Recommendation due date"/><button type="submit" className="secondary">Add person</button>
-              </form>
-              {prepWorkspace.recommenders.length===0?<p className="muted">No recommendation requests added.</p>:prepWorkspace.recommenders.map(person=><div className="prep-entry-card" key={person.id}>
-                <div className="prep-section-heading"><b>{person.name}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.filter(row=>row.id!==person.id)})}>Remove</button></div>
-                <div className="form-grid"><label className="field"><span>Name</span><input value={person.name} maxLength={120} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,name:event.target.value}:row)})}/></label><label className="field"><span>Role</span><input value={person.role} maxLength={120} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,role:event.target.value}:row)})}/></label><label className="field"><span>Status</span><select value={person.status} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,status:event.target.value as typeof person.status}:row)})}>{RECOMMENDATION_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label><label className="field"><span>Requested on</span><input type="date" value={person.requestedAt} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,requestedAt:event.target.value}:row)})}/></label><label className="field"><span>Due date</span><input type="date" value={person.dueDate} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,dueDate:event.target.value}:row)})}/></label><label className="field"><span>Received on</span><input type="date" value={person.receivedAt} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,receivedAt:event.target.value}:row)})}/></label></div>
-                <label className="field"><span>Notes</span><textarea rows={2} maxLength={1000} value={person.notes} onChange={event=>savePrepWorkspace({...prepWorkspace,recommenders:prepWorkspace.recommenders.map(row=>row.id===person.id?{...row,notes:event.target.value}:row)})}/></label>
-              </div>)}
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Required documents and deadlines</h3></div><span className="source-tag">{prepSummary.readyDocuments}/{prepSummary.requiredDocuments} ready</span></div>
-              <form className="prep-add-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);const title=String(data.get('title')??'').trim();if(!title)return;savePrepWorkspace({...prepWorkspace,documents:[...prepWorkspace.documents,{id:createWorkspaceItemId(),title,required:data.get('required')==='on',ready:false,dueDate:String(data.get('dueDate')??''),notes:''}]});form.reset();}}>
-                <input name="title" aria-label="Document name" placeholder="Add a document…" maxLength={160} required/><input type="date" name="dueDate" aria-label="Document due date"/><label className="check-field"><input type="checkbox" name="required" defaultChecked/><span>Required</span></label><button type="submit" className="secondary">Add document</button>
-              </form>
-              {prepWorkspace.documents.length===0?<p className="muted">No document rows. Add the materials listed by the sponsor.</p>:prepWorkspace.documents.map(document=><div className="prep-document-row" key={document.id}>
-                <div className="prep-document-title"><b>{document.title}</b><button type="button" className="text-button" onClick={()=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.filter(row=>row.id!==document.id)})}>Remove</button></div>
-                <div className="prep-document-controls"><label className="check-field"><input type="checkbox" checked={document.required} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,required:event.target.checked}:row)})}/><span>Required</span></label><label className="check-field"><input type="checkbox" checked={document.ready} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,ready:event.target.checked}:row)})}/><span>Ready</span></label><label className="field"><span>Due date</span><input type="date" value={document.dueDate} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,dueDate:event.target.value}:row)})}/></label></div>
-                <label className="field"><span>Notes</span><input maxLength={1000} value={document.notes} onChange={event=>savePrepWorkspace({...prepWorkspace,documents:prepWorkspace.documents.map(row=>row.id===document.id?{...row,notes:event.target.value}:row)})}/></label>
-              </div>)}
-              <small className="deadline-footnote">Check required documents and due dates on the sponsor’s official application page.</small>
-            </section>
-            <section className="panel prep-section">
-              <div className="prep-section-heading"><div><h3>Final application review</h3></div></div>
-              {prepWorkspace.finalReview.map(item=><label className="check-row" key={item.id}><input type="checkbox" checked={item.done} onChange={event=>savePrepWorkspace({...prepWorkspace,finalReview:prepWorkspace.finalReview.map(row=>row.id===item.id?{...row,done:event.target.checked}:row)})}/><span>{item.label}</span></label>)}
-            </section>
-            <section className="panel prep-section prep-submission">
-              <div className="prep-section-heading"><div><h3>Submission</h3></div></div>
-              {!['Submitted','Awarded','Rejected'].includes(prepScholarship.applicationStatus||'Not started') && <button type="button" className="primary" onClick={markPrepScholarshipSubmitted}>Record as submitted</button>}
-              <small className="deadline-footnote">Scout does not submit applications. Track submission and decision dates in your tracker.</small>
-            </section>
-          </div>
-        </>}
-
-      </div>}
+      {tab === 'Application prep' && <ApplicationPrepPage model={{
+        APPLICATION_CHECKLIST_STEPS,
+        applicationProgress,
+        countApplicationWords,
+        createWorkspaceItemId,
+        formatDate,
+        items,
+        markPrepScholarshipSubmitted,
+        prepScholarship,
+        prepSummary,
+        prepWorkspace,
+        RECOMMENDATION_STATUSES,
+        saveApplicationTask,
+        savePrepWorkspace,
+        setPrepScholarshipId,
+        setTab,
+      }} />}
 
       <footer className="page-footer">
         <div>Scholarship Scout <span>·</span> Personal scholarship assistant</div>
@@ -2321,29 +2255,6 @@ function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessmen
     <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
   </div>;
 }
-function Field({label,value,onChange,placeholder,type='text',id,required=false,requirement,min,max,step,error}:{
-  label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string;id?:string;required?:boolean;
-  requirement?: 'required' | 'optional'; min?: number; max?: number; step?: number | 'any'; error?: string
-}) {
-  const errorId = id ? id + '-error' : undefined;
-  return <label className={'field' + (error ? ' field-invalid' : '')}>
-    <span className="field-label-row">
-      <span>{label}</span>
-      {requirement ? <small className="field-requirement" data-requirement={requirement}>{requirement === 'required' ? 'Required' : 'Optional'}</small> : null}
-    </span>
-    <input id={id} type={type} min={min} max={max} step={step} value={value} placeholder={placeholder}
-      onChange={e=>onChange(e.target.value)} required={required} aria-required={required || undefined}
-      aria-invalid={error ? 'true' : undefined} aria-describedby={error ? errorId : undefined}/>
-    {error && errorId ? <small id={errorId} className="field-error" role="alert">{error}</small> : null}
-  </label>;
-}
-function WorkspaceSubnav({label,active,options,onChange}:{label:string;active:string;options:{value:string;label:string}[];onChange:(value:string)=>void}) {
-  return <div className="workspace-subnav" role="group" aria-label={label}>
-    {options.map(option=><button type="button" key={option.value} className={active === option.value ? 'is-active' : ''} aria-pressed={active === option.value} onClick={()=>onChange(option.value)}>{option.label}</button>)}
-  </div>;
-}
-function SelectField({label,value,onChange,options,required = false}:{label:string;value:string;onChange:(v:string)=>void;options:string[][];required?:boolean}) { return <label className="field"><span>{label}</span><select required={required} value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>; }
-function CheckField({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}) { return <label className="check-field"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span>{label}</span></label>; }
 const STATUS_CLASS_MAP: Record<string, string> = {
   'Eligible': 'eligible',
   'Rules match — source unverified': 'rules-match-unverified',

@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const domain = await readFile(new URL("../src/domain/types.ts", import.meta.url), "utf8");
 
 test("scholarship editor collects a URL and excerpt for every active structured criterion", () => {
-  assert.match(app, /criteriaEvidence\?: Record<string, \{ excerpt\?: string; sourceUrl\?: string \}>/);
+  assert.match(domain, /criteriaEvidence\?: Record<string, \{ excerpt\?: string; sourceUrl\?: string \}>/);
   assert.match(app, /const setCriterionEvidence =/);
   assert.match(app, /const activeCriterionEntries = Object\.entries\(draft\.criteria\)/);
   assert.match(app, /Requirement evidence and verification/);

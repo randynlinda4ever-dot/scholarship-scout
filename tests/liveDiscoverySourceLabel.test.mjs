@@ -6,7 +6,7 @@ const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 
 test("regular candidate cards derive sponsor attribution from the actual source domain", () => {
   const start = app.indexOf("function CandidateCard(");
-  const end = app.indexOf("\nfunction Field(", start);
+  const end = app.indexOf("\nconst STATUS_CLASS_MAP", start);
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   const component = app.slice(start, end);

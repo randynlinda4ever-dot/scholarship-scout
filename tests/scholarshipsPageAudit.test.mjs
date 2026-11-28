@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 const pageTypes = await readFile(new URL("../src/features/workspace/pageTypes.ts", import.meta.url), "utf8");
+const fields = await readFile(new URL("../src/components/WorkspaceFields.tsx", import.meta.url), "utf8");
 const trackerStart = app.indexOf("{tab === 'Scholarships'");
 const prepStart = app.indexOf("{tab === 'Application prep'", trackerStart);
 const trackerPage = app.slice(trackerStart, prepStart);
@@ -70,8 +71,8 @@ test("numeric sponsor criteria use native number inputs and engine-aligned range
 test("age boundary choices become required only when the matching age threshold exists", () => {
   assert.match(fieldLine("Minimum age boundary"), /required=\{draft\.criteria\.ageRange\?\.min != null\}/);
   assert.match(fieldLine("Maximum age boundary"), /required=\{draft\.criteria\.ageRange\?\.max != null\}/);
-  assert.match(app, /function SelectField\(\{label,value,onChange,options,required = false\}/);
-  assert.match(app, /<select required=\{required\}/);
+  assert.match(fields, /export function SelectField[\s\S]*required = false/);
+  assert.match(fields, /<select required=\{required\}/);
 });
 
 test("ACT and SAT sponsor alternatives are represented as an either/or rule, not two independent requirements", () => {
@@ -148,12 +149,13 @@ test("the app clearly explains why a scholarship is retained and where informati
 });
 
 test("shared field component renders audited numeric constraints and required-field labels", () => {
-  const field = app.slice(app.indexOf("function Field("), app.indexOf("function WorkspaceSubnav("));
-  assert.match(field, /min\?: number/);
-  assert.match(field, /max\?: number/);
-  assert.match(field, /step\?: number \| 'any'/);
-  assert.match(field, /min=\{min\} max=\{max\} step=\{step\}/);
-  assert.match(field, /data-requirement=\{requirement\}/);
-  assert.match(field, /Required/);
-  assert.match(field, /Optional/);
+  assert.match(fields, /min\?: number/);
+  assert.match(fields, /max\?: number/);
+  assert.match(fields, /step\?: number \| ["']any["']/);
+  assert.match(fields, /min=\{min\}/);
+  assert.match(fields, /max=\{max\}/);
+  assert.match(fields, /step=\{step\}/);
+  assert.match(fields, /data-requirement=\{requirement\}/);
+  assert.match(fields, /Required/);
+  assert.match(fields, /Optional/);
 });

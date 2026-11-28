@@ -121,12 +121,12 @@ export interface ApplicationPrepPageModel {
   formatDate: (value?: string) => string;
   items: Scholarship[];
   markPrepScholarshipSubmitted: () => void;
-  prepScholarship: Scholarship;
+  prepScholarship: Scholarship | null;
   prepSummary: { completed: number; total: number; percent: number; wordCount: number; overLimitEssays: number; pendingRecommendations: number; requiredDocuments: number; readyDocuments: number };
   prepWorkspace: ApplicationWorkspaceEntry;
   RECOMMENDATION_STATUSES: readonly ApplicationWorkspaceEntry['recommenders'][number]['status'][];
   saveApplicationTask: (scholarshipId: string, stepIndex: number, checked: boolean) => void;
   savePrepWorkspace: (next: ApplicationWorkspaceEntry) => void;
   setPrepScholarshipId: Dispatch<SetStateAction<string>>;
-  setTab: Dispatch<SetStateAction<string>>;
+  setTab: (tab: string) => void;
 }

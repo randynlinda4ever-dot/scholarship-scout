@@ -1,6 +1,6 @@
 # Test and verification strategy
 
-> **Verification status — November 27, 2026:** The corrected wrapper and regression tests were validated at historical implementation snapshot revision `df84889396d5d5176051b9cd1f4595c2686b0167`; the current documentation revision is `fd7c990bcc5a4a493fd20ab23c871e5d5e452b12`. On the matching GitHub release checkout, `npm ci` passed; `npm test` passed **730/730 with zero failures and zero skipped**; `npm run build` completed TypeScript checking and Vite production bundling; `npm audit --audit-level=moderate` found zero vulnerabilities; and `git diff --check` passed. The tested wrapper uses the per-isolate IP limiter plus the authenticated gateway's process-wide 30-request-per-minute ceiling; Upstash is not required. After test names were clarified, the focused edge/security suite passed 17/17. Supabase remains deployed at version 19 pending reviewed source deployment and a fresh function-to-gateway smoke test. See [the source reconciliation record](source-reconciliation-2026-11-27.md), [rate-limit decision](rate-limit-decision-2026-11-27.md), and [runtime audit](runtime-audit-2026-11-27.md).
+> **Current PR #26 verification — November 28, 2026:** The candidate branch is `phase4/architecture-simplification-20261128`, based on `89ee99fd5ef154a6ae23f3a87c8e3592df32b30e`. Before this follow-up, the Phase 2–5 candidate passed 866 tests, 0 failures, 0 skips; four tests in `securityAdminDefaultPrivileges.test.mjs` were specific to the unsupported hosted-`supabase_admin` SQL script and have been removed along with that script. No application-behavior test was removed. The current PR head must be judged by its fresh GitHub Actions run, not by reusing the earlier 866-test count. The candidate's recorded local build passed and the production dependency audit reported zero vulnerabilities. Live Supabase status was rechecked on November 28: `scholarship-discover` ACTIVE v28 (`verify_jwt=false`), `account-delete` ACTIVE v4 (`verify_jwt=true`), all five public tables have RLS, and the local-only student tables have no direct `anon` or `authenticated` CRUD grants. The managed `supabase_admin` defaults remain, but there are no current `public` objects owned by that role; hosted Supabase does not permit customers to change those internal defaults. See [the November 28 roadmap audit](roadmap-audit-2026-11-28.md), [privacy and security](privacy-and-security.md), and [deployment controls](deployment.md).
 
 ## Commands
 
@@ -19,7 +19,7 @@ The project contains unit tests for profile validation, discovery and URL safety
 - `tests/authSignInExperience.test.mjs` and `tests/cloudConnectionConfig.test.mjs` ensure email sign-in uses the current embedded app origin.
 - `tests/googleOAuth.test.mjs` covers Google OAuth setup, anonymous identity linking, limited scopes, PKCE callback detection/restoration, and the updated privacy disclosure.
 - `tests/liveDiscoveryNoLogin.test.mjs` verifies the live-search client does not create or require a Supabase user, the UI shows public results while signed out, and the Edge Function is configured for public requests with bounded inputs.
-- `tests/liveDiscoveryCapabilities.test.mjs` tracks the deployed version-19 category allow-list.
+- `tests/liveDiscoveryCapabilities.test.mjs` tracks the deployed version-28 category allow-list.
 - Cloud database reads and writes remain authenticated and use the existing owner-scoped RLS policies.
 
 ## Other regression coverage
@@ -37,6 +37,21 @@ The project contains unit tests for profile validation, discovery and URL safety
 - Government source authority: only explicitly allowlisted government domain roots and their subdomains receive the official-government label; unlisted .gov domains and lookalike suffixes remain unverified, including after cloud mapping.
 - Source date semantics: sponsor-check dates come only from explicit review metadata; discovery dates are not inferred from cloud row creation or update timestamps; record creation is shown separately, and missing dates remain unknown.
 - Mandatory/preferred criteria: preferred failures and unknowns remain visible but do not change eligibility status; mandatory failures and unknowns continue to block; preferred-only records cannot establish eligibility; importance metadata survives cloud save/reload.
+
+## Live integration and database security status — November 28, 2026
+
+A fresh read-only Supabase inventory confirmed the project is ACTIVE_HEALTHY on PostgreSQL 17.11. The active Edge Function inventory reports:
+
+| Function | State/version | JWT verification |
+|---|---:|---:|
+| `scholarship-discover` | ACTIVE v28 | `false` (public discovery only) |
+| `account-delete` | ACTIVE v4 | `true` |
+
+The deployed account-deletion bundle was previously inspected and found to include the bounded 2 KiB streaming body reader and its shared helper. No account deletion was executed for verification.
+
+All five current `public` tables have RLS enabled. The live privilege check found no direct `anon` or `authenticated` SELECT/INSERT/UPDATE/DELETE grants on `student_profiles` or `eligibility_checks`; `service_role` retains server-side privileges. The authenticated grants on `scholarships`, `scholarship_sources`, and `account_vault_backups` remain protected by owner-scoped RLS policies.
+
+The live `pg_default_acl` inventory confirmed that defaults for objects created by `postgres` in `public` do not grant table, sequence, or function privileges to `anon` or `authenticated`. Managed `supabase_admin` defaults still include those API-role privileges, but an ownership query found zero current `public` tables, sequences, or functions owned by that role. Hosted Supabase documents that these internal defaults cannot be altered by a project owner; they apply only to objects the managed role creates. The supported mitigation is to keep extension objects in `extensions` or another non-exposed schema and monitor for newly created `supabase_admin`-owned objects. See [Supabase's managed-role guidance](https://supabase.com/kb/troubleshooting/cant-change-the-default-privileges-of-supabase_admin-in-the-public-schema-448af9).
 
 ## Historical full verification (not run against current HEAD)
 
@@ -68,7 +83,7 @@ On the refreshed Windows validation workspace using Node.js 26.13.0:
 - Focused command `node --test tests/openingDate.test.mjs`: NOT RUN. Full command `npm test`: NOT RUN. Build command `npm run build`: NOT RUN. the test runner was not available for this dated historical work item; current repository test/build/audit evidence is recorded in the top-level README.
 - Browser smoke is deployment-only and cannot verify this historical implementation snapshot source revision.
 
-## Live integration status — November 27, 2026
+## Historical live integration status — November 27, 2026 (superseded by the November 28 snapshot above)
 
 Supabase reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=false`. The corrected historical implementation snapshot/GitHub wrapper keeps the two-per-minute per-IP isolate limiter and relies on the authenticated gateway's process-wide 30-request-per-minute ceiling; Upstash credentials are not required. The deployed v19 source still needs a reviewed update to match the corrected wrapper and its CORS header. The v19 files and rollback metadata have been preserved. A direct authenticated laptop request to the named gateway returned HTTP 200 with 15 results, but it did not invoke Supabase.
 

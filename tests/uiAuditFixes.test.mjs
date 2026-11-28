@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const fields = await readFile(new URL('../src/components/WorkspaceFields.tsx', import.meta.url), 'utf8');
 const css = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
 const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
 
@@ -45,10 +46,10 @@ test('scholarship name and provider are required, field-associated, and validate
   assert.match(app, /<form id="scholarship-editor-form"[\s\S]*?onInvalidCapture=/);
   assert.match(app, /<Field id="scholarship-name" label="Scholarship name \*"[\s\S]*?required/);
   assert.match(app, /<Field id="scholarship-provider" label="Provider \*"[\s\S]*?required/);
-  assert.match(app, /aria-required=\{required \|\| undefined\}/);
-  assert.match(app, /aria-invalid=\{error \? 'true' : undefined\}/);
-  assert.match(app, /aria-describedby=\{error \? errorId : undefined\}/);
-  assert.match(app, /id=\{errorId\} className="field-error" role="alert"/);
+  assert.match(fields, /aria-required=\{required \|\| undefined\}/);
+  assert.match(fields, /aria-invalid=\{error \? ["']true["'] : undefined\}/);
+  assert.match(fields, /aria-describedby=\{error \? errorId : undefined\}/);
+  assert.match(fields, /id=\{errorId\} className="field-error" role="alert"/);
   assert.match(app, /!draft\.name\.trim\(\) \|\| !draft\.provider\.trim\(\)/);
 });
 

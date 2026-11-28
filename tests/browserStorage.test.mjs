@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { writeJsonStorage, writeJsonStorageBatch } from "../src/lib/browserStorage.js";
+import { writeJsonStorage, writeJsonStorageBatch, writeAndFlushJsonState } from "../src/lib/browserStorage.js";
 
 test("writes JSON and reports success", () => {
   const values = new Map();
@@ -95,4 +95,60 @@ test("invalid storage snapshots and unserializable values fail before any writes
     rollbackSucceeded: true,
   });
   assert.equal(storage.writeCount, 0);
+});
+
+test("writes a local record, updates its UI state, then flushes encrypted persistence", async () => {
+  const events = [];
+  const storage = createMemoryStorage();
+  const nextState = { scholarship: [true, false] };
+  const result = await writeAndFlushJsonState({
+    key: "scout-application-progress",
+    value: nextState,
+    resolveStorage: () => ({
+      ...storage,
+      setItem(key, value) {
+        events.push("write");
+        storage.setItem(key, value);
+      },
+    }),
+    updateState(value) {
+      events.push("state");
+      assert.equal(value, nextState);
+    },
+    flush: async () => { events.push("flush"); },
+  });
+
+  assert.deepEqual(result, { ok: true, durable: true });
+  assert.deepEqual(events, ["write", "state", "flush"]);
+  assert.deepEqual(JSON.parse(storage.getItem("scout-application-progress")), nextState);
+});
+
+test("does not update UI state or flush when the synchronous storage write fails", async () => {
+  let updated = false;
+  let flushed = false;
+  const result = await writeAndFlushJsonState({
+    key: "scout-application-workspace",
+    value: {},
+    resolveStorage: () => ({ setItem() { throw new Error("quota exceeded"); } }),
+    updateState() { updated = true; },
+    flush: async () => { flushed = true; },
+  });
+
+  assert.deepEqual(result, { ok: false, durable: false });
+  assert.equal(updated, false);
+  assert.equal(flushed, false);
+});
+
+test("keeps the in-tab state update but reports when encrypted persistence fails", async () => {
+  let state;
+  const result = await writeAndFlushJsonState({
+    key: "scout-resource-workspace",
+    value: { worksheet: "draft" },
+    resolveStorage: () => createMemoryStorage(),
+    updateState(value) { state = value; },
+    flush: async () => { throw new Error("IndexedDB unavailable"); },
+  });
+
+  assert.deepEqual(result, { ok: true, durable: false });
+  assert.deepEqual(state, { worksheet: "draft" });
 });
