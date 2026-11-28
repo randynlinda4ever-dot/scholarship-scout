@@ -63,7 +63,7 @@ registerHooks({
       return {
         format:"module",
         shortCircuit:true,
-        source:"export const supabaseConfigured=false; export function getSupabaseClient(){return Promise.resolve(null);}",
+        source:"export const supabaseConfigured=false; export function getSupabaseClient(){return Promise.resolve(null);} export async function stopSupabaseAutoRefreshForVaultLock(){}",
       };
     }
     if (url === "scholarship-scout:test-react-dom-client") {
