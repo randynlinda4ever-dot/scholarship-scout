@@ -3,8 +3,8 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-  background: #080D1A;
-  color: #D2CDE0;
+  background: var(--bg);
+  color: var(--text-soft);
   font: 13px system-ui, sans-serif;
 }
 .legal-gate-screen {
@@ -18,8 +18,8 @@
   min-height: 100dvh;
   padding: clamp(10px, 2.5vw, 28px);
   overflow: auto;
-  background: #080D1A;
-  color: #F5F0F7;
+  background: var(--bg);
+  color: var(--text);
   color-scheme: dark;
   font-family: system-ui, sans-serif;
 }
@@ -31,49 +31,44 @@
   max-height: min(94dvh, 1040px);
   min-height: 0;
   overflow: hidden;
-  border: 1px solid #4B5B83;
+  border: 1px solid var(--line-strong);
   border-radius: 18px;
-  background: #121D35;
+  background: var(--surface);
   box-shadow: 0 24px 90px #0009;
 }
 .legal-gate-header {
   flex: 0 0 auto;
   padding: clamp(18px, 3vw, 30px) clamp(18px, 3vw, 34px) 16px;
-  border-bottom: 1px solid #304267;
+  border-bottom: 1px solid var(--line);
 }
 .legal-gate-brand {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 18px;
-  color: #F5F0F7;
+  color: var(--text);
   font-size: 14px;
   font-weight: 750;
 }
 .legal-gate-mark {
-  display: grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  overflow: hidden;
-  border-radius: 10px;
-  background: #1D4ED8;
-  color: #000000;
-  font: 800 20px/1 system-ui, sans-serif;
-  text-align: center;
-  box-shadow: 0 4px 12px #0005;
+  display: block;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 9px;
+  background: transparent;
 }
 .legal-gate-kicker {
   margin: 0 0 7px;
-  color: #C8BDF4;
+  color: var(--accent-strong);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .15em;
 }
 .legal-gate-header h1 {
   margin: 0 0 9px;
-  color: #F5F0F7;
+  color: var(--text);
   font-family: Georgia, serif;
   font-size: clamp(25px, 3vw, 38px);
   font-weight: 500;
@@ -83,13 +78,13 @@
 .legal-gate-header>p:not(.legal-gate-kicker):not(.legal-gate-version) {
   max-width: 760px;
   margin: 0;
-  color: #D2CDE0;
+  color: var(--text-soft);
   font-size: 13px;
   line-height: 1.55;
 }
 .legal-gate-version {
   margin: 10px 0 0;
-  color: #A29BB8;
+  color: var(--muted);
   font-size: 11px;
 }
 .legal-document {
@@ -99,24 +94,24 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  color: #D2CDE0;
+  color: var(--text-soft);
   font-size: 13px;
   line-height: 1.6;
 }
 .legal-document:focus-visible {
-  outline: 2px solid #C8BDF4;
+  outline: 2px solid var(--accent-strong);
   outline-offset: -3px;
 }
 .legal-document-section {
   max-width: 78ch;
   margin-inline: auto;
   padding: 18px 0 4px;
-  border-bottom: 1px solid #304267;
+  border-bottom: 1px solid var(--line);
 }
 .legal-document-section:last-child { border-bottom: 0; }
 .legal-document-section h2 {
   margin: 0 0 8px;
-  color: #F5F0F7;
+  color: var(--text);
   font-family: Georgia, serif;
   font-size: 18px;
   font-weight: 600;
@@ -128,12 +123,12 @@
 .legal-gate-footer {
   flex: 0 0 auto;
   padding: 14px clamp(18px, 3vw, 34px) 18px;
-  border-top: 1px solid #304267;
-  background: #0F192E;
+  border-top: 1px solid var(--line);
+  background: var(--sidebar);
 }
 .legal-gate-scroll-hint {
   margin: 0 0 9px;
-  color: #C8BDF4;
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 650;
 }
@@ -142,10 +137,10 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px;
-  border: 1px solid #4B5B83;
+  border: 1px solid var(--line-strong);
   border-radius: 11px;
-  background: #172542;
-  color: #F5F0F7;
+  background: var(--surface-raised);
+  color: var(--text);
   cursor: pointer;
   font-size: 12px;
   line-height: 1.55;
@@ -155,7 +150,7 @@
   width: 20px;
   height: 20px;
   margin: 1px 0 0;
-  accent-color: #A69AE8;
+  accent-color: var(--accent);
 }
 .legal-age-control {
   display: grid;
@@ -164,7 +159,7 @@
   gap: 10px;
   min-width: 0;
   margin: 0 0 8px;
-  color: #D2CDE0;
+  color: var(--text-soft);
   font-size: 12px;
   font-weight: 700;
 }
@@ -173,15 +168,15 @@
   width: 100%;
   min-height: 40px;
   padding: 8px 10px;
-  border: 1px solid #4B5B83;
+  border: 1px solid var(--line-strong);
   border-radius: 9px;
-  background: #172542;
-  color: #F5F0F7;
+  background: var(--surface-raised);
+  color: var(--text);
   font: inherit;
   font-weight: 600;
 }
 .legal-age-select:focus-visible {
-  outline: 2px solid #FFC88F;
+  outline: 2px solid var(--warning);
   outline-offset: 2px;
 }
 .legal-guardian-check {
@@ -190,7 +185,7 @@
   gap: 10px;
   min-width: 0;
   margin: 0 0 8px;
-  color: #F5F0F7;
+  color: var(--text);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -199,19 +194,19 @@
   width: 20px;
   height: 20px;
   margin: 1px 0 0;
-  accent-color: #A69AE8;
+  accent-color: var(--accent);
 }
 .legal-guardian-check[hidden] { display: none !important; }
 .legal-guardian-check {
   margin: 0 0 8px;
   padding: 10px;
-  border: 1px solid #7B6AAE;
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
-  background: #211E3A;
+  background: var(--surface-soft);
   cursor: pointer;
 }
 .legal-guardian-check span { min-width: 0; }
-.legal-guardian-check b { display: block; margin-bottom: 3px; color: #D7CCFF; }
+.legal-guardian-check b { display: block; margin-bottom: 3px; color: var(--accent-strong); }
 .legal-age-control span, .legal-acceptance-check span { overflow-wrap: anywhere; }
 .legal-gate-actions {
   display: flex;
@@ -229,25 +224,25 @@
   font-weight: 750;
   cursor: pointer;
 }
-.legal-gate-primary { background: #A69AE8; color: #191B39; }
-.legal-gate-primary:hover:not(:disabled) { background: #C8BDF4; }
+.legal-gate-primary { background: var(--accent); color: var(--accent-ink); }
+.legal-gate-primary:hover:not(:disabled) { background: var(--accent-strong); }
 .legal-gate-primary:disabled { opacity: .42; cursor: not-allowed; }
-.legal-gate-secondary { border-color: #4B5B83; background: transparent; color: #D2CDE0; }
+.legal-gate-secondary { border-color: var(--line-strong); background: transparent; color: var(--text-soft); }
 .legal-gate-error {
   margin: 9px 0 0;
-  color: #FFC88F;
+  color: var(--warning);
   font-size: 11px;
   line-height: 1.5;
 }
 .legal-gate-footnote {
   margin: 8px 0 0;
-  color: #A29BB8;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.4;
 }
 .legal-gate-screen button:focus-visible,
 .legal-gate-screen input:focus-visible {
-  outline: 2px solid #FFC88F;
+  outline: 2px solid var(--warning);
   outline-offset: 3px;
 }
 @media (max-height: 720px) {

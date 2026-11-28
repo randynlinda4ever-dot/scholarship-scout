@@ -44,9 +44,9 @@ test('app and public-guide logo images use contained image sizing and copper bra
   assert.match(appStyles, /@import '\.\/styles\/app\/branding\.css';/);
   assert.match(brandStyles, /\.logo-mark\s*\{[^}]*object-fit:\s*contain/);
   assert.match(brandStyles, /\.avatar \.avatar-mark\s*\{[^}]*object-fit:\s*contain/);
-  assert.match(brandStyles, /--accent:\s*#B8734F/i);
+  assert.match(themeTokens, /--accent:\s*#B8734F/i);
   assert.match(guideStyles, /\.brand-mark\{[^}]*object-fit:contain/);
-  assert.doesNotMatch(brandStyles, /#1D4ED8|#080918|#A99FFF/i);
+  assert.doesNotMatch(themeTokens, /#1D4ED8|#080918|#A99FFF/i);
 });
 
 test('site favicon and Apple touch icon use the official logo asset', () => {

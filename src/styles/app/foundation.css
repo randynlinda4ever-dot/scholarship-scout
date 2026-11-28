@@ -1,4 +1,4 @@
-/* Canonical Midnight Violet tokens are defined once below. */
+/* Shared workspace foundations. Color tokens are loaded from /brand-theme.css. */
 
 * { box-sizing: border-box; }
 html, body, #root { min-width: 320px; min-height: 100%; margin: 0; }

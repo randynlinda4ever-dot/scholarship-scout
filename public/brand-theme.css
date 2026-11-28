@@ -1,0 +1,56 @@
+/* Scholarship Scout shared theme tokens. Loaded by the app and public guides. */
+:root {
+  color-scheme: dark;
+  --palette-1: #1F2B24;
+  --palette-2: #29372C;
+  --palette-3: #405044;
+  --palette-4: #6B503E;
+  --palette-5: #8E6046;
+  --palette-6: #B8734F;
+  --palette-7: #D69A75;
+  --palette-8: #E5BD79;
+
+  --bg: #0E1210;
+  --sidebar: #151B18;
+  --surface: #1B231E;
+  --surface-raised: #242F28;
+  --surface-soft: #303B32;
+  --line: #455247;
+  --line-strong: #667665;
+  --text: #F2EFE7;
+  --text-soft: #D9D0C2;
+  --muted: #A7AA9B;
+  --accent: #B8734F;
+  --accent-strong: #D69A75;
+  --accent-ink: #21150F;
+  --warning: #E5BD79;
+  --danger: #A45D4E;
+  --success: #7D9B78;
+  --editorial-display: 'Source Serif 4', Georgia, serif;
+  --interface-font: 'DM Sans', system-ui, sans-serif;
+  --radius: 12px;
+  font-family: var(--interface-font);
+  background: var(--bg);
+  color: var(--text);
+}
+.shell[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F3F0E9;
+  --sidebar: #E8E2D7;
+  --surface: #FFFFFF;
+  --surface-raised: #FCFAF5;
+  --surface-soft: #F4EFE5;
+  --line: #D8CBB9;
+  --line-strong: #B8A38B;
+  --text: #2B241E;
+  --text-soft: #55483C;
+  --muted: #766B5D;
+  --accent: #925334;
+  --accent-strong: #7C442A;
+  --accent-ink: #FFFFFF;
+  --warning: #875C27;
+  --danger: #934D45;
+  --success: #577B56;
+}
+::selection { background: #E4C7B2; color: #2B1B13; }
+html, body { background: var(--bg); color: var(--text); }

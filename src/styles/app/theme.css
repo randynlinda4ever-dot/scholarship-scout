@@ -1,4 +1,4 @@
-/* Interactive theme switch uses the canonical Midnight Violet tokens. */
+/* Interactive theme controls use the shared oxidized-copper token system. */
 .theme-toggle {
   display: inline-flex;
   min-height: 35px;

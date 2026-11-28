@@ -1,43 +1,4 @@
-/* Scholarship Scout — Book & Compass visual system
-   Dark oxidized copper palette shared by the app and public guides. */
-:root {
-  color-scheme: dark;
-  --bg: #0E1210;
-  --sidebar: #151B18;
-  --surface: #1B231E;
-  --surface-raised: #242F28;
-  --surface-soft: #303B32;
-  --line: #455247;
-  --line-strong: #667665;
-  --text: #F2EFE7;
-  --text-soft: #D9D0C2;
-  --muted: #A7AA9B;
-  --accent: #B8734F;
-  --accent-strong: #D69A75;
-  --accent-ink: #21150F;
-  --warning: #E8BD79;
-  --danger: #E7A4B5;
-  --success: #A9C5A8;
-}
-.shell[data-theme="light"] {
-  color-scheme: light;
-  --bg: #F3F0E9;
-  --sidebar: #E8E2D7;
-  --surface: #FFFFFF;
-  --surface-raised: #FCFAF5;
-  --surface-soft: #F4EFE5;
-  --line: #D8CBB9;
-  --line-strong: #B8A38B;
-  --text: #2B241E;
-  --text-soft: #55483C;
-  --muted: #766B5D;
-  --accent: #925334;
-  --accent-strong: #7C442A;
-  --accent-ink: #FFFFFF;
-  --warning: #875C27;
-  --danger: #934D45;
-  --success: #7C442A;
-}
+/* Scholarship Scout brand component styling. Palette tokens are loaded from /brand-theme.css. */
 html, body { background: var(--bg); color: var(--text); }
 ::selection { background: #E4C7B2; color: #2B1B13; }
 .shell { background: var(--bg); color: var(--text); }
