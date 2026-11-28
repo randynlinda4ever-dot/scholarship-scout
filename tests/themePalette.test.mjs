@@ -85,9 +85,9 @@ test('one shared token file defines the complete dark oxidized-copper palette', 
 test('the optional light theme uses warm neutrals and copper accents', () => {
   for (const token of lightTokens) assert.ok(tokens.includes(token), 'missing shared light token ' + token);
   assert.match(tokens, /\.shell\[data-theme="light"\]\s*\{/);
-  assert.match(app, /localStorage\.getItem\('scout-theme-choice'\) === 'true'/);
+  assert.match(app, /readUiPreference\('scout-theme-choice'\) === 'true'/);
   assert.match(app, /const chooseTheme = \(nextTheme: 'dark' \| 'light'\) =>/);
-  assert.match(app, /localStorage\.setItem\('scout-theme-choice', 'true'\)/);
+  assert.match(app, /window\.localStorage\.setItem\('scout-theme-choice', 'true'\)/);
 });
 
 test('all shared semantic text colors meet WCAG AA on every application surface', () => {
