@@ -141,7 +141,8 @@ export function buildSearchJobs(state, graduationYear, categories) {
     const variations = CATEGORY_VARIATIONS[category] || [];
     for (let variationIndex = 0; variationIndex < variations.length; variationIndex += 1) {
       const variation = variations[variationIndex];
-      const query = clean(`${variation} ${state} ${graduationYear} scholarship application eligibility`, 600);
+      const detailIntent = variationIndex === 2 ? " award amount scholarship value application deadline current cycle" : "";
+      const query = clean(`${variation} ${state} ${graduationYear} scholarship application eligibility${detailIntent}`, 600);
       for (let page = 1; page <= MAX_SEARCH_PAGE; page += 1) {
         jobs.push({ category, query, page, variation: variationIndex + 1 });
       }
@@ -164,6 +165,9 @@ export function scoreCandidateQuality({ title = "", excerpt = "", domain = "", s
     score += 2;
     reasons.push("Contains application or eligibility details");
   }
+  const searchSignals = extractScholarshipSearchSignals(searchableText);
+  if (searchSignals.awardText) { score += 1; reasons.push("Snippet includes an award amount"); }
+  if (searchSignals.deadline) { score += 1; reasons.push("Snippet includes a dated deadline"); }
   if (/student|undergraduate|high school|high-school|graduating senior|college applicant/.test(searchableText)) {
     score += 1;
     reasons.push("Identifies a student audience");
@@ -188,7 +192,8 @@ function calculateRelevance(title, excerpt, domain, state, year) {
   const reasons = [];
   let score = 0;
   if (stateMatchesText(searchableText, state)) { score += 4; reasons.push("Matches the selected state"); }
-  if (searchable.includes(String(year))) { score += 4; reasons.push(`Mentions class of ${year}`); }
+  const yearMentioned = new RegExp(`(?:class\\s+of\\s+${String(year)}|${String(year)}\\s+graduates?|graduating\\s+(?:in\\s+)?${String(year)}|graduation\\s+(?:year\\s+)?${String(year)})\\b`, "i").test(searchable);
+  if (yearMentioned) { score += 4; reasons.push(`Mentions class of ${year}`); }
   if (/scholarship|fellowship|grant|student award/.test(searchable)) { score += 2; reasons.push("Mentions a scholarship or award"); }
   if (/high school|high-school|graduating senior|graduating student|class of/.test(searchable)) { score += 2; reasons.push("Mentions high-school or senior applicants"); }
   if (domain.endsWith(".gov") || domain.endsWith(".edu")) { score += 1; reasons.push("Institutional domain signal; sponsor still needs verification"); }
@@ -431,6 +436,52 @@ export function createDiscoveryResultCache({
     clear() { entries.clear(); },
   };
 }
+const MONTHS = Object.freeze({
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+});
+
+function validCalendarDate(year, month, day) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function explicitDateIn(text) {
+  const iso = text.match(/\b(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b/);
+  const monthName = text.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?[,]?\s+(20\d{2})\b/i);
+  const matches = [iso, monthName].filter(Boolean);
+  if (matches.length !== 1) return null;
+  const year = Number(iso ? iso[1] : monthName[3]);
+  const month = iso ? Number(iso[2]) : MONTHS[monthName[1].toLowerCase()];
+  const day = Number(iso ? iso[3] : monthName[2]);
+  if (!validCalendarDate(year, month, day)) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Extract only verbatim clues present in a search-result title/snippet.
+ * These values are discovery hints, never sponsor verification or inferred facts.
+ */
+export function extractScholarshipSearchSignals(value) {
+  const text = clean(value, 1800);
+  const sentences = text.match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
+  const awardSentence = sentences.find((sentence) =>
+    /(?:\$\s?\d|\b(?:USD|CAD|EUR|GBP)\s?\d|\d[\d,]*(?:\.\d{1,2})?\s?(?:dollars|euros|pounds)\b)/i.test(sentence) &&
+    /scholarship|fellowship|grant|bursary|award|tuition/i.test(sentence) &&
+    !/application fee|processing fee|household income|family income|income limit|cost of attendance/i.test(sentence)
+  ) || null;
+  const deadlineSentence = sentences.find((sentence) =>
+    /deadline|apply by|submit by|due by|applications? (?:are )?due|due date|applications? close|closes? on|closing date|must be submitted by/i.test(sentence) &&
+    explicitDateIn(sentence)
+  ) || null;
+  return {
+    awardText: awardSentence ? clean(awardSentence, 280) : null,
+    deadline: deadlineSentence ? explicitDateIn(deadlineSentence) : null,
+    deadlineText: deadlineSentence ? clean(deadlineSentence, 280) : null,
+    deadlineNotPublished: false,
+  };
+}
+
 export function normalizeAndRankResults(outcomes, discoveredAt, state, graduationYear, { randomUUID = () => crypto.randomUUID() } = {}) {
   const unique = new Map();
   const rankingsByPath = new Map();
@@ -491,6 +542,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
         ...fallback,
         ...preferred,
         excerpt: preferred.excerpt || fallback.excerpt || "",
+        evidence_excerpt: [preferred.excerpt, fallback.excerpt].filter(Boolean).join(" ").slice(0, 3600),
         discovery_category: String(preferred.discovery_category || fallback.discovery_category),
         discovery_categories: [...new Set([...(previous.discovery_categories || []), category])],
         discovery_queries: [...new Set([...(previous.discovery_queries || []), outcome.job.query])],
@@ -524,6 +576,10 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
     const consensusScore = consensus?.consensusScore ?? 0;
     const consensusCount = consensus?.appearances ?? 0;
     const match = calculateRelevance(item.title, item.excerpt || "", item.source_domain, state, graduationYear);
+    const evidenceExcerpt = [item.title, item.evidence_excerpt || item.excerpt].filter(Boolean).join(". ").slice(0, 3800);
+    const searchSignals = extractScholarshipSearchSignals(evidenceExcerpt);
+    if (searchSignals.awardText) { match.score += 1; match.reasons.push("Search snippet includes an award amount"); }
+    if (searchSignals.deadline) { match.score += 1; match.reasons.push("Search snippet includes a dated deadline"); }
     const reasons = [...match.reasons];
     if (consensusCount > 1) reasons.push(`Found across ${consensusCount} independent search variations`);
 
@@ -531,9 +587,11 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
       id: randomUUID(),
       title: item.title,
       provider: null,
-      award_text: null,
-      deadline: null,
-      deadline_text: null,
+      award_text: searchSignals.awardText,
+      award_evidence_text: searchSignals.awardText || null,
+      award_evidence_url: searchSignals.awardText ? item.source_url : null,
+      deadline: searchSignals.deadline,
+      deadline_text: searchSignals.deadlineText,
       deadline_timezone: null,
       deadline_not_published: false,
       last_checked_date: null,
@@ -547,20 +605,29 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
       discovery_pages: item.discovery_pages,
       source_domain: item.source_domain,
       excerpt: item.excerpt,
+      evidence_excerpt: evidenceExcerpt,
       published_at: item.published_at,
       search_engine: "searxng",
       search_consensus_score: consensusScore,
       search_consensus_count: consensusCount,
       search_best_rank: bestRankByKey.get(key) ?? null,
-      relevance_score: Math.round((consensusScore * 100 + Math.min(15, Math.max(0, match.score))) * 100) / 100,
+      // 70% reflects agreement across independent searches; 30% reflects explicit fit signals.
+      // The score is a discovery ranking, not a personalized eligibility percentage.
+      relevance_score: Math.max(0, Math.min(100, Math.round(
+        (consensusCount >= 2 ? consensusScore * 70 : 0) +
+        (Math.min(15, Math.max(0, match.score)) / 15) * 30
+      ))),
       relevance_reasons: reasons,
       verification_state: "unverified_lead",
       discovered_at: discoveredAt,
       source_checked_at: null,
       extracted_rules: {
         short_source_summary: item.excerpt,
+        search_signal_source: "search_snippet",
         uncertainties: [
-          "Sponsor identity, award amount, deadline, and eligibility rules have not been confirmed on the official sponsor page.",
+          ...(!searchSignals.awardText ? ["Award amount was not found in the search snippet."] : ["Award wording is a search-snippet clue; confirm it on the sponsor page."]),
+          ...(!searchSignals.deadline ? ["A dated deadline was not found in the search snippet."] : ["Deadline wording is a search-snippet clue; confirm it on the sponsor page."]),
+          "Eligibility rules have not been confirmed on the official sponsor page.",
           "Search ranking is a relevance aid, not an eligibility decision.",
         ],
       },

@@ -31,7 +31,7 @@ test('manual search and automated discovery communicate separate privacy boundar
   const discovery = section("{tab === 'Discovery'", "{tab === 'Cloud Search'");
   const cloudSearch = section("{tab === 'Cloud Search'", "{tab === 'Scholarships'");
   assert.match(discovery, /generic scholarship terms only/);
-  assert.match(discovery, /Google is contacted only when you choose to open a search link/);
+  assert.match(discovery, /Google is contacted only when you open a search link/);
   assert.match(cloudSearch, /Only your state, graduation year, and selected categories are sent/);
   assert.match(cloudSearch, /Verify eligibility, award details, and deadlines on each official sponsor page/);
 });
@@ -52,7 +52,7 @@ test('application preparation keeps submission and decision status in the tracke
   const prep = section("{tab === 'Application prep'", '<footer className="page-footer"');
   assert.match(prep, /Core preparation checklist/);
   assert.match(prep, /Record as submitted/);
-  assert.match(prep, /Submission status and decision dates are maintained in the scholarship tracker/);
+  assert.match(prep, /Track submission and decision dates in your tracker/);
   assert.doesNotMatch(prep, /Submission date:|Decision date:|<ApplicationStatusPill/);
 });
 

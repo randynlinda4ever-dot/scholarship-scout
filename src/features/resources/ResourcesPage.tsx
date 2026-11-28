@@ -23,10 +23,10 @@ type Props = {
 
 const CARDS: Array<{ id: ResourceId; number: string; category: string; title: string; description: string; detail: string }> = [
   { id: "tracker", number: "01", category: "ORGANIZE", title: "Scholarship application tracker", description: "Keep deadlines, application status, and next steps in one place.", detail: "Uses your existing My Scholarships tracker." },
-  { id: "essay", number: "02", category: "WRITE", title: "Scholarship essay planner", description: "Turn a prompt into a clear story, outline, and memorable takeaway.", detail: "A guided worksheet saved privately in this browser." },
-  { id: "aid", number: "03", category: "PAY FOR COLLEGE", title: "Financial-aid checklist", description: "Track FAFSA steps and compare college offers by estimated net price.", detail: "Includes an editable side-by-side cost worksheet." },
-  { id: "scams", number: "04", category: "STAY SAFE", title: "Scholarship scam prevention guide", description: "Spot pressure tactics, suspicious fees, and requests for financial details.", detail: "An interactive red-flag check and trusted links." },
-  { id: "calendar", number: "05", category: "PLAN AHEAD", title: "Junior-to-senior preparation calendar", description: "Break scholarship preparation into manageable school-year milestones.", detail: "Check off tasks as you complete them." },
+  { id: "essay", number: "02", category: "WRITE", title: "Scholarship essay planner", description: "Plan an essay around the sponsor’s prompt.", detail: "A guided worksheet saved privately in this browser." },
+  { id: "aid", number: "03", category: "PAY FOR COLLEGE", title: "Financial-aid checklist", description: "Track FAFSA tasks and compare college costs.", detail: "Includes an editable side-by-side cost worksheet." },
+  { id: "scams", number: "04", category: "STAY SAFE", title: "Scholarship scam prevention guide", description: "Check messages for common scholarship scam signs.", detail: "An interactive red-flag check and trusted links." },
+  { id: "calendar", number: "05", category: "PLAN AHEAD", title: "Junior-to-senior preparation calendar", description: "Plan key tasks across junior and senior year.", detail: "Check off tasks as you complete them." },
 ];
 
 const SCAM_QUESTIONS = [
@@ -132,10 +132,10 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
   return <div className="page resource-page">
     {!activeCard ? <>
       <div className="page-heading resource-index-heading">
-        <div><div className="eyebrow">THE SCHOLARSHIP SCOUT TOOLKIT</div><h1>Resources that move you forward.</h1>
-          <p>Practical tools to plan applications, compare college costs, protect yourself, and stay on track.</p></div>
+        <div><div className="eyebrow">THE SCHOLARSHIP SCOUT TOOLKIT</div><h1>Student resources</h1>
+          <p>Tools for essays, financial aid, scam checks, and planning.</p></div>
       </div>
-      <div className="resource-index-note"><span aria-hidden="true">✳</span><p><b>Built to use, not just read.</b> Your essay notes, aid checklist, and calendar progress save in this browser’s encrypted vault. They are not sent to scholarship sponsors.</p></div>
+      <div className="resource-index-note"><span aria-hidden="true">✳</span><p><b>Private worksheets</b> Your worksheets and progress stay in this browser’s encrypted vault. Sponsors cannot access them.</p></div>
       <div className="resource-card-grid">
         {CARDS.map((card) => <button type="button" className="resource-card" key={card.id} onClick={() => open(card.id)}>
           <div className="resource-card-top"><span>{card.number}</span><small>{card.category}</small></div>
