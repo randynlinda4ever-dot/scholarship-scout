@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from "./helpers/readActiveAppStyles.mjs";
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const gate = await readFile(new URL('../src/components/LegalAcceptanceGate.tsx', import.meta.url), 'utf8');
-const appStyles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const appStyles = await readActiveAppStyles();
 const gateStyles = await readFile(new URL('../src/components/LegalAcceptanceGate.css', import.meta.url), 'utf8');
 const brandStyles = await readFile(new URL('../src/brand-system.css', import.meta.url), 'utf8');
 const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
