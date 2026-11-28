@@ -54,7 +54,7 @@ jobs:
         run: npm run build
 
       - name: Stage 4 - complete unit and integration test suite
-        run: npm test -- --test-forbid-only
+        run: npm test
 
       - name: Stage 5 - source function, branch, and line coverage
         run: npm run test:coverage
