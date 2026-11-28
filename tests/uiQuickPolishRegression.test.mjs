@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
-const css = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const css = await readActiveAppStyles();
 test('overview explains when there are no recent discoveries', () => { assert.match(app, /candidateAssessments\.length\s*\?\s*<div className="candidate-grid"/); assert.match(app, /No recent discoveries yet/); });
 test('profile readiness uses explicit completion counts rather than concatenated empty values', () => { assert.match(app, /profileReadiness\.core\.completedCount/); assert.match(app, /profileReadiness\.supporting\.completedCount/); assert.doesNotMatch(app, /profileSnapshotDetails/); });
 test('tracker action column has a readable heading and an accessible action label', () => { assert.match(app, /<th scope="col">DETAILS<\/th>/); assert.match(app, /aria-label=\{"Open details for " \+ item\.name\}/); });
