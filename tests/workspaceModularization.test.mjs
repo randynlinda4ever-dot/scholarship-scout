@@ -85,3 +85,26 @@ test("navigation glyph rendering is isolated from the application composition ro
   assert.match(glyph, /export function NavGlyph/);
   assert.match(glyph, /aria-hidden="true"/);
 });
+
+test("application stylesheet is an ordered manifest of focused style modules", async () => {
+  const manifest = await read("../src/App.css");
+  const imports = [...manifest.matchAll(/@import\s+['"]([^'"]+)['"]\s*;/g)].map((match) => match[1]);
+  assert.deepEqual(imports, [
+    "./styles/app/foundation.css",
+    "./styles/app/components.css",
+    "./styles/app/responsive.css",
+    "./styles/app/theme.css",
+    "./styles/app/accessibility.css",
+    "./styles/app/editorial.css",
+    "./styles/app/branding.css",
+    "./styles/app/navigation.css",
+    "./styles/app/design-system.css",
+    "./styles/app/workspace-navigation.css",
+    "./styles/app/tracker-editor.css",
+  ]);
+  for (const path of imports) {
+    const source = await read("../src/" + path.replace(/^\.\//, ""));
+    assert.ok(source.trim().length > 100, path + " should contain its own style rules");
+  }
+  assert.doesNotMatch(manifest, /(^|\n)(?!\s*@import|\s*\/\*|\s*\*\/)[^\s/][^\n]*\{/);
+});
