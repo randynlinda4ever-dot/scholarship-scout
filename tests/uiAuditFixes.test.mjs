@@ -72,7 +72,7 @@ test('notifications are event-driven, auto-dismiss, and keep critical storage er
 });
 
 test('Midnight Violet CSS has one canonical token root and no duplicated motion or legacy font layers', () => {
-  assert.equal((themeTokens.match(/(^|\\n):root\\s*\\{/g) || []).length, 1);
+  assert.equal((themeTokens.match(/(^|\n):root\s*\{/g) || []).length, 1);
   assert.equal((css.match(/\.shell\[data-theme="light"\]\s*\{/g) || []).length, 1);
   assert.equal((css.match(/@media \(prefers-reduced-motion: reduce\)/g) || []).length, 1);
   assert.doesNotMatch(css, /Manrope|Newsreader/);
