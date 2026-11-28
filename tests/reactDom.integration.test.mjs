@@ -85,9 +85,10 @@ test("StartHomePage handles browser validation, keyboard submit and busy-state u
 
     function Harness() {
       const [busy, setBusy] = useState(false);
+      const [email, setEmail] = useState("");
       return React.createElement(StartHomePage, {
-        email: "",
-        onEmailChange() {},
+        email,
+        onEmailChange: setEmail,
         onEmailSubmit(event) {
           event.preventDefault();
           submitCount += 1;
@@ -111,7 +112,7 @@ test("StartHomePage handles browser validation, keyboard submit and busy-state u
       render(React.createElement(Harness), { container: root });
       const ui = within(root);
       const email = ui.getByRole("textbox", { name: /email/i });
-      const submit = ui.getByRole("button", { name: /send sign-in link/i });
+      const submit = ui.getByRole("button", { name: /continue with email/i });
 
       assert.equal(email.required, true);
       await user.type(email, "not-an-email");
