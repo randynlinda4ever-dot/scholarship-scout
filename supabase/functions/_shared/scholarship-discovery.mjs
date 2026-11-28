@@ -150,7 +150,8 @@ function isScholarshipDirectoryLandingUrl(value, title = "") {
     const stateIndexTitle = titleText.match(/^(.+?)\s+scholarships\b/i);
     if (stateIndexTitle && normalizeUsState(stateIndexTitle[1])) return true;
     if (/^(?:alphabetical\s+)?(?:index|directory|list|database|catalog(?:ue)?)\b.*\bscholarships?\b/i.test(titleText)) return true;
-    if (/^(?:top|best|list of|browse|all)\s+(?:\d+\s+)?(?:[a-z0-9&,'’-]+\s+){0,5}(?:scholarships?|grants?|fellowships?)\b/i.test(titleText)) return true;
+    if (/^(?:(?:\d[\d,]*\+?)\s+(?:(?:best|top)\s+)?|(?:best|top)\s+(?:\d+\s+)?)(?:[a-z0-9&,'’-]+\s+){0,6}(?:scholarships?|grants?|fellowships?)\b/i.test(titleText)) return true;
+    if (/^(?:list of|browse|all)\s+(?:\d+\s+)?(?:[a-z0-9&,'’-]+\s+){0,5}(?:scholarships?|grants?|fellowships?)\b/i.test(titleText)) return true;
 
     const genericTitleTerms = new Set([
       "scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards",
