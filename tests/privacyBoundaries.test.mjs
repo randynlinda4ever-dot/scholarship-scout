@@ -22,7 +22,9 @@ test("public discovery sends only broad state and graduation-year filters", () =
   assert.match(projectedFields, /state:/);
   assert.match(projectedFields, /graduationYear:/);
   assert.doesNotMatch(projectedFields, /\b(?:school|gpa|classRank|email|activities|citizenship)\s*:/i);
-  assert.match(api, /body: \{ profile: safeProfile, categories \}/);
+  assert.match(api, /buildLiveDiscoveryPayload\(profile, categories\)/);
+  assert.match(api, /body: payload/);
+  assert.doesNotMatch(api, /body:\s*\{\s*profile\s*:/);
   assert.match(api, /headers: \{ "x-scout-client-id": clientId \}/);
   assert.doesNotMatch(api, /body: \{[^}]*profile\s*,/);
   assert.doesNotMatch(api, /body: \{[^}]*clientId/);

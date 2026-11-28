@@ -665,8 +665,8 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
       gatewayBase = new URL(gatewayUrl);
       if (!isSafeHttpsUrl(gatewayUrl) || gatewayBase.search || gatewayBase.hash) return json({ error: "The laptop search gateway URL is not a valid public HTTPS base URL." }, 503);
     } catch { return json({ error: "The laptop search gateway URL is not configured correctly." }, 503); }
-    const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
-    if (!contentType.includes("application/json")) return json({ error: "Send the search filters as JSON." }, 415);
+    const contentType = req.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+    if (contentType !== "application/json") return json({ error: "Send the search filters as JSON." }, 415);
     let rawBody;
     try { rawBody = await readRequestBody(req); }
     catch (error) {
@@ -676,30 +676,24 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     let body;
     try { body = JSON.parse(rawBody); } catch { return json({ error: "Invalid JSON request." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body) ||
-        Object.keys(body).length !== 2 ||
-        !Object.hasOwn(body, "profile") ||
-        !Object.hasOwn(body, "categories")) {
+        Object.keys(body).length !== 3 ||
+        !Object.hasOwn(body, "state") ||
+        !Object.hasOwn(body, "graduationYear") ||
+        !Object.hasOwn(body, "categories") ||
+        typeof body.state !== "string" ||
+        typeof body.graduationYear !== "string") {
       return json({ error: "Only state, graduation year, and selected category IDs are accepted." }, 400);
-    }
-    const profile = body.profile;
-    if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
-        Object.keys(profile).length !== 2 ||
-        !Object.hasOwn(profile, "state") ||
-        !Object.hasOwn(profile, "graduationYear") ||
-        typeof profile.state !== "string") {
-      return json({ error: "Only state and graduation year may be included in the profile filters." }, 400);
     }
     const rawCategories = body.categories;
     if (!Array.isArray(rawCategories) ||
         rawCategories.length === 0 ||
+        rawCategories.length > ALLOWED_CATEGORIES.length ||
+        new Set(rawCategories).size !== rawCategories.length ||
         rawCategories.some((value) => typeof value !== "string" || !ALLOWED_CATEGORIES.includes(value))) {
       return json({ error: "Choose one or more supported scholarship search categories." }, 400);
     }
-    const state = normalizeUsState(clean(profile.state, 60));
-    const yearValue = profile.graduationYear;
-    const rawGraduationYear = typeof yearValue === "number" && Number.isFinite(yearValue)
-      ? String(yearValue)
-      : typeof yearValue === "string" ? yearValue : "";
+    const state = normalizeUsState(clean(body.state, 60));
+    const rawGraduationYear = body.graduationYear.trim();
     const graduationYear = /^\d{4}$/.test(rawGraduationYear) ? Number(rawGraduationYear) : NaN;
     const currentYear = now().getUTCFullYear();
     if (!state) return json({ error: "Choose a valid US state or territory for scholarship search." }, 400);

@@ -2,7 +2,7 @@ import { getSupabaseClient } from "./supabaseClient";
 import { getMagicLinkRedirectUrl } from "./authRedirect.js";
 import { buildCloudScholarshipRow, findExistingCloudScholarshipMatch, mapCloudScholarship } from "./cloudMapping";
 import { rankAndDeduplicateLiveResults } from "./discoveryPipeline.js";
-import { pickLiveDiscoveryProfile } from "./liveDiscoveryProfile.js";
+import { buildLiveDiscoveryPayload } from "./liveDiscoveryProfile.js";
 import { createCloudScholarshipId } from "./cloudRecordId.js";
 import { getDiscoveryClientId } from "./discoveryClientIdentity.js";
 
@@ -351,10 +351,10 @@ export async function runLiveScholarshipDiscovery(
   categories: string[],
 ): Promise<LiveDiscoveryRun> {
   const client = await requireClient();
-  const safeProfile = pickLiveDiscoveryProfile(profile);
+  const payload = buildLiveDiscoveryPayload(profile, categories);
   const clientId = getDiscoveryClientId();
   const { data, error } = await client.functions.invoke("scholarship-discover", {
-    body: { profile: safeProfile, categories },
+    body: payload,
     ...(clientId ? { headers: { "x-scout-client-id": clientId } } : {}),
   });
   if (error) {
