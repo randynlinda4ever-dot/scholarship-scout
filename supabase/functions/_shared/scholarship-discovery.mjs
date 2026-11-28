@@ -539,7 +539,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
     const consensus = fusedByKey.get(key);
     const consensusScore = consensus?.consensusScore ?? 0;
     const consensusCount = consensus?.appearances ?? 0;
-    const titleMatchedSnippet = getTitleMatchedSnippet(item.title, item.excerpt);
+    const titleMatchedSnippet = matchScholarshipEvidence(item.title, item.excerpt);
     const match = calculateRelevance(item.title, titleMatchedSnippet, item.source_domain, state, graduationYear);
     const evidenceExcerpt = [item.title, titleMatchedSnippet].filter(Boolean).join(". ").slice(0, 2000);
     const searchSignals = extractScholarshipSearchSignals(titleMatchedSnippet);
