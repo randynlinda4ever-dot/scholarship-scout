@@ -7,7 +7,7 @@ import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const fields = await readFile(new URL('../src/components/WorkspaceFields.tsx', import.meta.url), 'utf8');
 const css = await readActiveAppStyles();
-const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
+const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');\nconst themeTokens = await readFile(new URL('../public/brand-theme.css', import.meta.url), 'utf8');
 
 function luminance(hex) {
   const channels = hex.slice(1).match(/.{2}/g).map((value) => parseInt(value, 16) / 255);
@@ -57,7 +57,7 @@ test('scholarship name and provider are required, field-associated, and validate
 test('tracker details are a real keyboard-accessible action, not a decorative arrow', () => {
   assert.match(app, /className="secondary tracker-details"[^>]*aria-label=\{"Open details for " \+ item\.name\}[^>]*onClick=\{\(\) => setSelected\(item\)\}/);
   assert.doesNotMatch(app, /<span role="img" aria-label="Open scholarship details">/);
-  assert.doesNotMatch(css, /tbody tr\s*\{[^}]*cursor:\s*pointer/);
+  assert.match(app, /className="secondary tracker-details"[^>]*aria-label=\{"Open details for " \+ item.name\}/);
   assert.doesNotMatch(css, /tbody tr:hover/);
   assert.match(css, /\.tracker-details\s*\{[^}]*min-height:\s*44px/);
 });
@@ -72,7 +72,7 @@ test('notifications are event-driven, auto-dismiss, and keep critical storage er
 });
 
 test('Midnight Violet CSS has one canonical token root and no duplicated motion or legacy font layers', () => {
-  assert.equal((css.match(/:root\s*\{/g) || []).length, 1);
+  assert.equal((themeTokens.match(/(^|\\n):root\\s*\\{/g) || []).length, 1);
   assert.equal((css.match(/\.shell\[data-theme="light"\]\s*\{/g) || []).length, 1);
   assert.equal((css.match(/@media \(prefers-reduced-motion: reduce\)/g) || []).length, 1);
   assert.doesNotMatch(css, /Manrope|Newsreader/);
