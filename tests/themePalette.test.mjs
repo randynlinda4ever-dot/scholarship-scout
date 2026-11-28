@@ -39,7 +39,7 @@ const lightTokens = [
   '--line: #D8CBB9',
   '--text: #2B241E',
   '--text-soft: #55483C',
-  '--muted: #766B5D',
+  '--muted: #6B6053',
   '--accent: #925334',
   '--accent-strong: #7C442A',
 ];
