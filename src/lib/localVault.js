@@ -530,19 +530,38 @@ function readLegacyRecords(storage) {
 
 function removeLegacyRecords(storage) {
   if (!storage || typeof storage.length !== "number" ||
-      typeof storage.key !== "function" || typeof storage.removeItem !== "function") {
+      typeof storage.key !== "function" || typeof storage.removeItem !== "function" ||
+      typeof storage.getItem !== "function" || typeof storage.setItem !== "function") {
     throw new Error("Browser storage cleanup is unavailable. Keep the vault page open and retry.");
   }
-  const keys = [];
+  const snapshots = [];
   for (let index = 0; index < storage.length; index += 1) {
     const key = storage.key(index);
-    if (typeof key === "string" && !isExcludedPlaintextKey(key)) keys.push(key);
+    if (typeof key !== "string" || isExcludedPlaintextKey(key)) continue;
+    const value = storage.getItem(key);
+    if (typeof value === "string") snapshots.push({ key, value });
   }
-  for (const key of keys) storage.removeItem(key);
-  for (const key of keys) {
-    if (storage.getItem(key) !== null) {
-      throw new Error("Encrypted data was saved, but a plaintext browser-storage record could not be removed. Retry unlock before using the workspace.");
+  try {
+    for (const { key } of snapshots) storage.removeItem(key);
+    for (const { key } of snapshots) {
+      if (storage.getItem(key) !== null) {
+        throw new Error("Encrypted data was saved, but a plaintext browser-storage record could not be removed.");
+      }
     }
+  } catch (error) {
+    let restored = true;
+    for (const { key, value } of [...snapshots].reverse()) {
+      try {
+        if (storage.getItem(key) !== value) storage.setItem(key, value);
+        if (storage.getItem(key) !== value) restored = false;
+      } catch {
+        restored = false;
+      }
+    }
+    if (!restored) {
+      throw new Error("Vault migration failed and plaintext recovery could not be fully verified. Keep this tab open and contact support.");
+    }
+    throw error;
   }
 }
 
@@ -1400,7 +1419,11 @@ export const vaultStorage = {
       if (inactiveUntilReload) return Promise.resolve();
       throw new Error("The local vault is locked.");
     }
-    activeVault.records.set(String(key), String(value));
+    const recordKey = String(key);
+    if (!isPrivateVaultRecordKey(recordKey)) {
+      throw new Error("Only allowlisted private student records may be written to the local vault.");
+    }
+    activeVault.records.set(recordKey, String(value));
     return queuePersist(activeVault);
   },
   removeItem(key) {
@@ -1408,7 +1431,11 @@ export const vaultStorage = {
       if (inactiveUntilReload) return Promise.resolve();
       throw new Error("The local vault is locked.");
     }
-    activeVault.records.delete(String(key));
+    const recordKey = String(key);
+    if (!isPrivateVaultRecordKey(recordKey)) {
+      throw new Error("Only allowlisted private student records may be removed from the local vault.");
+    }
+    activeVault.records.delete(recordKey);
     return queuePersist(activeVault);
   },
   clear() {
