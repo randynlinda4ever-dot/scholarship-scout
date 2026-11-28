@@ -2023,6 +2023,7 @@ function App() {
               }
               setProfileImportFileName(file.name);
               setProfileImportPreview(extracted);
+              resetInput();
             } catch {
               setProfileImportError('The file could not be read. Try exporting it as plain text and upload it again.');
               resetInput();
