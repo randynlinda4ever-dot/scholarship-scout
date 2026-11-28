@@ -6,6 +6,6 @@ const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const css = await readActiveAppStyles();
 test('overview explains when there are no recent discoveries', () => { assert.match(app, /candidateAssessments\.length\s*\?\s*<div className="candidate-grid"/); assert.match(app, /No recent discoveries yet/); });
 test('profile readiness uses explicit completion counts rather than concatenated empty values', () => { assert.match(app, /profileReadiness\.core\.completedCount/); assert.match(app, /profileReadiness\.supporting\.completedCount/); assert.doesNotMatch(app, /profileSnapshotDetails/); });
-test('tracker action column has a readable heading and an accessible action label', () => { assert.match(app, /<th scope="col">DETAILS<\/th>/); assert.match(app, /aria-label=\{"Open details for " \+ item\.name\}/); });
+test('tracker action column delegates the accessible action to the tested details component', () => { assert.match(app, /<th scope="col">DETAILS<\/th>/); assert.match(app, /<TrackerDetailsButton item=\{item\} onOpen=\{setSelected\} \/>/); });
 test('offline notice uses readable colors in light theme', () => { assert.match(css, /\.shell\[data-theme="light"\] \.offline-notice\s*\{/); });
 test('skip-link destination retains a visible keyboard focus indicator', () => { assert.doesNotMatch(css, /\.main:focus\s*\{\s*outline:\s*none/); assert.match(css, /\.main:focus-visible\s*\{[^}]*outline:/); });
