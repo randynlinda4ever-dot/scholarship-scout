@@ -1,6 +1,6 @@
 # Scholarship discovery system
 
-> **Current limiter decision — November 27, 2026:** The current release design uses the existing no-Redis architecture: two requests per IP per 60 seconds per Edge Function isolate, backed by the authenticated single gateway's 30-request-per-60-second process-wide ceiling. Upstash is not required. The gateway owner confirms the two SearXNG secrets are configured, and a direct authenticated request to the named tunnel returned HTTP 200 with 15 results. Supabase remains at version 19 until reviewed source parity is deployed and re-verified. See [the current runtime audit](runtime-audit-2026-11-27.md).
+> **Current limiter decision — November 28, 2026:** Production uses the no-Redis design: two requests per trusted IP per 60 seconds per Edge Function isolate, backed by the authenticated gateway's 30-request-per-60-second process-wide ceiling. Upstash is not required; the optional helper remains dormant and is not wired by the deployed entrypoint. Supabase `scholarship-discover` is ACTIVE v29 and its five-file deployed bundle matches the audited GitHub `main` baseline. See [the current code-quality audit](code-quality-audit-2026-11-28.md).
 
 ## Browser request boundary
 
@@ -37,9 +37,9 @@ The production wrapper uses `createPublicRateLimiter()` from `supabase/functions
 
 The authenticated Node gateway provides the shared upstream layer: its single process caps authorized `/search` requests at 30 per 60 seconds across all Supabase Edge Function isolates. This no-Redis design requires only the existing `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN` secrets. It does not provide durable daily quotas or a shared in-flight concurrency lease, and its counter resets on a gateway process restart. `createUpstashRateLimiter` remains optional alternative code; it is not used by the production wrapper and no Upstash secrets are required.
 
-## Current deployed/source difference
+## Current deployed/source parity
 
-Supabase metadata reports version 19. Its returned deployed entrypoint uses the per-isolate in-memory limiter, and the helper includes adaptive search, a complete-result cache, bounded retries, and detailed failure metrics. The corrected release wrapper preserves the same per-isolate policy, adds `x-scout-client-id` to CORS, and imports the limiter from the separate shared module. The source still contains optional Upstash code, but the production wrapper does not activate it and no Redis secrets are required. The deployed v19 file set is not byte-identical to the current release source; the missing module and CORS wrapper change still need a reviewed deployment.
+Supabase reports `scholarship-discover` ACTIVE v29 with `verify_jwt=false`. The deployed bundle contains five files and each matches the corresponding GitHub `main` file byte-for-byte at audit baseline `28137158d8beb3243da295e3f4ffaf6676edfbd0`. The wrapper imports `createPublicRateLimiter()` only. The shared module still exports an optional Upstash implementation, but it is not called, no Upstash secrets are configured or required by the selected design, and it provides no production protection. The gateway remains the shared 30-request-per-minute process ceiling. No fresh end-to-end function-to-gateway request was run in this audit.
 
 The Supabase response also reports an `entrypoint_path` suffix of `_16` despite version-19 metadata. Treat that as an additional provenance discrepancy, not proof that version 16 is running. The returned `ezbr_sha256` value is metadata and has not been independently recomputed from the source files.
 

@@ -4,7 +4,7 @@
 
 This document records the code and live service state inspected during the current implementation pass. It distinguishes committed source from deployed behavior. It is not a promise that every planned capability is already live.
 
-> **Architecture verification — November 28, 2026:** PR #26 carries the committed Phase 2–5 candidate on `phase4/architecture-simplification-20261128`, based on `89ee99fd5ef154a6ae23f3a87c8e3592df32b30e`; it is a review branch, not the current production frontend. The app lazy-loads `src/App.tsx` after the legal acceptance gate. The live Supabase inventory reports `scholarship-discover` ACTIVE v28 (`verify_jwt=false`) and `account-delete` ACTIVE v4 (`verify_jwt=true`); the latter's deployed bundle includes the bounded 2 KiB body reader and shared helper. A fresh database audit confirmed RLS on all five public tables, no direct client CRUD grants on the local-only student tables, and no current `public` objects owned by the internal `supabase_admin` role. Its managed default ACLs cannot be changed by project owners; extension-owned objects belong in `extensions` or another non-exposed schema. The gateway's authenticated process-wide upstream ceiling is 30 requests per minute. See [the November 28 roadmap audit](roadmap-audit-2026-11-28.md), [privacy and security](privacy-and-security.md), and [deployment controls](deployment.md).
+> **Architecture verification — November 28, 2026:** Production Vercel deployment `dpl_Gj3jNiASBVqF3GhLwk23xaeaVk1j` is READY for GitHub `main` SHA `28137158d8beb3243da295e3f4ffaf6676edfbd0`. Supabase reports `scholarship-discover` ACTIVE v29 (`verify_jwt=false` for this function only) with all five deployed files byte-identical to that `main` baseline; `account-delete` is ACTIVE v4 (`verify_jwt=true`) with executable entrypoint parity after comment removal and an exact shared body-reader match. The app lazy-loads `src/App.tsx` after the legal acceptance gate. The authenticated gateway's process-wide upstream ceiling is 30 requests per minute. The database retains RLS on all five public tables and no direct client CRUD grants on the local-only student tables. See [the current code-quality audit](code-quality-audit-2026-11-28.md), [privacy and security](privacy-and-security.md), and [deployment controls](deployment.md).
 
 ## Frontend
 
@@ -56,9 +56,9 @@ No essay content, contact details, school, grades, class rank, test scores, acti
              +--> fixed HTTPS SearXNG gateway
                     +--> SearXNG search results
 
-## Current deployed/source difference
+## Current deployed/source parity
 
-The live Supabase inventory reports `scholarship-discover` ACTIVE at version 28 with `verify_jwt=false` for this function only. `account-delete` is ACTIVE at version 4 with `verify_jwt=true`; its deployed bundle includes `readBoundedJsonBody(request, 2048)` and the shared helper. The current audit verified live function state and key deployment metadata, not a fresh end-to-end function invocation or a destructive deletion request. The browser discovery payload remains limited to state, graduation year, and selected category IDs. The gateway has a process-wide 30-request-per-minute ceiling. See [the November 28 roadmap audit](roadmap-audit-2026-11-28.md).
+The live Supabase inventory reports `scholarship-discover` ACTIVE at version 29 with `verify_jwt=false` for this function only. The five deployed files match the audited `main` baseline byte-for-byte. `account-delete` is ACTIVE at version 4 with `verify_jwt=true`; its entrypoint's executable code matches `main` after comments are removed, and `bounded-json-body.mjs` is byte-identical. The browser discovery payload remains limited to state, graduation year, and selected category IDs. No fresh end-to-end discovery invocation or destructive account-deletion request was performed in this audit. See [the current code-quality audit](code-quality-audit-2026-11-28.md).
 
 The scholarship-verify file in the repository is a disabled placeholder with a kill switch. No scholarship-verify Edge Function is deployed.
 

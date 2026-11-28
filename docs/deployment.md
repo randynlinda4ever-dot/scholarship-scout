@@ -6,20 +6,20 @@
 - Production frontend: Vercel project `scholarship-scout-standalone`.
 - Public app domains: `https://scholarship-scout.org` and `https://www.scholarship-scout.org`; the `www` host redirects to the apex domain.
 - Supabase project: `wjrwvempgjvoxlioodse`.
-- Public discovery function: `scholarship-discover`, verified ACTIVE at version 28 with `verify_jwt=false` for public discovery only.
+- Public discovery function: `scholarship-discover`, verified ACTIVE at version 29 with `verify_jwt=false` for public discovery only.
 - Account deletion function: `account-delete`, verified ACTIVE at version 4 with `verify_jwt=true` and the bounded 2 KiB streaming body reader plus shared helper in the deployed bundle.
 
 A production frontend deployment must identify the exact GitHub commit it built. A READY status alone does not verify that the intended commit was deployed. The frontend deployment does not deploy Supabase Edge Functions or database migrations.
 
 ## Current frontend release
 
-The PR #10 auth/mobile fix was merged to `main` as commit `4ad05b60356b10aeb9338ca384a2081f595e1f13`. Vercel production deployment `dpl_EsvKbRSVNZWzNnpkS3LNJbauVYRt` was verified READY for that exact commit, with both production domain aliases attached.
+Vercel production deployment `dpl_Gj3jNiASBVqF3GhLwk23xaeaVk1j` is READY and was built from GitHub `main` SHA `28137158d8beb3243da295e3f4ffaf6676edfbd0`. The verified apex and `www` domains are attached to that deployment; `www.scholarship-scout.org` is configured to redirect to the apex with HTTP 308.
 
-The mobile follow-up in the current branch is not yet part of production until its own pull request is reviewed, merged, and deployed.
+Vercel project metadata currently reports `live=false` while the exact-main production deployment is READY and the custom-domain aliases remain attached. Treat that field as an inconsistent project summary, not proof of an outage. The deployment's explicit `target=production`, Git SHA, READY state, and aliases are the stronger evidence.
 
 ## Current backend deployment
 
-The deployed `scholarship-discover` v28 entrypoint uses the in-memory per-isolate rate limiter. The authenticated SearXNG gateway enforces a shared 30-upstream-request-per-60-second process ceiling across Edge Function isolates. Upstash is not required by this design; it does not provide durable daily quotas or shared in-flight concurrency leases.
+The deployed `scholarship-discover` v29 entrypoint uses the in-memory per-isolate rate limiter, and all five deployed files match the audited GitHub `main` baseline byte-for-byte. The authenticated SearXNG gateway enforces a shared 30-upstream-request-per-60-second process ceiling across Edge Function isolates. The optional Upstash helper is not wired or used; no Redis credentials are required. This design does not provide durable daily quotas or shared in-flight concurrency leases.
 
 The deployed `account-delete` function is ACTIVE at v4 with `verify_jwt=true`. Its deployed bundle was verified to include `readBoundedJsonBody(request, 2048)` and the shared helper. No real or destructive account deletion was run as a smoke test.
 
