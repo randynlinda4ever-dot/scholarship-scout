@@ -1,10 +1,25 @@
 # Scholarship Scout product and engineering roadmap
 
-**Roadmap review date:** November 27, 2026  
-**Baseline:** GitHub `main` at `ae3577848c075cdfeececfa46537871fafc0a62c`; Vercel production deployment `dpl_HqHzXdVDB7gJtVG6nJsTFkeeSGep` was reported READY from that commit during this review.  
-**Companion audit:** [Roadmap audit — November 27, 2026](roadmap-audit-2026-11-27.md)
+**Roadmap review date:** November 27, 2026 (America/Chicago; final live checks completed November 28 UTC).
+
+**Baseline:** GitHub `main` at `92cd7387547eceef8977e6d03c887cdfcf2a7c96`; Vercel production deployment `dpl_76eQ6MdWSHbgAskmkUeiqKmL1L2h` is READY for that exact commit, with `scholarship-scout.org` and `www.scholarship-scout.org` aliases.
+
+**Companion audit:** [Roadmap audit — November 28, 2026](roadmap-audit-2026-11-28.md)
 
 This is the prioritized product and engineering plan. It replaces the stale checklist previously in this file. Historical implementation evidence remains in the linked testing, QA, runtime, security, and deployment reports; checkboxes below describe future work, not claims that a task has already passed.
+
+## Current release snapshot — verified November 27–28, 2026
+
+- **Frontend release:** `main` is `92cd7387547eceef8977e6d03c887cdfcf2a7c96`. Vercel production deployment `dpl_76eQ6MdWSHbgAskmkUeiqKmL1L2h` is READY for that exact SHA. PRs #9–#12 added the Resources workspace, auth/legal fixes, and the RFC 9727 API catalog after the older roadmap baseline.
+- **Product routes:** production GET smoke checks return HTTP 200 for `/`, `/resources`, `/scholarship-guides/`, `/scholarship-guides/high-school-juniors/`, `/scholarship-guides/texas-scholarships/`, `/sitemap.xml`, `/robots.txt`, `/api-docs.html`, `/api/openapi.json`, and `/.well-known/api-catalog`.
+- **Release verification:** the current `main` checkout reports 794 tests passed, 0 failed, 0 skipped; `npm run build` succeeds; `npm audit --audit-level=moderate` reports 0 vulnerabilities. These are source/build checks, not substitutes for the remaining real-browser workflow matrix.
+- **Resources:** the Resources workspace is now in production at `/resources`. It is a five-tool student toolkit, not yet a maintained, searchable resource catalog. Worksheet and progress state are local and included in the encrypted version-3 backup contract.
+- **API discovery:** the RFC 9727 catalog lists the two active application-owned Edge Functions. The external IsItAgentReady scan returned `checks.discovery.apiCatalog.status = "pass"` and reported 2 APIs. Sponsor verification remains disabled and undeployed.
+- **Supabase:** project `wjrwvempgjvoxlioodse` is ACTIVE_HEALTHY. `scholarship-discover` is ACTIVE v20 with `verify_jwt=false`; all four deployed files match GitHub `main` after line-ending normalization. `account-delete` is ACTIVE v2 with `verify_jwt=true`, but its deployed entrypoint does not match the current GitHub source. See P0.1 and the companion audit.
+- **Database/security:** all four current `public` tables have RLS enabled. The `postgres` role's default ACL is restricted, but `supabase_admin` still grants `anon` and `authenticated` default privileges on public tables, sequences, and functions. The leaked-password-protection advisor remains WARN; password sign-in is not enabled.
+- **Documentation drift:** multiple older engineering documents still describe Supabase discovery v19, Node 22, and pre-Resources or pre-API-catalog state. The roadmap baseline is current; a documentation reconciliation task remains open under P2.4.
+
+Use the companion audit for source hashes, migration versions, advisor results, production scan evidence, and the next actions. Do not treat the presence of a feature in `main` as proof that every real-browser workflow for it has passed.
 
 ## Product direction
 
@@ -55,18 +70,28 @@ Do not carry a completed checkbox forward merely because an older report checked
 
 These items take precedence over adding more search providers or large product features.
 
-### P0.1 Reconcile frontend and discovery backend source
+### P0.1 Align deployed Edge Function sources with GitHub `main`
 
-- [ ] Compare the exact deployed `scholarship-discover` Edge Function file set with the reviewed GitHub release source; record a file-level diff and source hash.
-- [ ] Resolve the documented Supabase version-19 source-parity discrepancy. A version number or a successful direct gateway request is not proof that the deployed Edge Function is invoking the current gateway.
-- [ ] Review the complete Edge Function dependency set, CORS contract, fixed gateway destination, server-side token handling, request bounds, timeout/retry policy, partial-result behavior, and failure classifications.
-- [ ] Preserve the existing deployed version and a tested rollback procedure before any function update.
-- [ ] Deploy only through a separately reviewed backend release. Record the deployed function version, source hash, commit, and rollback target.
-- [ ] Run synthetic end-to-end requests through the deployed Supabase function using only state, graduation year, and allowed category IDs.
-- [ ] Verify success, partial results, CORS preflight, rate-limit 429 with `Retry-After`, and fail-closed 503 when a trusted client IP cannot be attributed.
+**Live source comparison — November 27, 2026 (America/Chicago):** Supabase reports `scholarship-discover` ACTIVE at v20 (`verify_jwt=false`) and `account-delete` ACTIVE at v2 (`verify_jwt=true`). These are the only active application-owned functions returned by the project inventory. The deployed discovery bundle has four files and all four match the current GitHub `main` source after line-ending normalization. The deployed account-deletion entrypoint does not match `main`: deployed v2 uses a `Content-Length` check followed by `request.json()`, while current source uses the shared bounded streaming JSON reader. The source mismatch is recorded; no Edge Function was changed during this audit.
+
+| Deployed function file | SHA-256 after line-ending normalization | Result |
+|---|---|---|
+| `scholarship-discover/index.ts` | `c9302613599f3e9f353a47d8fbecdf281d21e0b8b67cc2d1b56830cb99650577` | Match |
+| `_shared/discovery-rate-limit.mjs` | `8f7ad81f98da2833b8809e35f40afad08ca0e81e1a8bbd087416f1be867ae419` | Match |
+| `_shared/scholarship-discovery.mjs` | `1d653ddba99429a2735538471ae154529fecacb3561cd528733d33a5012c012f` | Match |
+| `_shared/us-states.mjs` | `7d8a81276f4f880a404e0d779e96c862c79df7213a99c58cb92fc8c6528b7389` | Match |
+| `account-delete/index.ts` | deployed `eb3b9a48d6f81cc881a674f210db1d678b8c275bcbb3d3f0b6257689a5364104`; `main` `c06170c1cd8d0e6f8fd4865acd0ab07b31a45541773306dc52c170d0e4d1c445` | Drift |
+
+- [x] Compare the complete deployed `scholarship-discover` v20 file set against GitHub `main`; all four files match after normalizing line endings.
+- [x] Verify function metadata: public discovery alone has `verify_jwt=false`; account deletion has `verify_jwt=true`.
+- [ ] Reconcile `account-delete` v2 with the reviewed current source. Review the bounded-body change, CORS behavior, server-only key handling, verified-user derivation, session revocation, and deletion cascade before a separately reviewed deployment.
+- [ ] Preserve the deployed account-delete v2 source, metadata, and rollback target before updating it. Record the resulting version, file hashes, commit, and rollback procedure.
+- [ ] Run synthetic end-to-end discovery requests against the deployed Supabase function using only state, graduation year, and allowed category IDs.
+- [ ] Verify discovery success, partial results, CORS preflight, rate-limit 429 with `Retry-After`, and fail-closed 503 when a trusted client IP cannot be attributed.
+- [ ] Test account-deletion input bounds, invalid/missing authorization, confirmation mismatch, CORS rejection, and verified-session behavior in a safe test environment. Never test the success path against a real user account.
 - [ ] Confirm that gateway secrets, student data, and raw sensitive request content never appear in browser bundles, responses, or logs.
 
-**Acceptance:** the reviewed source is byte-for-byte or otherwise demonstrably equivalent to the deployed dependency set; synthetic Supabase-to-gateway requests pass; privacy and failure-mode assertions pass; rollback is documented and usable.
+**Acceptance:** every active application-owned Edge Function matches its reviewed `main` source and dependency set; the discovery contract and account-deletion guards pass synthetic integration tests; privacy and failure-mode assertions pass; each function has a preserved, usable rollback target.
 
 ### P0.2 Complete the real-browser release matrix
 
@@ -77,15 +102,21 @@ These items take precedence over adding more search providers or large product f
 - [ ] Verify magic-link and Google OAuth flows, callback restoration, sign-out, account deletion, and session revocation where applicable.
 - [ ] Verify cloud scholarship ownership with two independent test accounts. Confirm one account cannot read, update, or delete another account's records.
 - [ ] Verify offline behavior: local work remains available, online-only controls are disabled clearly, and recovery after reconnect does not silently lose changes.
-- [ ] Verify the same flows at desktop and mobile viewport sizes using synthetic student data.
+- [x] Verify the production Terms acceptance preflight at Chrome viewports 390×844, 360×640, and 320×568: the Continue action remains visible, no horizontal overflow appears, and guardian acknowledgement is conditional on the selected minor age range (PR #11; merged in `main`).
+- [ ] Verify the remaining app workflows at desktop and mobile viewport sizes using synthetic student data.
 - [ ] Record browser, OS, commit, environment, exact workflow, result, and defects. Do not treat source tests or a Vercel READY state as proof of these flows.
 
 **Acceptance:** all critical workflows pass in a real browser; no cross-account access, data loss, silent failed writes, broken callback, or unexplained test skip remains.
 
 ### P0.3 Close security and deployment-owner follow-ups
 
-- [ ] Resolve the owner-level Supabase default-privilege finding for objects created by `supabase_admin`; verify the resulting ACL rather than treating an attempted SQL command as success.
-- [ ] Configure and verify hosting response security headers at the actual production domain. A meta CSP is not a substitute for HTTP response headers such as HSTS, `frame-ancestors`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`.
+**Live security state — November 27, 2026 (America/Chicago):** the five applied migrations are `20261110044744`, `20261111020458`, `20261127052519`, `20261127182856`, and `20261127183308`. A read-only `pg_default_acl` inspection confirms that the `postgres` owner no longer grants public-schema defaults to `anon` or `authenticated`; the same inspection confirms that `supabase_admin` still grants both roles default table, sequence, and function privileges. All four current public tables have RLS enabled. The Supabase security advisor still reports leaked-password protection disabled; the app currently uses magic-link and Google OAuth rather than password sign-in. Performance advisors now report three unused indexes; do not remove them without query and workload evidence.
+
+The production homepage response currently has HSTS and the API-catalog `Link` header, but a live HEAD check did not return a CSP, `Referrer-Policy`, `Permissions-Policy`, or `X-Content-Type-Options` header. The catalog route separately returns `X-Content-Type-Options: nosniff`. The application still needs a proper site-wide HTTP header review.
+
+- [x] Apply and verify the postgres-owner public default-privilege restriction; the live ACL inspection shows no `anon` or `authenticated` defaults for that owner.
+- [ ] Resolve the remaining owner-level Supabase default-privilege finding for objects created by `supabase_admin`; verify the resulting ACL rather than treating an attempted SQL command as success.
+- [ ] Configure and verify site-wide hosting response security headers at the actual production domain. A meta CSP is not a substitute for HTTP response headers such as CSP with `frame-ancestors`, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`.
 - [ ] Review CSP allowlists against the actual app and preview embedding requirements. Do not blindly block required preview parents or weaken script policy.
 - [ ] Keep public discovery abuse controls bounded. Add server-side CAPTCHA/Turnstile only when the abuse model and deployment path are designed and tested; never rely on client-only checks or CORS as bot protection.
 - [ ] Define data retention and cleanup for any anonymous Auth accounts or cloud sponsor rows if that capability is intentionally enabled. Anonymous Auth is not a prerequisite for unauthenticated public search.
@@ -96,6 +127,8 @@ These items take precedence over adding more search providers or large product f
 **Acceptance:** unresolved security findings have a named owner and verified disposition; production headers and Supabase privileges are checked in the live environment; public abuse controls are proportionate to measured risk.
 
 ### P0.4 Keep the release pipeline trustworthy
+
+**Latest release evidence:** PR #12 merged the API-catalog change as `92cd7387547eceef8977e6d03c887cdfcf2a7c96`. Its PR-head CI passed dependency review, all automated tests, and type-check/build; the exact production deployment is READY. The current checkout independently reproduces 794 passed / 0 failed / 0 skipped, a successful TypeScript/Vite build, and 0 moderate-or-higher npm audit vulnerabilities. This demonstrates a successful current release cycle, not a reason to remove the release gates below.
 
 - [ ] Require focused pull requests and review; do not push unreviewed feature work directly to protected `main`.
 - [ ] For each code change run `npm ci`, `npm test`, `npm run build`, and `npm audit --audit-level=moderate`.
@@ -111,9 +144,9 @@ These items take precedence over adding more search providers or large product f
 
 ## P1 — Resources tab and student support
 
-**Implementation status — November 27, 2026:** The reviewed production baseline (`main` at `ae3577848c075cdfeececfa46537871fafc0a62c`) does not contain a Resources destination in `src/App.tsx` or `src/lib/workspaceRoutes.js`. A separate local checkout on `feature/my-scholarships-audit-20261127` now contains an implemented Resources route with five interactive tools: reuse of the existing My Scholarships tracker, an essay planner, a financial-aid checklist and net-cost comparison, a scholarship scam red-flag guide, and a junior-to-senior preparation calendar. The local implementation stores worksheet/progress state in the encrypted browser vault and includes it in version-3 encrypted backups while retaining version-1 and version-2 import support. Its recorded verification is 786 passing tests, zero failures, zero skips, and a successful TypeScript/Vite production build.
+**Implementation status — verified November 27, 2026:** The Resources workspace shipped in PR #9 and is part of production `main` (feature commit `989cf78a439bf167b0011a88597ad818bb841433`; included in current production commit `92cd7387547eceef8977e6d03c887cdfcf2a7c96`). The app wires `src/features/resources/ResourcesPage.tsx` through `src/App.tsx` and `src/lib/workspaceRoutes.js`; the production `/resources` route returns HTTP 200. The page is a five-tool toolkit: the shared My Scholarships tracker, an essay-planning worksheet, a financial-aid checklist with side-by-side net-price estimates, a scholarship-scam red-flag guide, and a junior-to-senior preparation calendar. Essay, aid-checklist, college-comparison, and calendar progress are stored in the local encrypted vault and included in version-3 encrypted backups, with version-1 and version-2 import compatibility. Regression coverage exists in `tests/resources.test.mjs`, `tests/workspaceRoutes.test.mjs`, and backup tests.
 
-That implementation remains uncommitted local work; it is not part of GitHub `main`, has not been reviewed or deployed, and is based on an earlier feature-branch checkout that must be reconciled with current `main` before release. It is a fixed set of interactive tools, not yet the maintained, searchable resource catalog described below. Catalog metadata, editorial review states, category/keyword/geography filters, catalog bookmarks, source-quality operations, and a full real-browser acceptance pass remain open. Treat the Resources work as in progress, not production-complete.
+This is a shipped student toolkit, not a maintained, searchable resource catalog. It does not yet provide a general resource-record model, catalog keyword/category/geography filters, review lifecycle and last-reviewed metadata, general resource bookmarks/read-state, scheduled link checks, or an editorial/reporting process. Those remain future work below. A production route smoke check and source tests do not replace a full user-journey and accessibility acceptance pass.
 
 ### P1.1 Build a useful, maintained resource catalog
 
@@ -132,10 +165,10 @@ That implementation remains uncommitted local work; it is not part of GitHub `ma
 
 - [ ] Allow students to save/bookmark a resource and mark a resource as read or completed.
 - [ ] Keep bookmarks and completion state in the local encrypted vault; do not upload browsing history or personal interests to a resource provider.
-- [ ] Include user-owned resource state in encrypted backups with versioned migration and restore tests.
+- [x] Include the current Resources worksheets, checklist progress, college comparisons, and calendar progress in encrypted version-3 backups; preserve version-1/version-2 import compatibility. General resource bookmarks are not implemented yet.
 - [ ] Add contextual links from relevant areas of the app: essay guidance from Application Prep, financial-aid guidance from college planning, and scam guidance from scholarship review.
-- [ ] Let a resource's next action open an existing Scout workflow where appropriate; do not create duplicate checklists or a second scholarship tracker.
-- [ ] Make the Resources tab discoverable from primary navigation and support direct URLs, refresh, browser back/forward, active navigation state, and mobile navigation.
+- [x] Reuse the existing My Scholarships tracker and route tracker rows into the existing Application Prep workflow; do not create a duplicate tracker or duplicate application state.
+- [x] Make the Resources tab discoverable from primary navigation and support direct URLs, refresh, browser back/forward, active navigation state, and mobile navigation (covered by route tests and included in the production build).
 - [ ] Do not make a resource bookmark look like a scholarship saved to My Scholarships.
 
 **Acceptance:** a student can discover, evaluate, save, revisit, and act on a resource; the resource is visibly distinguished from a scholarship; personal data remains local; backup and accessibility tests pass.
@@ -266,7 +299,9 @@ That implementation remains uncommitted local work; it is not part of GitHub `ma
 ### P2.4 Improve dependency and data lifecycle management
 
 - [ ] Review Dependabot updates in focused groups; test framework major upgrades independently.
-- [ ] Keep Node runtime, package engine, CI runtime, lockfile, and documentation aligned. `package.json`, `.nvmrc`, and CI specify Node 26, while the current `README.md` setup instructions still say Node 22.12+; correct the README and check remaining setup/testing docs before the next code release.
+- [ ] Reconcile runtime and setup documentation. The current `.nvmrc` is Node 26.13.0 and `package.json` requires Node `>=26 <27`; CI also uses Node 26. The README still says Node 22.12+, while `AGENTS.md` and `docs/architecture.md` still contain Node 22 instructions. Correct active setup guidance and retain historical-version notes only in clearly dated audit records.
+- [ ] Reconcile stale operational docs with the live state: README, AGENTS, architecture, discovery-system, anonymous-access, privacy-and-security, testing, and deployment currently contain pre-v20 Supabase or pre-Resources/API-catalog descriptions. Update current summaries without rewriting historical audit evidence.
+- [ ] Review the four open Dependabot pull requests independently: React/types updates, React DOM/types updates, the TypeScript 7 major update, and the Supabase JS patch update. Do not batch the major TypeScript upgrade with routine patches.
 - [ ] Review Supabase schema and RLS changes independently from frontend features.
 - [ ] Reconcile and document migrations before any DDL; never use the legacy schema file.
 - [ ] Test backup version upgrades and old-backup compatibility whenever a new local data type is introduced.
@@ -280,6 +315,8 @@ These are strategic options, not commitments. Start only after the P0 release ga
 
 ### P3.1 Curated scholarship and student-support knowledge base
 
+**Related API-discovery work already shipped:** PR #12 publishes `/.well-known/api-catalog` under RFC 9727, plus an OpenAPI 3.1 description and human-readable docs for the two currently active application-owned Edge Functions (`scholarship-discover` and `account-delete`). The external scanner returned `checks.discovery.apiCatalog.status = "pass"`. This does not create a public scholarship database API or a catalog of scholarship programs; the curated knowledge base below remains future work.
+
 - [ ] Build a maintained catalog of official scholarship programs, university awards, state aid programs, and trustworthy student resources.
 - [ ] Model annual application cycles separately from permanent sponsor/program identity.
 - [ ] Preserve historical cycle records, official source snapshots or excerpts where permitted, dates checked, and change history.
@@ -290,7 +327,7 @@ These are strategic options, not commitments. Start only after the P0 release ga
 ### P3.2 Deeper college, career, and financial-aid planning
 
 - [ ] Add optional college and major research workflows that connect to scholarships and official institutional resources.
-- [ ] Consider a neutral college-cost and aid-offer comparison worksheet using user-entered figures and clearly identified official inputs.
+- [x] Provide a basic local-only net-price comparison worksheet in Resources using user-entered cost and grants/scholarship figures, with the estimate clearly distinguished from guaranteed aid.
 - [ ] Distinguish grants, scholarships, loans, work-study, and out-of-pocket cost; never present estimates as guaranteed aid.
 - [ ] Add career and professional-association resource paths that can suggest relevant scholarship research without making eligibility assumptions.
 - [ ] Keep financial information local unless a separate explicit cloud-storage decision is approved.
