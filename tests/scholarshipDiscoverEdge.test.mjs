@@ -696,6 +696,30 @@ test("edge discovery never carries a competing scholarship's award amount or dea
   assert.doesNotMatch(result.evidence_excerpt, /Blue River Essay Contest/);
 });
 
+test("edge discovery keeps complementary snippets for the same scholarship without importing a neighboring opportunity", () => {
+  const longDescription = "The program supports graduating students across several counties. Applicants submit a transcript and a short statement. Selection considers service, leadership, and academic effort. ".repeat(5);
+  const outcome = {
+    ok: true,
+    job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+    results: [
+      {
+        title: "North Star Community Scholarship",
+        url: "https://northstar.example/scholarship",
+        content: "The North Star Community Scholarship supports graduating Texas seniors. " + longDescription,
+      },
+      {
+        title: "North Star Community Scholarship",
+        url: "https://northstar.example/scholarship",
+        content: "The North Star Community Scholarship is open to graduating seniors. The award is $3,000. Applications close December 10, 2026.",
+      },
+    ],
+  };
+  const [result] = normalizeAndRankResults([outcome], "2026-11-28T12:00:00.000Z", "Texas", 2027).results;
+  assert.equal(result.award_text, "The award is $3,000.");
+  assert.equal(result.deadline, "2026-12-10");
+  assert.match(result.deadline_text, /December 10, 2026/);
+});
+
 test("progressive search stops launching new stages when the overall budget is exhausted", async () => {
   const jobs = buildSearchJobs("Texas", 2027, ["local", "arts"]);
   let now = 0;
