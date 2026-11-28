@@ -74,39 +74,39 @@
   .stat-top { align-items: flex-start; flex-direction: column-reverse; }
 }
 
-.shell[data-theme="light"] .topbar { background: #f2f4fcef; }
-.shell:not([data-theme="light"]) .topbar { background: #080e1ff2; }
-.shell[data-theme="light"] .notice { border-color: #c7c4f0; background: #ecebfc; }
-.shell[data-theme="light"] .notice p { color: #4d4a78; }
-.shell:not([data-theme="light"]) .notice { border-color: #55518c; background: #222447; }
-.shell:not([data-theme="light"]) .notice p { color: #d4d2f2; }
-.shell[data-theme="light"] .nav-item.active { border-color: #c4c0f2; background: #e4e5fb; color: #2d2858; }
-.shell:not([data-theme="light"]) .nav-item.active { border-color: #655bb2; background: #2a2857; color: #eeecff; box-shadow: inset 3px 0 #a99bff; }
+.shell[data-theme="light"] .topbar { background: #0E1210ED; }
+.shell:not([data-theme="light"]) .topbar { background: #0E1210F2; }
+.shell[data-theme="light"] .notice { border-color: #D69A75; background: #303B32; }
+.shell[data-theme="light"] .notice p { color: #667665; }
+.shell:not([data-theme="light"]) .notice { border-color: #6B503E; background: #303B32; }
+.shell:not([data-theme="light"]) .notice p { color: #D9D0C2; }
+.shell[data-theme="light"] .nav-item.active { border-color: #667665; background: #303B32; color: #21150F; }
+.shell:not([data-theme="light"]) .nav-item.active { border-color: #B8734F; background: #303B32; color: #F2EFE7; box-shadow: inset 3px 0 #D69A75; }
 .shell:not([data-theme="light"]) .nav-item.active .nav-icon,
-.shell:not([data-theme="light"]) .nav-item.active .nav-copy small { color: #dcd7ff; }
+.shell:not([data-theme="light"]) .nav-item.active .nav-copy small { color: #D9D0C2; }
 .shell[data-theme="light"] .status-likely-eligible,
 .shell[data-theme="light"] .status-eligible,
-.shell[data-theme="light"] .source-status-verified { border-color: #b8b1f0; background: #ebe9ff; color: #50458b; }
+.shell[data-theme="light"] .source-status-verified { border-color: #D69A75; background: #F2EFE7; color: #7C442A; }
 .shell[data-theme="light"] .status-needs-information,
 .shell[data-theme="light"] .status-rules-match-unverified,
 .shell[data-theme="light"] .source-status-needs-review,
 .shell[data-theme="light"] .deadline-urgency-today,
-.shell[data-theme="light"] .deadline-urgency-due-soon { border-color: #d7bd87; background: #f7efd9; color: #76501e; }
+.shell[data-theme="light"] .deadline-urgency-due-soon { border-color: #D69A75; background: #f7efd9; color: #76501e; }
 .shell[data-theme="light"] .status-not-eligible,
 .shell[data-theme="light"] .status-ineligible,
 .shell[data-theme="light"] .source-status-expired,
 .shell[data-theme="light"] .deadline-urgency-overdue { border-color: #d9aebb; background: #f8eaf0; color: #80445a; }
 .shell:not([data-theme="light"]) .status-likely-eligible,
 .shell:not([data-theme="light"]) .status-eligible,
-.shell:not([data-theme="light"]) .source-status-verified { border-color: #7168b7; background: #302d59; color: #ddd9ff; }
+.shell:not([data-theme="light"]) .source-status-verified { border-color: #B8734F; background: #302d59; color: #D9D0C2; }
 .shell:not([data-theme="light"]) .status-needs-information,
 .shell:not([data-theme="light"]) .status-rules-match-unverified,
 .shell:not([data-theme="light"]) .source-status-needs-review,
 .shell:not([data-theme="light"]) .deadline-urgency-today,
-.shell:not([data-theme="light"]) .deadline-urgency-due-soon { border-color: #78633c; background: #433a28; color: #f0d69a; }
+.shell:not([data-theme="light"]) .deadline-urgency-due-soon { border-color: #A87955; background: #303B32; color: #E5BD79; }
 .shell:not([data-theme="light"]) .status-not-eligible,
 .shell:not([data-theme="light"]) .status-ineligible,
 .shell:not([data-theme="light"]) .source-status-expired,
-.shell:not([data-theme="light"]) .deadline-urgency-overdue { border-color: #80546a; background: #422b40; color: #efc0d5; }
+.shell:not([data-theme="light"]) .deadline-urgency-overdue { border-color: #934D45; background: #30251F; color: #D9D0C2; }
 
 
