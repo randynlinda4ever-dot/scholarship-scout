@@ -6,7 +6,31 @@
       "destination": "/agent-demo.html"
     },
     {
-      "source": "/((?!api(?:/|$)|assets/|.*\\.[^/]+$).*)",
+      "source": "/scholarship-guides",
+      "destination": "/scholarship-guides/index.html"
+    },
+    {
+      "source": "/scholarship-guides/",
+      "destination": "/scholarship-guides/index.html"
+    },
+    {
+      "source": "/scholarship-guides/high-school-juniors/",
+      "destination": "/scholarship-guides/high-school-juniors.html"
+    },
+    {
+      "source": "/scholarship-guides/texas-scholarships/",
+      "destination": "/scholarship-guides/texas-scholarships.html"
+    },
+    {
+      "source": "/scholarship-guides/scholarships-by-gpa/",
+      "destination": "/scholarship-guides/scholarships-by-gpa.html"
+    },
+    {
+      "source": "/scholarship-guides/scholarships-by-major/",
+      "destination": "/scholarship-guides/scholarships-by-major.html"
+    },
+    {
+      "source": "/((?!api(?:/|$)|assets/|scholarship-guides(?:/|$)|.*\\.[^/]+$).*)",
       "destination": "/index.html"
     }
   ]

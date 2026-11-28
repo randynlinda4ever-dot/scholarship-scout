@@ -185,7 +185,7 @@ const readLocalJson = (key: string): unknown => {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
   catch { return null; }
 };
-const splitKeywords = (value: string) => value.split(/[,;\n]/).map((word) => word.trim()).filter(Boolean);
+const splitKeywords = (value: string) => value.split(/[,;\r\n]/).map((word) => word.trim()).filter(Boolean);
 const formatDate = (value?: string) => value ? new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not listed';
 const formatDeadlineTime = (value?: string) => {
   const match = /^(\d{2}):(\d{2})$/.exec(value || '');
@@ -246,6 +246,8 @@ function App() {
   const [showAddValidation, setShowAddValidation] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Scholarship | null>(null);
+  const [removeConfirmationId, setRemoveConfirmationId] = useState<string | null>(null);
+  useEffect(() => { setRemoveConfirmationId(null); }, [selected?.id]);
   const [draft, setDraft] = useState<Scholarship>(emptyScholarship);
   const [notice, setNotice] = useState('');
   const [reliabilityEvents, setReliabilityEvents] = useState(() => readReliabilityEvents());
@@ -1249,6 +1251,16 @@ function App() {
     }
     return { ...current, criteria, criteriaImportance };
   });
+  const setActOrSatThreshold = (key: 'act' | 'sat', value: string) => {
+    const thresholds = { ...(draft.criteria.minActOrSat ?? {}) };
+    if (value === '') delete thresholds[key];
+    else thresholds[key] = Number(value);
+    setCriteria({
+      minActOrSat: thresholds.act === undefined && thresholds.sat === undefined
+        ? undefined
+        : thresholds,
+    });
+  };
   const updateEnrollmentStatus = (status: NonNullable<EligibilityCriteria['enrollmentStatuses']>[number], enabled: boolean) => {
     const current = draft.criteria.enrollmentStatuses ?? [];
     setCriteria({ enrollmentStatuses: enabled ? [...new Set([...current, status])] : current.filter((value) => value !== status) });
@@ -1672,78 +1684,127 @@ function App() {
 
     {showAdd && <div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setShowAdd(false)}}><div className="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title" tabIndex={-1}>
       <div className="modal-head"><div><div className="eyebrow">{editingId ? 'EDIT OPPORTUNITY' : 'NEW OPPORTUNITY'}</div><h2 id="add-dialog-title">{editingId ? 'Update scholarship rules' : 'Add scholarship rules'}</h2></div><button type="button" className="close" aria-label="Close scholarship form" onClick={()=>setShowAdd(false)}>×</button></div>
-      <p className="muted">Enter the sponsor’s mandatory criteria. Scout will compare these structured rules with your profile; it will not guess missing conditions from promotional text.</p>
+
+      <p className="muted">Only scholarship name and provider are required. All remaining fields are optional; leave them blank unless the sponsor’s current rules or reliable public evidence support them. Personal progress is separate from sponsor eligibility.</p>
       <form id="scholarship-editor-form" onSubmit={event => { event.preventDefault(); add(); }} onInvalidCapture={() => setShowAddValidation(true)}>
-      <div className="modal-fields">
-        <Field id="scholarship-name" label="Scholarship name *" value={draft.name} onChange={v=>setDraft({...draft,name:v})} required error={showAddValidation && !draft.name.trim() ? 'Enter a scholarship name.' : undefined}/><Field id="scholarship-provider" label="Provider *" value={draft.provider} onChange={v=>setDraft({...draft,provider:v})} required error={showAddValidation && !draft.provider.trim() ? 'Enter the scholarship provider.' : undefined}/>
-        <div className="form-grid"><Field label="Award amount / details (exact sponsor wording)" value={draft.award} onChange={v=>setDraft({...draft,award:v})} placeholder="Copy the amount and qualifiers as published"/><Field label="Application opening date (only if confirmed)" value={draft.openDate || ""} onChange={v=>setDraft({...draft,openDate:v})} type="date"/><Field label="Opening date time zone (only if stated)" value={draft.openDateTimezone || ""} onChange={v=>setDraft({...draft,openDateTimezone:v})} placeholder="e.g. America/Chicago"/><Field label="Priority deadline date" value={draft.priorityDeadline || ""} onChange={v=>setDraft({...draft,priorityDeadline:v})} type="date"/><Field label="Final deadline date" value={draft.deadline} onChange={v=>setDraft({...draft,deadline:v})} type="date"/></div>
-        <label className="field"><span>Exact public sponsor excerpt supporting the award</span><textarea value={draft.awardEvidenceText || ''} onChange={e=>setDraft({...draft,awardEvidenceText:e.target.value})} placeholder="Copy the sentence or table text that states the award amount and conditions."/></label>
-        <Field label="Exact official page URL for the award excerpt" value={draft.awardEvidenceUrl || ''} onChange={v=>setDraft({...draft,awardEvidenceUrl:v})} placeholder="https://official-sponsor.example/award-rules#section"/>
-        <div className="form-grid"><Field label="Currency wording (only when explicitly stated)" value={draft.awardCurrencyBasis || ''} onChange={v=>setDraft({...draft,awardCurrencyBasis:v})} placeholder="Copy the sponsor's exact currency wording"/><Field label="Award basis (only when explicitly stated)" value={draft.awardBasis || ''} onChange={v=>setDraft({...draft,awardBasis:v})} placeholder="Copy the sponsor's exact award-basis wording"/></div>
-        <div className="form-grid"><Field label="Priority deadline as written by sponsor" value={draft.priorityDeadlineText || ""} onChange={v=>setDraft({...draft,priorityDeadlineText:v})} placeholder="Copy the priority-deadline wording exactly"/><Field label="Priority deadline time zone (only if stated)" value={draft.priorityDeadlineTimezone || ""} onChange={v=>setDraft({...draft,priorityDeadlineTimezone:v})} placeholder="e.g. America/Chicago"/></div>
-        <Field label="Final deadline as written by sponsor (include year, time and time zone when stated)" value={draft.deadlineText || ''} onChange={v=>setDraft({...draft,deadlineText:v})} placeholder="Copy the final-deadline wording exactly"/>
-        <Field label="Final deadline time zone (only if sponsor states one)" value={draft.deadlineTimezone || ''} onChange={v=>setDraft({...draft,deadlineTimezone:v})} placeholder="e.g. America/Chicago; leave blank if not stated"/>
-        <div className="form-grid">
-          <SelectField label="Application status (your progress)" value={draft.applicationStatus || 'Not started'} onChange={v=>setDraft({...draft,applicationStatus:v as ApplicationStatus})} options={APPLICATION_STATUSES.map((status)=>[status,status])}/>
-          <SelectField label="Personal priority" value={draft.priority || 'Medium'} onChange={v=>setDraft({...draft,priority:v as TrackerPriority})} options={TRACKER_PRIORITIES.map((priority)=>[priority,priority])}/>
-          <Field label="Submission date (only after you submit)" value={draft.submittedAt || ''} onChange={v=>setDraft({...draft,submittedAt:v})} type="date"/>
-          <Field label="Award decision date" value={draft.decisionDate || ''} onChange={v=>setDraft({...draft,decisionDate:v})} type="date"/>
-        </div>
-        <Field label="Tags (comma separated)" value={(draft.tags || []).join(', ')} onChange={v=>setDraft({...draft,tags:splitKeywords(v).slice(0,20)})} placeholder="e.g. humanities, local, essay"/>
-        <Field label="Official sponsor URL" value={draft.sourceUrl} onChange={v=>setDraft({...draft,sourceUrl:v})} placeholder="https://…"/>
-        <Field label="Exact official page URL for the general evidence excerpt" value={draft.evidenceUrl || ''} onChange={v=>setDraft({...draft,evidenceUrl:v})} placeholder="https://official-sponsor.example/rules#section"/>
-        <SelectField label="Source authority" value={draft.sourceAuthority || 'unverified-lead'} onChange={v=>setDraft({...draft,sourceAuthority:v})} options={[['unverified-lead','Unverified lead'],['secondary-directory','Secondary directory'],['official-sponsor','Official sponsor'],['official-program','Official scholarship program'],['official-school','Official school / district'],['official-government','Official government']]}/> 
-        <div className="criteria-builder"><b>Structured eligibility rules</b><p>Leave a field blank when the sponsor does not specify that requirement.</p>
+      <div className="modal-fields tracker-editor-fields">
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Scholarship details</h3><p>Identify the award and sponsoring organization.</p></div>
+          <div className="form-grid">
+            <Field id="scholarship-name" label="Scholarship name *" value={draft.name} onChange={v=>setDraft({...draft,name:v})} required requirement="required" error={showAddValidation && !draft.name.trim() ? 'Enter a scholarship name.' : undefined}/>
+            <Field id="scholarship-provider" label="Provider *" value={draft.provider} onChange={v=>setDraft({...draft,provider:v})} required requirement="required" error={showAddValidation && !draft.provider.trim() ? 'Enter the scholarship provider.' : undefined}/>
+          </div>
+        </section>
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Award and deadlines</h3><p>Copy the sponsor’s wording. Leave unknown dates and amounts blank rather than estimating them.</p></div>
+          <div className="form-grid">
+            <Field label="Award amount / details (exact sponsor wording)" value={draft.award} onChange={v=>setDraft({...draft,award:v})} placeholder="Copy the amount and qualifiers as published"/>
+            <Field label="Application opening date (only if confirmed)" value={draft.openDate || ""} onChange={v=>setDraft({...draft,openDate:v})} type="date"/>
+            <Field label="Opening date time zone (only if stated)" value={draft.openDateTimezone || ""} onChange={v=>setDraft({...draft,openDateTimezone:v})} placeholder="e.g. America/Chicago"/>
+            <Field label="Priority deadline date" value={draft.priorityDeadline || ""} onChange={v=>setDraft({...draft,priorityDeadline:v})} type="date"/>
+            <Field label="Final deadline date" value={draft.deadline} onChange={v=>setDraft({...draft,deadline:v})} type="date"/>
+            <Field label="Priority deadline as written by sponsor" value={draft.priorityDeadlineText || ""} onChange={v=>setDraft({...draft,priorityDeadlineText:v})} placeholder="Copy the priority-deadline wording exactly"/>
+            <Field label="Priority deadline time zone (only if stated)" value={draft.priorityDeadlineTimezone || ""} onChange={v=>setDraft({...draft,priorityDeadlineTimezone:v})} placeholder="e.g. America/Chicago"/>
+            <Field label="Final deadline as written by sponsor (include year, time and time zone when stated)" value={draft.deadlineText || ''} onChange={v=>setDraft({...draft,deadlineText:v})} placeholder="Copy the final-deadline wording exactly"/>
+            <Field label="Final deadline time zone (only if sponsor states one)" value={draft.deadlineTimezone || ''} onChange={v=>setDraft({...draft,deadlineTimezone:v})} placeholder="e.g. America/Chicago; leave blank if not stated"/>
+          </div>
+          <div className="form-grid">
+            <Field label="Currency wording (only when explicitly stated)" value={draft.awardCurrencyBasis || ''} onChange={v=>setDraft({...draft,awardCurrencyBasis:v})} placeholder="Copy the sponsor's exact currency wording"/>
+            <Field label="Award basis (only when explicitly stated)" value={draft.awardBasis || ''} onChange={v=>setDraft({...draft,awardBasis:v})} placeholder="Copy the sponsor's exact award-basis wording"/>
+          </div>
+          <label className="field"><span>Exact public sponsor excerpt supporting the award</span><textarea value={draft.awardEvidenceText || ''} onChange={e=>setDraft({...draft,awardEvidenceText:e.target.value})} placeholder="Copy the sentence or table text that states the award amount and conditions."/></label>
+          <Field label="Exact official page URL for the award excerpt" value={draft.awardEvidenceUrl || ''} onChange={v=>setDraft({...draft,awardEvidenceUrl:v})} type="url" placeholder="https://official-sponsor.example/award-rules#section"/>
+          <CheckField label="Sponsor explicitly states there is no fixed deadline" checked={draft.deadlineNotPublished===true} onChange={v=>setDraft({...draft,deadlineNotPublished:v})}/>
+        </section>
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Application progress</h3><p>These fields describe your work, not the sponsor’s eligibility requirements.</p></div>
+          <div className="form-grid">
+            <SelectField label="Application status (your progress)" value={draft.applicationStatus || 'Not started'} onChange={v=>setDraft({...draft,applicationStatus:v as ApplicationStatus})} options={APPLICATION_STATUSES.map((status)=>[status,status])}/>
+            <SelectField label="Personal priority" value={draft.priority || 'Medium'} onChange={v=>setDraft({...draft,priority:v as TrackerPriority})} options={TRACKER_PRIORITIES.map((priority)=>[priority,priority])}/>
+            <Field label="Submission date (only after you submit)" value={draft.submittedAt || ''} onChange={v=>setDraft({...draft,submittedAt:v})} type="date"/>
+            <Field label="Award decision date" value={draft.decisionDate || ''} onChange={v=>setDraft({...draft,decisionDate:v})} type="date"/>
+            <Field label="Tags (comma separated)" value={(draft.tags || []).join(', ')} onChange={v=>setDraft({...draft,tags:splitKeywords(v).slice(0,20)})} placeholder="e.g. humanities, local, essay"/>
+          </div>
+        </section>
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Sponsor source and evidence</h3><p>Record the public sponsor page and the exact source text used to verify the listing.</p></div>
+          <div className="form-grid">
+            <Field label="Official sponsor URL" value={draft.sourceUrl} onChange={v=>setDraft({...draft,sourceUrl:v})} type="url" placeholder="https://"/>
+            <Field label="Exact official page URL for the general evidence excerpt" value={draft.evidenceUrl || ''} onChange={v=>setDraft({...draft,evidenceUrl:v})} type="url" placeholder="https://official-sponsor.example/rules#section"/>
+            <SelectField label="Source authority" value={draft.sourceAuthority || 'unverified-lead'} onChange={v=>setDraft({...draft,sourceAuthority:v})} options={[['unverified-lead','Unverified lead'],['secondary-directory','Secondary directory'],['official-sponsor','Official sponsor'],['official-program','Official scholarship program'],['official-school','Official school / district'],['official-government','Official government']]}/>
+          </div>
+          <label className="field"><span>General evidence excerpt from official sponsor rules (use the exact text from that page)</span><textarea value={draft.evidenceText} onChange={e=>setDraft({...draft,evidenceText:e.target.value})} placeholder="Copy or accurately transcribe the source-level facts from the exact page URL above."/></label>
+        </section>
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Structured eligibility rules</h3><p>Enter a requirement only when the sponsor’s published rules support it. Leave a field blank when the sponsor does not specify that requirement.</p></div>
           <div className="form-grid">
             <Field label="Applicant state of residence" value={draft.criteria.state ?? ''} onChange={v=>setCriteria({state:v||undefined})} placeholder="Texas"/>
             <Field label="Current school location state" value={draft.criteria.schoolState ?? ''} onChange={v=>setCriteria({schoolState:v||undefined})} placeholder="Texas"/>
             <Field label="Intended college location state" value={draft.criteria.collegeState ?? ''} onChange={v=>setCriteria({collegeState:v||undefined})} placeholder="Texas"/>
             <SelectField label="Citizenship requirement" value={draft.criteria.citizenship ?? 'any'} onChange={v=>setCriteria({citizenship:v as EligibilityCriteria['citizenship']})} options={[['any','Not specified'],['us-citizen','U.S. citizen'],['eligible-noncitizen','Eligible noncitizen']]}/>
             <SelectField label="Education level" value={draft.criteria.educationLevel ?? ''} onChange={v=>setCriteria({educationLevel:(v||undefined) as EligibilityCriteria['educationLevel']})} options={[['','Not specified'],['high-school-senior','High-school senior'],['high-school-student','Current high-school student'],['incoming-college','Incoming college student'],['undergraduate','Currently enrolled undergraduate']]}/>
-            <Field label="Minimum age (years)" value={String(draft.criteria.ageRange?.min ?? '')} onChange={v=>setAgeRange({min:v ? Number(v) : undefined})} type="number"/>
-            <SelectField label="Minimum age boundary" value={draft.criteria.ageRange?.minInclusive === true ? 'inclusive' : draft.criteria.ageRange?.minInclusive === false ? 'exclusive' : ''} onChange={v=>setAgeRange({minInclusive:v === '' ? undefined : v === 'inclusive'})} options={[['','Choose boundary'],['inclusive','Inclusive (at least this age)'],['exclusive','Exclusive (older than this age)']]}/>
-            <Field label="Maximum age (years)" value={String(draft.criteria.ageRange?.max ?? '')} onChange={v=>setAgeRange({max:v ? Number(v) : undefined})} type="number"/>
-            <SelectField label="Maximum age boundary" value={draft.criteria.ageRange?.maxInclusive === true ? 'inclusive' : draft.criteria.ageRange?.maxInclusive === false ? 'exclusive' : ''} onChange={v=>setAgeRange({maxInclusive:v === '' ? undefined : v === 'inclusive'})} options={[['','Choose boundary'],['inclusive','Inclusive (up to this age)'],['exclusive','Exclusive (younger than this age)']]}/>
-            <Field label="Graduation year" value={String(draft.criteria.graduationYear ?? '')} onChange={v=>setCriteria({graduationYear:v ? Number(v) : undefined})} placeholder="2027"/>
-            <Field label="GPA threshold" value={String(draft.criteria.minGpa ?? '')} onChange={v=>setCriteria({minGpa:v ? Number(v) : undefined})} placeholder="e.g. 3.0"/>
-            <Field label="Class-rank cutoff (top %)" value={String(draft.criteria.topPercentMax ?? '')} onChange={v=>setCriteria({topPercentMax:v ? Number(v) : undefined})} placeholder="e.g. 10"/>
-            <Field label="ACT threshold" value={String(draft.criteria.minAct ?? '')} onChange={v=>setCriteria({minAct:v ? Number(v) : undefined})} placeholder="e.g. 25"/>
-            <Field label="SAT threshold" value={String(draft.criteria.minSat ?? '')} onChange={v=>setCriteria({minSat:v ? Number(v) : undefined})} placeholder="e.g. 1200"/>
+            <Field label="Minimum age (years)" value={String(draft.criteria.ageRange?.min ?? '')} onChange={v=>setAgeRange({min:v ? Number(v) : undefined})} type="number" min={0} max={120} step={1}/>
+            <SelectField label="Minimum age boundary" value={draft.criteria.ageRange?.minInclusive === true ? 'inclusive' : draft.criteria.ageRange?.minInclusive === false ? 'exclusive' : ''} onChange={v=>setAgeRange({minInclusive:v === '' ? undefined : v === 'inclusive'})} options={[['','Choose boundary'],['inclusive','Inclusive (at least this age)'],['exclusive','Exclusive (older than this age)']]} required={draft.criteria.ageRange?.min != null}/>
+            <Field label="Maximum age (years)" value={String(draft.criteria.ageRange?.max ?? '')} onChange={v=>setAgeRange({max:v ? Number(v) : undefined})} type="number" min={0} max={120} step={1}/>
+            <SelectField label="Maximum age boundary" value={draft.criteria.ageRange?.maxInclusive === true ? 'inclusive' : draft.criteria.ageRange?.maxInclusive === false ? 'exclusive' : ''} onChange={v=>setAgeRange({maxInclusive:v === '' ? undefined : v === 'inclusive'})} options={[['','Choose boundary'],['inclusive','Inclusive (up to this age)'],['exclusive','Exclusive (younger than this age)']]} required={draft.criteria.ageRange?.max != null}/>
+            <Field label="Graduation year" value={String(draft.criteria.graduationYear ?? '')} onChange={v=>setCriteria({graduationYear:v ? Number(v) : undefined})} type="number" min={1900} max={2100} step={1} placeholder="2027"/>
+            <Field label="GPA threshold" value={String(draft.criteria.minGpa ?? '')} onChange={v=>setCriteria({minGpa:v ? Number(v) : undefined})} type="number" min={0} max={5} step="any" placeholder="e.g. 3.0"/>
+            <Field label="Class-rank cutoff (top %)" value={String(draft.criteria.topPercentMax ?? '')} onChange={v=>setCriteria({topPercentMax:v ? Number(v) : undefined})} type="number" min={0} max={100} step="any" placeholder="e.g. 10"/>
             <Field label="Field-of-study keywords (comma separated)" value={(draft.criteria.majorKeywords ?? []).join(', ')} onChange={v=>setCriteria({majorKeywords:splitKeywords(v)})}/>
             <Field label="College or institution" value={draft.criteria.institution ?? ''} onChange={v=>setCriteria({institution:v||undefined})}/>
-            <Field label="Community-service hours" value={String(draft.criteria.minServiceHours ?? '')} onChange={v=>setCriteria({minServiceHours:v ? Number(v) : undefined})}/>
+            <Field label="Community-service hours" value={String(draft.criteria.minServiceHours ?? '')} onChange={v=>setCriteria({minServiceHours:v ? Number(v) : undefined})} type="number" min={0} max={1000000} step="any"/>
             <Field label="Organization membership" value={draft.criteria.requiredMembership ?? ''} onChange={v=>setCriteria({requiredMembership:v||undefined})}/>
           </div>
-          <div className="check-options">
-            <span className="field-hint">Accepted enrollment routes (any one may satisfy the sponsor rule):</span>
-            <CheckField label="Full-time student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("full-time"))} onChange={v=>updateEnrollmentStatus("full-time",v)}/>
-            <CheckField label="Part-time student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("part-time"))} onChange={v=>updateEnrollmentStatus("part-time",v)}/>
-            <CheckField label="Incoming college student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("incoming"))} onChange={v=>updateEnrollmentStatus("incoming",v)}/>
-            <CheckField label="Current student (high school or college)" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("current-student"))} onChange={v=>updateEnrollmentStatus("current-student",v)}/>
-            <CheckField label="Financial-need qualification" checked={Boolean(draft.criteria.requiresFinancialNeed)} onChange={v=>setCriteria({requiresFinancialNeed:v})}/>
-            <CheckField label="First-generation qualification" checked={Boolean(draft.criteria.requiresFirstGeneration)} onChange={v=>setCriteria({requiresFirstGeneration:v})}/>
-            <CheckField label="Listing indicates an application fee (flag for safety review)" checked={draft.criteria.applicationFee===true} onChange={v=>setCriteria({applicationFee:v ? true : null})}/>
+          <div className="tracker-editor-subgroup">
+            <b>Independent test-score requirements</b>
+            <p>Use separate ACT and SAT minimums only when the sponsor independently requires each recorded score.</p>
+            <div className="form-grid">
+              <Field label="ACT threshold" value={String(draft.criteria.minAct ?? '')} onChange={v=>setCriteria({minAct:v ? Number(v) : undefined})} type="number" min={1} max={36} step={1} placeholder="e.g. 25"/>
+              <Field label="SAT threshold" value={String(draft.criteria.minSat ?? '')} onChange={v=>setCriteria({minSat:v ? Number(v) : undefined})} type="number" min={400} max={1600} step={10} placeholder="e.g. 1200"/>
+            </div>
+          </div>
+          <div className="tracker-editor-subgroup">
+            <b>Alternative test-score requirement: ACT or SAT</b>
+            <p>Use this when the sponsor accepts either test. Meeting either entered minimum satisfies this one alternative rule.</p>
+            <div className="form-grid">
+              <Field label="ACT minimum (alternative route)" value={String(draft.criteria.minActOrSat?.act ?? '')} onChange={v=>setActOrSatThreshold('act', v)} type="number" min={1} max={36} step={1} placeholder="e.g. 25"/>
+              <Field label="SAT minimum (alternative route)" value={String(draft.criteria.minActOrSat?.sat ?? '')} onChange={v=>setActOrSatThreshold('sat', v)} type="number" min={400} max={1600} step={10} placeholder="e.g. 1200"/>
+            </div>
+          </div>
+          <div className="tracker-editor-subgroup"><b>Student enrollment and qualifications</b><p>Multiple enrollment routes may apply. Mark only requirements the sponsor publishes.</p>
+            <div className="check-options">
+              <CheckField label="Full-time student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("full-time"))} onChange={v=>updateEnrollmentStatus("full-time",v)}/>
+              <CheckField label="Part-time student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("part-time"))} onChange={v=>updateEnrollmentStatus("part-time",v)}/>
+              <CheckField label="Incoming college student" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("incoming"))} onChange={v=>updateEnrollmentStatus("incoming",v)}/>
+              <CheckField label="Current student (high school or college)" checked={Boolean(draft.criteria.enrollmentStatuses?.includes("current-student"))} onChange={v=>updateEnrollmentStatus("current-student",v)}/>
+              <CheckField label="Financial-need qualification" checked={Boolean(draft.criteria.requiresFinancialNeed)} onChange={v=>setCriteria({requiresFinancialNeed:v})}/>
+              <CheckField label="First-generation qualification" checked={Boolean(draft.criteria.requiresFirstGeneration)} onChange={v=>setCriteria({requiresFirstGeneration:v})}/>
+            </div>
           </div>
           <label className="field"><span>Other sponsor requirements not covered above</span><textarea value={draft.criteria.otherRequirement ?? ''} onChange={e=>setCriteria({otherRequirement:e.target.value||undefined})} placeholder="Record additional sponsor rules, then classify them as mandatory or preferred below."/></label>
-        </div>
-        {activeCriterionEntries.length > 0 && <div className="criteria-builder">
-          <b>Public sponsor evidence for each criterion</b>
-          <p>Each structured rule needs its own short excerpt and exact HTTPS page URL on the same recognized official sponsor domain. Without both, its result remains Unknown. Classify each rule as mandatory or preferred; preferred results are informational and never disqualify an applicant.</p>
+        </section>
+        {activeCriterionEntries.length > 0 && <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Requirement evidence and verification</h3><p>Each rule needs its own excerpt and exact HTTPS page URL on the same recognized official sponsor domain. Without both, its result remains Unknown. A preferred rule is informational and never disqualifies an applicant.</p></div>
           {activeCriterionEntries.map(([key]) => {
             const entry = draft.criteriaEvidence?.[key] ?? {};
             const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase());
             return <div className="criterion-evidence-entry" key={key}>
               <b>{label}</b>
-              <label className="field"><span>Requirement classification</span><select aria-label={`${label} requirement classification`} value={draft.criteriaImportance?.[key as keyof EligibilityCriteria] ?? 'mandatory'} onChange={event=>setCriterionImportance(key as keyof EligibilityCriteria, event.target.value as CriteriaImportance)}><option value="mandatory">Mandatory — must be met</option><option value="preferred">Preferred — does not disqualify</option></select></label>
-              <Field label="Exact official page URL for this rule" value={entry.sourceUrl ?? ''} onChange={v=>setCriterionEvidence(key,{sourceUrl:v})} placeholder="https://official-sponsor.example/rules#section"/>
+              <label className="field"><span>Requirement classification</span><select aria-label={label + ' requirement classification'} value={draft.criteriaImportance?.[key as keyof EligibilityCriteria] ?? 'mandatory'} onChange={event=>setCriterionImportance(key as keyof EligibilityCriteria, event.target.value as CriteriaImportance)}><option value="mandatory">Mandatory — must be met</option><option value="preferred">Preferred — does not disqualify</option></select></label>
+              <Field label="Exact official page URL for this rule" value={entry.sourceUrl ?? ''} onChange={v=>setCriterionEvidence(key,{sourceUrl:v})} type="url" placeholder="https://official-sponsor.example/rules#section"/>
               <label className="field"><span>Exact sponsor rule excerpt from this page</span><textarea value={entry.excerpt ?? ''} onChange={e=>setCriterionEvidence(key,{excerpt:e.target.value})} placeholder="Quote or accurately transcribe only the rule supporting this criterion."/></label>
             </div>;
           })}
-        </div>}
-        <label className="field"><span>General evidence excerpt from official sponsor rules (use the exact text from that page)</span><textarea value={draft.evidenceText} onChange={e=>setDraft({...draft,evidenceText:e.target.value})} placeholder="Copy or accurately transcribe the source-level facts from the exact page URL above."/></label>
-        <CheckField label="Sponsor explicitly states there is no fixed deadline" checked={draft.deadlineNotPublished===true} onChange={v=>setDraft({...draft,deadlineNotPublished:v})}/>
-        <CheckField label="I reviewed the current official rules and recorded the supporting evidence above" checked={draft.sourceVerified} onChange={v=>setDraft({...draft,sourceVerified:v,lastCheckedDate:v?localToday():'',sourceReviewConfirmed:v})}/>
-        <label className="field"><span>Additional notes</span><textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Documents, recommendations, essays, or questions…"/></label>
+        </section>}
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Safety review</h3><p>This is a caution flag, not an eligibility rule. Verify any requested payment directly with the official sponsor before taking action.</p></div>
+          <CheckField label="Listing indicates an application fee (flag for safety review)" checked={draft.criteria.applicationFee===true} onChange={v=>setCriteria({applicationFee:v ? true : null})}/>
+        </section>
+        <section className="tracker-editor-section">
+          <div className="tracker-editor-section-heading"><h3>Notes and verification</h3><p>Keep personal reminders separate from sponsor facts.</p></div>
+          <CheckField label="I reviewed the current official rules and recorded the supporting evidence above" checked={draft.sourceVerified} onChange={v=>setDraft({...draft,sourceVerified:v,lastCheckedDate:v?localToday():'',sourceReviewConfirmed:v})}/>
+          <label className="field"><span>Additional notes</span><textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Documents, recommendations, essays, or questions…"/></label>
+        </section>
       </div>
       </form>
       <div className="modal-actions"><button type="button" className="secondary" onClick={()=>setShowAdd(false)}>Cancel</button><button type="submit" form="scholarship-editor-form" className="primary">{editingId ? 'Save rule changes' : 'Save & check eligibility'}</button></div>
@@ -1779,7 +1840,14 @@ function App() {
         {selected.tags?.length ? <div className="application-tag-list">{selected.tags.map((tag)=><span key={tag}>{tag}</span>)}</div> : null}
       </div>
       {selected.notes && <div className="detail-notes"><b>Notes</b><p>{selected.notes}</p></div>}
-      <div className="modal-actions">{cloudUser && <button className="secondary" disabled={cloudBusy} onClick={()=>void handleCloudSave(selected)}>Save sponsor details to cloud</button>}<button className="secondary" onClick={()=>{const updated={...selected,archived:!selected.archived};if(!saveItems(items.map(x=>x.id===selected.id?updated:x)))return;setSelected(updated);setNotice(updated.archived?'Scholarship archived. Its history remains in your tracker.':'Scholarship restored to active records.')}}>{selected.archived ? 'Restore from archive' : 'Archive scholarship'}</button><button className="secondary" onClick={()=>{if(!saveItems(items.filter(x=>x.id!==selected.id)))return;setSelected(null)}}>Remove from tracker</button><button className="secondary" onClick={()=>{const item=selected;setSelected(null);openAdd(item,true)}}>Edit criteria / application</button><button className="primary" onClick={()=>setSelected(null)}>Done</button></div>
+      <div className="modal-actions">{cloudUser && <button className="secondary" disabled={cloudBusy} onClick={()=>void handleCloudSave(selected)}>Save sponsor details to cloud</button>}<button className="secondary" onClick={()=>{const updated={...selected,archived:!selected.archived};if(!saveItems(items.map(x=>x.id===selected.id?updated:x)))return;setSelected(updated);setNotice(updated.archived?'Scholarship archived. Its history remains in your tracker.':'Scholarship restored to active records.')}}>{selected.archived ? 'Restore from archive' : 'Archive scholarship'}</button>{removeConfirmationId === selected.id ? <div className="tracker-remove-confirmation" role="alertdialog" aria-labelledby="remove-scholarship-title">
+        <h3 id="remove-scholarship-title">Remove scholarship and its application workspace?</h3>
+        <p>This permanently removes the tracker record and its associated checklist and application workspace from this browser. Export an encrypted backup first if you may need them later.</p>
+        <div className="tracker-remove-actions">
+          <button type="button" className="secondary" onClick={()=>setRemoveConfirmationId(null)}>Cancel removal</button>
+          <button type="button" className="danger-button" onClick={()=>{if(!saveItems(items.filter(x=>x.id!==selected.id)))return;setRemoveConfirmationId(null);setSelected(null);setNotice('Scholarship and its associated application materials were removed from this device.')}}>Remove scholarship and application data</button>
+        </div>
+      </div> : null}<button className="secondary" onClick={()=>setRemoveConfirmationId(selected.id)}>Remove from tracker</button><button className="secondary" onClick={()=>{const item=selected;setSelected(null);openAdd(item,true)}}>Edit criteria / application</button><button className="primary" onClick={()=>setSelected(null)}>Done</button></div>
     </div></div>}
 
     {backupDialogMode !== 'closed' && <div className="overlay" onMouseDown={event=>{if(event.target===event.currentTarget)closeBackupDialog();}}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="backup-dialog-title" tabIndex={-1}>
@@ -1841,11 +1909,19 @@ function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessmen
     <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
   </div>;
 }
-function Field({label,value,onChange,placeholder,type='text',id,required=false,error}:{label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string;id?:string;required?:boolean;error?:string}) {
-  const errorId = id ? `${id}-error` : undefined;
+function Field({label,value,onChange,placeholder,type='text',id,required=false,requirement,min,max,step,error}:{
+  label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string;id?:string;required?:boolean;
+  requirement?: 'required' | 'optional'; min?: number; max?: number; step?: number | 'any'; error?: string
+}) {
+  const errorId = id ? id + '-error' : undefined;
   return <label className={'field' + (error ? ' field-invalid' : '')}>
-    <span>{label}</span>
-    <input id={id} type={type} value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)} required={required} aria-required={required || undefined} aria-invalid={error ? 'true' : undefined} aria-describedby={error ? errorId : undefined}/>
+    <span className="field-label-row">
+      <span>{label}</span>
+      {requirement ? <small className="field-requirement" data-requirement={requirement}>{requirement === 'required' ? 'Required' : 'Optional'}</small> : null}
+    </span>
+    <input id={id} type={type} min={min} max={max} step={step} value={value} placeholder={placeholder}
+      onChange={e=>onChange(e.target.value)} required={required} aria-required={required || undefined}
+      aria-invalid={error ? 'true' : undefined} aria-describedby={error ? errorId : undefined}/>
     {error && errorId ? <small id={errorId} className="field-error" role="alert">{error}</small> : null}
   </label>;
 }
@@ -1854,7 +1930,7 @@ function WorkspaceSubnav({label,active,options,onChange}:{label:string;active:st
     {options.map(option=><button type="button" key={option.value} className={active === option.value ? 'is-active' : ''} aria-pressed={active === option.value} onClick={()=>onChange(option.value)}>{option.label}</button>)}
   </div>;
 }
-function SelectField({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[][]}) { return <label className="field"><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>; }
+function SelectField({label,value,onChange,options,required = false}:{label:string;value:string;onChange:(v:string)=>void;options:string[][];required?:boolean}) { return <label className="field"><span>{label}</span><select required={required} value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option value={v} key={v}>{l}</option>)}</select></label>; }
 function CheckField({label,checked,onChange}:{label:string;checked:boolean;onChange:(v:boolean)=>void}) { return <label className="check-field"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span>{label}</span></label>; }
 const STATUS_CLASS_MAP: Record<string, string> = {
   'Eligible': 'eligible',
