@@ -133,7 +133,7 @@
     const description = createElement(
       "p",
       "",
-      "Optional analytics helps the site owner understand which broad sections are useful. It is off unless you choose to enable it. Only a fixed page category is sent; Scholarship Scout does not send your profile, eligibility details, scholarship searches, form contents, account identity, or page URL.",
+      "Optional analytics helps the site owner understand which broad sections are useful. It is off unless you choose to enable it. If you are under 18, ask a parent or legal guardian to make this choice. Only a fixed page category is sent; Scholarship Scout does not send your profile, eligibility details, scholarship searches, form contents, account identity, or page URL.",
     );
     const status = createElement(
       "p",
@@ -176,7 +176,7 @@
     const description = createElement(
       "p",
       "",
-      "Optional analytics is off by default. You can allow anonymous, broad page-category measurement or keep it off. No student profile, eligibility, scholarship search, form, or account details are sent. Advertising and ad personalization stay disabled.",
+      "Optional analytics is off by default. If you are under 18, ask a parent or legal guardian to make this choice. You can allow limited, broad page-category measurement or keep it off. No student profile, eligibility, scholarship search, form, or account details are sent. Advertising and ad personalization stay disabled.",
     );
     const actions = createElement("div", "scout-analytics-actions");
     const accept = createButton("accept", "Enable analytics", "scout-analytics-enable");
