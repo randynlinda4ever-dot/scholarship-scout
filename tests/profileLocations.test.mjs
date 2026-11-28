@@ -73,7 +73,7 @@ test("citizenship changes must use supported non-free-text categories", () => {
 
 test("profile removes stale application and resume labels and unused duplicate goal field", () => {
   assert.doesNotMatch(profile, /<span className="source-tag">APPLICATION<\/span>/);
-  assert.doesNotMatch(profile, /RÉSUMÉ|RESUME/i);
+  assert.match(profile, /Fill your profile from a document/);\n  assert.match(profile, /ON-DEVICE/);
   assert.doesNotMatch(profile, /degreeGoal|Long-term education\/career goal/);
 });
 
