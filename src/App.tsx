@@ -3,7 +3,7 @@ import type { CriteriaImportance, Profile, Scholarship, Status } from './domain/
 import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites, enableLocalVaultDeviceUnlock, forgetLocalVaultDeviceUnlock, createLocalAccountVaultKeyWrap, getAccountVaultSyncEnvelope, getLocalAccountVaultSyncStatus, setLocalAccountVaultRevision, forgetLocalAccountVaultSync } from './lib/localVault.js';
 import { clearReliabilityEvents, installReliabilityMonitoring, readReliabilityEvents, RELIABILITY_CHANGE_EVENT } from './lib/reliabilityMonitor.js';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
-import { deriveSourceStatus, getEvidenceExcerptAttributions, getScholarshipSourcePageUrl, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
+import { deriveSourceStatus, getEvidenceExcerptAttributions, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
 import { appendSourceEvidenceHistory, invalidateSourceReviewIfChanged } from './lib/sourceReview.js';
 import { getSupabaseClient, stopSupabaseAutoRefreshForVaultLock, supabaseConfigured } from './lib/supabaseClient';
 import { buildScoutBackup, validateScoutBackup } from './lib/backup.js';
