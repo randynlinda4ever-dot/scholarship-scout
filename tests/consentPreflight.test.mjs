@@ -8,8 +8,10 @@ test("the HTML entrypoint loads only the consent preflight, not the application"
   const html = await read("index.html");
   assert.match(html, /<script type="module" src="\/src\/bootstrap\.ts"><\/script>/);
   assert.doesNotMatch(html, /src="\/src\/main\.tsx"/);
-  assert.doesNotMatch(html, /<link[^>]+(?:stylesheet|preload|prefetch)/i);
-  assert.equal((html.match(/<script\b/g) || []).length, 1);
+  assert.match(html, /<link rel="stylesheet" href="\/analytics-consent\.css" \/>/);
+  assert.match(html, /<script defer src="\/analytics-consent\.js"><\/script>/);
+  assert.doesNotMatch(html, /googletagmanager\.com\/gtm\.js/);
+  assert.equal((html.match(/<script\b/g) || []).length, 2);
 });
 
 test("pre-consent bootstrap loads only legal and local-vault gates, not React or Supabase", async () => {

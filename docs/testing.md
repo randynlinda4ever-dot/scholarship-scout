@@ -13,6 +13,18 @@
 
 The project contains unit tests for profile validation, discovery and URL safety, result normalization, evidence status, eligibility, duplicate recommendations, tracker filtering, application workspace helpers, CSV generation, encrypted backups, batch browser-storage writes, local reliability monitoring, same-frame email callback generation, public live-search request boundaries, and signed-out result rendering.
 
+## Analytics consent and tracking boundaries
+
+- `tests/analyticsConsent.test.mjs` exercises the consent controller in an isolated DOM harness: no external GTM request before opt-in, persistent denial, production-host-only activation, denied advertising consent, static page context, allowlisted page categories, pre-consent route buffering, consent withdrawal, and Settings access.
+- The application sends only fixed page-category values. OAuth callback URLs, page URLs, document titles, referrers, profile and eligibility fields, scholarship queries, and form content are excluded from the data layer.
+- `tests/consentPreflight.test.mjs` verifies that the first-party consent assets do not bypass the legal acceptance and local-vault preflight. `tests/securityHeaders.test.mjs` checks the narrow script, image, and connect CSP allowlist.
+- The parent/guardian-controlled GA4 property must be configured according to [the GTM setup checklist](google-analytics-gtm-setup.md); repository tests cannot verify the external container's published tags or GA4 receipt. Production analytics remains incomplete until the adult account owner confirms the event configuration in GA4 Realtime.
+
+## AdSense privacy and page boundaries
+
+- `tests/adsenseConsent.test.mjs` checks the disabled-by-default configuration, no request before adult-authorized opt-in, non-personalized requests, the teen age-treatment marker, storage-failure behavior, preview-host isolation, and the five-page public placement allowlist.
+- AdSense is not verified as live by repository tests. The adult publisher must obtain site approval, provide the real publisher and ad-unit IDs, configure category and privacy controls, and verify serving in the parent-owned AdSense account before enabling the feature flag.
+
 ## Authentication and public-search regression tests
 
 - `tests/authRedirect.test.mjs` checks callback origin handling, path preservation, and HTTPS enforcement.
