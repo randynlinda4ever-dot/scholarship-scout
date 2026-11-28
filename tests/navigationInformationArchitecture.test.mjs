@@ -7,11 +7,11 @@ const navStart = app.indexOf('const navGroups:');
 const navEnd = app.indexOf('const activeNavTab', navStart);
 const navigation = app.slice(navStart, navEnd);
 
-test('primary navigation exposes five distinct destinations', () => {
+test('primary navigation exposes six distinct destinations', () => {
   assert.notEqual(navStart, -1);
   assert.notEqual(navEnd, -1);
-  assert.equal((navigation.match(/tab: '/g) || []).length, 5);
-  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Settings']) {
+  assert.equal((navigation.match(/tab: '/g) || []).length, 6);
+  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Resources', 'Settings']) {
     assert.ok(navigation.includes(`label: '${label}'`), `missing primary destination: ${label}`);
   }
   assert.doesNotMatch(navigation, /Live web search|Application checklist/);

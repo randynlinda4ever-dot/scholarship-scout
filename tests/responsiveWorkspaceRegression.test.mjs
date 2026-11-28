@@ -8,13 +8,13 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
 const responsive = styles.slice(styles.lastIndexOf('/* Responsive workspace navigation — final cascade. */'));
 
-test('the mobile drawer preserves the five updated primary destinations', () => {
+test('the mobile drawer preserves the six updated primary destinations', () => {
   const navStart = app.indexOf('const navGroups:');
   const navEnd = app.indexOf('const activeNavTab', navStart);
   const nav = app.slice(navStart, navEnd);
 
-  assert.equal((nav.match(/tab: '/g) || []).length, 5);
-  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Settings']) {
+  assert.equal((nav.match(/tab: '/g) || []).length, 6);
+  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Resources', 'Settings']) {
     assert.ok(nav.includes(`label: '${label}'`), `missing destination: ${label}`);
   }
 });

@@ -1,5 +1,6 @@
 import { isValidApplicationWorkspace, normalizeApplicationWorkspace } from "./applicationWorkspace.js";
 import { sanitizePublicHttpsUrl } from "./evidence.js";
+import { createResourceWorkspace, normalizeResourceWorkspace, isValidResourceWorkspace } from "./resourceWorkspace.js";
 
 const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
 const MAX_SCHOLARSHIPS = 500;
@@ -14,10 +15,11 @@ export function buildScoutBackup(
   applicationProgress = {},
   applicationWorkspace = {},
   profileDraft = profile,
+  resourceWorkspace = createResourceWorkspace(),
 ) {
   return {
     format: "scholarship-scout-backup",
-    version: 2,
+    version: 3,
     exportedAt: exportedAt.toISOString(),
     profile: structuredClone(profile),
     profileDraft: structuredClone(isRecord(profileDraft) ? profileDraft : profile),
@@ -28,6 +30,7 @@ export function buildScoutBackup(
     applicationWorkspace: structuredClone(
       isRecord(applicationWorkspace) ? applicationWorkspace : {},
     ),
+    resourceWorkspace: structuredClone(normalizeResourceWorkspace(resourceWorkspace)),
   };
 }
 
@@ -44,7 +47,7 @@ export function validateScoutBackup(input, allowedProfileKeys) {
     if (!isRecord(input)) {
       return { ok: false, error: "The file is not a valid Scholarship Scout backup." };
     }
-    if (input.format !== "scholarship-scout-backup" || ![1, 2].includes(input.version)) {
+    if (input.format !== "scholarship-scout-backup" || ![1, 2, 3].includes(input.version)) {
       return { ok: false, error: "This backup format or version is not supported." };
     }
     if (!isRecord(input.profile)) {
@@ -129,6 +132,10 @@ export function validateScoutBackup(input, allowedProfileKeys) {
     }
 
     const applicationWorkspace = input.applicationWorkspace ?? {};
+    const resourceWorkspace = input.resourceWorkspace ?? createResourceWorkspace();
+    if (!isValidResourceWorkspace(resourceWorkspace)) {
+      return { ok: false, error: "Resource worksheets or progress contain invalid records. Nothing was imported." };
+    }
     if (!isValidApplicationWorkspace(applicationWorkspace, [...scholarshipIds])) {
       return { ok: false, error: "Application workspace contains invalid records or scholarship IDs. Nothing was imported." };
     }
@@ -141,6 +148,7 @@ export function validateScoutBackup(input, allowedProfileKeys) {
         scholarships: safeScholarships,
         applicationProgress: structuredClone(applicationProgress),
         applicationWorkspace: normalizeApplicationWorkspace(applicationWorkspace, [...scholarshipIds]),
+        resourceWorkspace: normalizeResourceWorkspace(resourceWorkspace),
       },
     };
   } catch {    return { ok: false, error: "The backup could not be read safely." };

@@ -9,8 +9,9 @@ test("application workspace persists to local storage and is included in encrypt
   const app = await readFile(appUrl, "utf8");
   assert.match(app, /localStorage\.getItem\('scout-application-workspace'\)/);
   assert.match(app, /saveJson\('scout-application-workspace'/);
-  assert.match(app, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft\)/);
+  assert.match(app, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft, resourceWorkspace\)/);
   assert.match(app, /normalizeApplicationWorkspace\(imported\.applicationWorkspace, restoredScholarshipIds\)/);
+  assert.match(app, /scout-resource-workspace/);
 });
 
 test("application workspace contains a user-confirmed local submission record, not a submit integration", async () => {

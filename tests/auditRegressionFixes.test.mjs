@@ -170,7 +170,7 @@ test("encrypted backup export validates the plaintext payload and import allows 
   const end = app.indexOf("const restoreLocalBackup", start);
   assert.ok(start >= 0 && end > start);
   const exportHandler = app.slice(start, end);
-  assert.match(exportHandler, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft\)/);
+  assert.match(exportHandler, /buildScoutBackup\(profile, items, new Date\(\), applicationProgress, applicationWorkspace, profileDraft, resourceWorkspace\)/);
   assert.match(exportHandler, /validateScoutBackup\(backup, Object\.keys\(initialProfile\)\)/);
   assert.match(exportHandler, /const validatedBackup = \{ \.\.\.backup, \.\.\.validation\.value \}/);
 

@@ -5,6 +5,7 @@ const TAB_TO_PATH = Object.freeze({
   Scholarships: "/scholarships",
   "Application prep": "/application-prep",
   "Eligibility filters": "/eligibility",
+  Resources: "/resources",
   Settings: "/settings",
 });
 
@@ -19,6 +20,7 @@ const PATH_TO_TAB = new Map([
   ["/applications", "Application prep"],
   ["/eligibility", "Eligibility filters"],
   ["/profile", "Eligibility filters"],
+  ["/resources", "Resources"],
   ["/settings", "Settings"],
 ]);
 
