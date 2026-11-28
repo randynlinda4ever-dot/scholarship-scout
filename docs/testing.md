@@ -1,6 +1,6 @@
 # Test and verification strategy
 
-> **Current PR #26 verification — November 28, 2026:** The candidate branch is `phase4/architecture-simplification-20261128`, based on `89ee99fd5ef154a6ae23f3a87c8e3592df32b30e`. Before this follow-up, the Phase 2–5 candidate passed 866 tests, 0 failures, 0 skips; four tests in `securityAdminDefaultPrivileges.test.mjs` were specific to the unsupported hosted-`supabase_admin` SQL script and have been removed along with that script. No application-behavior test was removed. The current PR head must be judged by its fresh GitHub Actions run, not by reusing the earlier 866-test count. The candidate's recorded local build passed and the production dependency audit reported zero vulnerabilities. Live Supabase status was rechecked on November 28: `scholarship-discover` ACTIVE v28 (`verify_jwt=false`), `account-delete` ACTIVE v4 (`verify_jwt=true`), all five public tables have RLS, and the local-only student tables have no direct `anon` or `authenticated` CRUD grants. The managed `supabase_admin` defaults remain, but there are no current `public` objects owned by that role; hosted Supabase does not permit customers to change those internal defaults. See [the November 28 roadmap audit](roadmap-audit-2026-11-28.md), [privacy and security](privacy-and-security.md), and [deployment controls](deployment.md).
+> **Current main verification — November 28, 2026:** GitHub Actions run [#97](https://github.com/randynlinda4ever-dot/scholarship-scout/actions/runs/46161012138) completed successfully on exact `main` SHA `28137158d8beb3243da295e3f4ffaf6676edfbd0`. Its quality job ran Node.js 26.x, `npm ci`, `npm audit --audit-level=moderate`, `npm test`, and `npm run build`; every step completed successfully. The dependency-review job was skipped because this was a push, not a pull request. This is baseline evidence only; each PR must pass CI on its own exact head SHA. The live discovery capability version is 29 and its version assertion is synchronized with the deployed function.
 
 ## Commands
 
@@ -56,7 +56,7 @@ A fresh read-only Supabase inventory confirmed the project is ACTIVE_HEALTHY on 
 
 | Function | State/version | JWT verification |
 |---|---:|---:|
-| `scholarship-discover` | ACTIVE v28 | `false` (public discovery only) |
+| `scholarship-discover` | ACTIVE v29 | `false` (public discovery only) |
 | `account-delete` | ACTIVE v4 | `true` |
 
 The deployed account-deletion bundle was previously inspected and found to include the bounded 2 KiB streaming body reader and its shared helper. No account deletion was executed for verification.
