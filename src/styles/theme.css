@@ -1,4 +1,4 @@
-/* Interactive theme switch: the light theme keeps the same tetradic accent palette. */
+/* Interactive theme switch uses the canonical Midnight Violet tokens. */
 .theme-toggle {
   display: inline-flex;
   min-height: 35px;

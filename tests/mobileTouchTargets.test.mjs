@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from "./helpers/readActiveAppStyles.mjs";
 
-const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const styles = await readActiveAppStyles();
 
 test('mobile dialog close controls retain a 44px touch target', () => {
   assert.match(styles, /@media \(max-width: 620px\)[\s\S]*?\.close\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/);
