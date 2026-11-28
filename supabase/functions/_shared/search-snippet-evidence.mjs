@@ -68,7 +68,8 @@ export function parseStrictSearchDate(value) {
   for (const { regex, toParts } of patterns) {
     for (const match of raw.matchAll(regex)) {
       const [year, month, day] = toParts(match);
-      if (!isValidCalendarDate(year, month, day)) return null;
+      const isAmbiguousNumericDate = regex === patterns[2].regex && month <= 12 && day <= 12;
+      if (isAmbiguousNumericDate || !isValidCalendarDate(year, month, day)) return null;
       candidates.push(String(year) + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0"));
     }
   }
@@ -121,10 +122,13 @@ export function matchScholarshipEvidence(title, value) {
     if (!matchesTitle(sentences[index])) continue;
     matched.push(sentences[index]);
     let included = 0;
-    for (let nextIndex = index + 1; nextIndex < sentences.length && included < 2; nextIndex += 1) {
+    // Snippets often insert a neutral eligibility sentence between the title
+    // sentence and deadline. Look ahead a small bounded window without carrying
+    // unrelated prose into the evidence record.
+    for (let nextIndex = index + 1; nextIndex < sentences.length && nextIndex <= index + 3 && included < 2; nextIndex += 1) {
       const next = sentences[nextIndex];
       if (hasCompetingNamedEntity(next, titleTerms)) break;
-      if (!isAwardDetailSentence(next) && !isDeadlineDetailSentence(next)) break;
+      if (!isAwardDetailSentence(next) && !isDeadlineDetailSentence(next)) continue;
       if (!matchesTitle(next)) matched.push(next);
       included += 1;
     }
