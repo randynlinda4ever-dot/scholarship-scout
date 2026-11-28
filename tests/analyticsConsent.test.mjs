@@ -38,12 +38,18 @@ function makeNode(tagName, registry) {
   return node;
 }
 
-function boot({ storedConsent = null, hostname = "scholarship-scout.org", pageType = "scholarship_guides" } = {}) {
+function boot({ storedConsent = null, hostname = "scholarship-scout.org", pageType = "scholarship_guides", storageThrows = false } = {}) {
   const values = new Map();
   if (storedConsent) values.set("scholarship-scout.analytics-consent.v1", storedConsent);
   const storage = {
-    getItem(key) { return values.has(key) ? values.get(key) : null; },
-    setItem(key, value) { values.set(key, String(value)); },
+    getItem(key) {
+      if (storageThrows) throw new Error("storage blocked");
+      return values.has(key) ? values.get(key) : null;
+    },
+    setItem(key, value) {
+      if (storageThrows) throw new Error("storage blocked");
+      values.set(key, String(value));
+    },
   };
   const registry = new Map();
   const externalScripts = [];
@@ -160,6 +166,39 @@ test("the current app section is buffered without sending data before consent", 
   });
 });
 
+test("storage failures fail closed and do not load the external tag", () => {
+  const app = boot({ storageThrows: true });
+  app.findAction("accept").dispatch("click");
+  assert.equal(app.externalScripts.length, 0);
+  assert.ok(JSON.stringify(app.body.children).includes("Analytics will remain off"));
+});
+
+test("all public guide pages use fixed page categories and the same first-party consent controller", async () => {
+  const pages = [
+    ["api-docs.html", "api_docs"],
+    ["scholarship-guides/index.html", "scholarship_guides"],
+    ["scholarship-guides/high-school-juniors.html", "high_school_juniors"],
+    ["scholarship-guides/texas-scholarships.html", "texas_scholarships"],
+    ["scholarship-guides/scholarships-by-gpa.html", "scholarships_by_gpa"],
+    ["scholarship-guides/scholarships-by-major.html", "scholarships_by_major"],
+  ];
+  for (const [path, pageType] of pages) {
+    const html = await readFile(new URL("../public/" + path, import.meta.url), "utf8");
+    assert.match(html, new RegExp('<body data-analytics-page-type="' + pageType + '">'));
+    assert.match(html, /<script defer src="\\/analytics-consent\\.js"><\\/script>/);
+    assert.match(html, /href="\\/analytics-consent\\.css"/);
+  }
+});
+
+test("the Privacy Notice discloses third-party analytics and excludes student data", async () => {
+  const terms = await readFile(new URL("../src/legal/terms.ts", import.meta.url), "utf8");
+  const acceptance = await readFile(new URL("../src/legal/acceptance.js", import.meta.url), "utf8");
+  assert.match(terms, /Optional Google Analytics measurement is off by default/);
+  assert.match(terms, /Any optional analytics choice for a person under 18/);
+  assert.match(terms, /account identifiers, page URLs, page titles, or referrers/);
+  assert.match(acceptance, /2026-11-28\\.9/);
+});
+
 test("page-view events accept only predefined page categories", () => {
   const app = boot({ storedConsent: "granted" });
   app.window.dispatchEvent({
@@ -195,7 +234,7 @@ test("the app keeps analytics off by default and includes a Settings route to re
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
   const main = await readFile(new URL("../src/main.tsx", import.meta.url), "utf8");
-  assert.match(html, /src="\/analytics-consent\.js"[^>]*defer/);
+  assert.match(html, String.raw`/<script defer src="\/analytics-consent\.js"><\/script>/`);
   assert.match(main, /AnalyticsConsentManager/);
   assert.match(app, /scholarship-scout:manage-analytics/);
   assert.match(app, /trackAnalyticsPageView\(tab\)/);
