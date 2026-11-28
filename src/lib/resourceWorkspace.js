@@ -134,6 +134,28 @@ const RESUME_ENTRY_FIELDS = Object.freeze([
   "id", "category", "role", "organization", "startDate", "endDate", "details", "impact",
 ]);
 
+export function createResourceResumeEntry(id) {
+  return {
+    id,
+    category: "Activities",
+    role: "",
+    organization: "",
+    startDate: "",
+    endDate: "",
+    details: "",
+    impact: "",
+  };
+}
+
+export function updateResourceResumeEntry(entries, id, patch) {
+  if (!Array.isArray(entries)) return [];
+  return entries.map((entry) => entry.id === id ? { ...entry, ...patch, id: entry.id } : entry);
+}
+
+export function removeResourceResumeEntry(entries, id) {
+  return Array.isArray(entries) ? entries.filter((entry) => entry.id !== id) : [];
+}
+
 export function createResourceWorkspace() {
   return {
     essayPlan: Object.fromEntries(ESSAY_FIELDS.map((field) => [field, ""])),

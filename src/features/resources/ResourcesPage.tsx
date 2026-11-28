@@ -3,6 +3,9 @@ import {
   calculateNetPrice,
   MAX_RESOURCE_COMPARISONS,
   MAX_RESUME_ENTRIES,
+  createResourceResumeEntry,
+  updateResourceResumeEntry,
+  removeResourceResumeEntry,
   RESOURCE_AID_CHECKLIST,
   RESOURCE_CALENDAR,
   RESUME_ENTRY_CATEGORIES,
@@ -122,23 +125,14 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
   const addResumeEntry = () => {
     if (resumeEntries.length >= MAX_RESUME_ENTRIES) return;
     update({
-      resumeEntries: [...resumeEntries, {
-        id: `resume-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        category: "Activities",
-        role: "",
-        organization: "",
-        startDate: "",
-        endDate: "",
-        details: "",
-        impact: "",
-      }],
+      resumeEntries: [...resumeEntries, createResourceResumeEntry(`resume-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)],
     });
     setStatus("New experience added. Your changes save automatically.");
   };
   const updateResumeEntry = (id: string, patch: Partial<ResourceWorkspace["resumeEntries"][number]>) =>
-    update({ resumeEntries: resumeEntries.map((entry) => entry.id === id ? { ...entry, ...patch } : entry) });
+    update({ resumeEntries: updateResourceResumeEntry(resumeEntries, id, patch) });
   const removeResumeEntry = (id: string) =>
-    update({ resumeEntries: resumeEntries.filter((entry) => entry.id !== id) });
+    update({ resumeEntries: removeResourceResumeEntry(resumeEntries, id) });
   const formatResumeMonth = (value: string) => {
     if (!value) return "";
     const [year, month] = value.split("-").map(Number);

@@ -8,6 +8,9 @@ import {
   MAX_RESUME_ENTRIES,
   RESUME_ENTRY_CATEGORIES,
   RESOURCE_CALENDAR,
+  createResourceResumeEntry,
+  updateResourceResumeEntry,
+  removeResourceResumeEntry,
 } from "../src/lib/resourceWorkspace.js";
 import { buildScoutBackup, validateScoutBackup } from "../src/lib/backup.js";
 
@@ -24,6 +27,27 @@ test("resource workspace starts with empty private worksheets and a bounded resu
   assert.equal(MAX_RESUME_ENTRIES, 30);
   assert.ok(RESUME_ENTRY_CATEGORIES.includes("Community service"));
   assert.ok(RESOURCE_CALENDAR.length >= 7);
+});
+
+test("resume entry lifecycle creates, edits, and removes entries without changing their IDs", () => {
+  const first = createResourceResumeEntry("resume-1");
+  const second = createResourceResumeEntry("resume-2");
+  assert.equal(first.category, "Activities");
+  assert.equal(first.role, "");
+
+  const added = [first, second];
+  const edited = updateResourceResumeEntry(added, "resume-1", {
+    role: "Volunteer coordinator",
+    organization: "Food pantry",
+  });
+  assert.equal(edited[0].role, "Volunteer coordinator");
+  assert.equal(edited[0].organization, "Food pantry");
+  assert.equal(edited[0].id, "resume-1");
+  assert.equal(edited[1].role, "");
+
+  const removed = removeResourceResumeEntry(edited, "resume-1");
+  assert.deepEqual(removed, [second]);
+  assert.equal(updateResourceResumeEntry(removed, "missing", { role: "Ignored" }).length, 1);
 });
 
 test("normalization keeps only known checklist IDs and safe bounded worksheet fields", () => {

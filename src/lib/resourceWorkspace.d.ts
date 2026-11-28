@@ -45,6 +45,9 @@ export const RESOURCE_CALENDAR: readonly {
   title: string;
   tasks: readonly { id: string; label: string }[];
 }[];
+export function createResourceResumeEntry(id: string): ResourceResumeEntry;
+export function updateResourceResumeEntry(entries: ResourceResumeEntry[], id: string, patch: Partial<ResourceResumeEntry>): ResourceResumeEntry[];
+export function removeResourceResumeEntry(entries: ResourceResumeEntry[], id: string): ResourceResumeEntry[];
 export function createResourceWorkspace(): ResourceWorkspace;
 export function normalizeResourceWorkspace(input: unknown): ResourceWorkspace;
 export function isValidResourceWorkspace(input: unknown): boolean;
