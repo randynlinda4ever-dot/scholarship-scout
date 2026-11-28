@@ -68,9 +68,20 @@ The existing checked-in legacy schema migration does not match the live schema. 
 
 New exports use AES-256-GCM with PBKDF2-SHA-256 key derivation, random salt and IV, and authenticated format metadata. Passwords are not saved. Older unencrypted backups remain importable for compatibility with an explicit warning. Backup files are never uploaded by the app.
 
+## Optional analytics
+
+The site includes the first-party consent controller in `public/analytics-consent.js`. Google Tag Manager container `GTM-T6NTTR5X` is requested only after a visitor explicitly enables optional analytics; an unset or denied choice never loads the external tag. The consent decision is stored locally under `scholarship-scout.analytics-consent.v1`. Storage failures fail closed. A persistent Privacy choices control and the Settings page can reopen preferences and withdraw consent. Revocation updates analytics consent to denied and reloads the page. Visitors under 18 are instructed to have a parent or legal guardian make the analytics choice.
+
+The GTM script is restricted to the production apex host; previews and local development do not initialize it. The loader queues Consent Mode defaults as denied, grants only `analytics_storage` after the visitor's affirmative choice, and keeps `ad_storage`, `ad_user_data`, and `ad_personalization` denied. It also enables ads-data redaction. The loader sets static page context (`https://scholarship-scout.org/`, title `Scholarship Scout`, empty referrer) so OAuth callback URLs, query strings, dynamic routes, and document titles are not passed to Google as page metadata.
+
+The only application event is `scout_page_view` with one fixed `page_type` value from a code-defined allowlist. No profile, school, grade, eligibility, scholarship search/filter, form, essay, account identifier, user ID, free-form text, current URL, page title, or referrer is included. The GTM container must be configured only with the approved GA4 Google tag and a GA4 event tag for `scout_page_view`; automatic page views and Enhanced Measurement should remain disabled, and no advertising, remarketing, user-provided data, custom HTML, or unrelated vendor tags may be published. The `page_type` parameter can be registered as a GA4 custom dimension by the adult property administrator. Standard Analytics traffic may still involve IP address and browser/network metadata; this is disclosed in the in-product Privacy Notice. The adult account owner must administer the Google Analytics account and container, maintain its configuration and retention settings, and review applicable legal requirements before enabling collection.
+
+Google Analytics contractual terms prohibit sending personally identifiable information and require a Privacy Policy to disclose Analytics use, processing, and cookie/identifier technologies. See Google's [Analytics Terms](https://marketingplatform.google.com/about/analytics/terms/us/), [data safeguarding guidance](https://support.google.com/analytics/answer/6004245), and [Privacy Disclosures Policy](https://support.google.com/analytics/answer/7318509).
+
 ## Monitoring
 
-The local reliability monitor stores only allowlisted generic event categories and timestamps, retains at most 25 records, and sends no telemetry. It does not store error messages, stack traces, URLs, forms, profile values, or essay content.
+The local reliability monitor stores only allowlisted generic event categories and timestamps, retains at most 25 records, and sends no telemetry. It does not store error messages, stack traces, URLs, forms, profile values, or essay content. This local monitor is separate from the optional, consent-gated Google Analytics integration above.
+
 
 ## Platform findings and owner actions
 
