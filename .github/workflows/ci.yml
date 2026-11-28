@@ -28,7 +28,7 @@ jobs:
 
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -44,11 +44,17 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Check dependency advisories
+      - name: Stage 1 - deprecated API and retired-code scan
+        run: npm run check:deprecated
+
+      - name: Stage 2 - dependency security audit
         run: npm audit --audit-level=moderate
 
-      - name: Run automated tests
-        run: npm test
-
-      - name: Type-check and build
+      - name: Stage 3 - TypeScript validation and production build
         run: npm run build
+
+      - name: Stage 4 - complete unit and integration test suite
+        run: npm test -- --test-forbid-only
+
+      - name: Stage 5 - source function, branch, and line coverage
+        run: npm run test:coverage
