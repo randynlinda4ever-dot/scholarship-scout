@@ -1,0 +1,34 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://wjrwvempgjvoxlioodse.supabase.co/functions/v1/scholarship-discover",
+      "service-desc": [
+        {
+          "href": "https://scholarship-scout.org/api/openapi.json",
+          "type": "application/vnd.oai.openapi+json;version=3.1"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://scholarship-scout.org/api-docs.html#scholarship-discovery",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "anchor": "https://wjrwvempgjvoxlioodse.supabase.co/functions/v1/account-delete",
+      "service-desc": [
+        {
+          "href": "https://scholarship-scout.org/api/openapi.json",
+          "type": "application/vnd.oai.openapi+json;version=3.1"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://scholarship-scout.org/api-docs.html#account-deletion",
+          "type": "text/html"
+        }
+      ]
+    }
+  ]
+}

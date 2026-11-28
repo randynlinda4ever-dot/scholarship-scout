@@ -1,0 +1,538 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Scholarship Scout API",
+    "version": "1.0.0",
+    "description": "OpenAPI description of Scholarship Scout's deployed, application-owned Supabase Edge Function APIs. Supabase-managed Auth and database REST interfaces are operated by Supabase and are not specified as application-owned endpoints here."
+  },
+  "servers": [
+    {
+      "url": "https://wjrwvempgjvoxlioodse.supabase.co/functions/v1",
+      "description": "Scholarship Scout production Edge Functions"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Discovery",
+      "description": "Public, bounded scholarship lead discovery."
+    },
+    {
+      "name": "Account",
+      "description": "Authenticated account-management operations."
+    }
+  ],
+  "paths": {
+    "/scholarship-discover": {
+      "post": {
+        "operationId": "discoverScholarships",
+        "tags": ["Discovery"],
+        "summary": "Discover scholarship leads",
+        "description": "Runs public, rate-limited scholarship discovery using only a US state, expected graduation year, and up to four generic category IDs. A Supabase user session is not required. Results are unverified leads and must be reviewed at their source. Do not send student names, school details, grades, class rank, test scores, activities, contact information, essays, or other profile fields.",
+        "security": [
+          {
+            "supabasePublishableKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScholarshipDiscoveryRequest"
+              },
+              "example": {
+                "profile": {
+                  "state": "TX",
+                  "graduationYear": 2027
+                },
+                "categories": ["local", "academic"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search completed. Partial upstream failures are reported in warnings and summary; successful results remain unverified leads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScholarshipDiscoveryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state, graduation year, or missing valid categories.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The JSON request exceeded the 8 KiB request-body limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The request Content-Type must be application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The discovery rate limit was reached. Respect the Retry-After response header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The upstream search gateway could not complete any search requests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryFailureResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The search gateway or trusted-client rate-limit configuration is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account-delete": {
+      "post": {
+        "operationId": "deleteAuthenticatedAccount",
+        "tags": ["Account"],
+        "summary": "Permanently delete the authenticated account",
+        "description": "Destructive operation. Requires the caller's valid Supabase access token and project publishable key. The server verifies the token, derives the account ID from the verified user, revokes refresh-token sessions, and then deletes that Auth user. The request does not accept a user ID. Previously issued access-token JWTs may remain valid until expiry. Use only after the user has explicitly confirmed account deletion in the application.",
+        "security": [
+          {
+            "supabasePublishableKey": [],
+            "supabaseUserAccessToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionRequest"
+              },
+              "example": {
+                "confirmation": "DELETE_MY_ACCOUNT"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The verified caller's Auth account was deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The confirmation body is missing, malformed, or does not match.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The bearer access token is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request origin is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Only POST is supported.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The confirmation request exceeded the 2 KiB body limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Session revocation or account deletion could not be completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Session revocation failed unexpectedly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required server-side Supabase configuration is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "supabasePublishableKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "apikey",
+        "description": "The project's browser-safe Supabase publishable key. This is public configuration, not a service-role or secret key."
+      },
+      "supabaseUserAccessToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token for the currently signed-in Supabase Auth user."
+      }
+    },
+    "schemas": {
+      "ScholarshipDiscoveryRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["profile", "categories"],
+        "properties": {
+          "profile": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["state", "graduationYear"],
+            "properties": {
+              "state": {
+                "type": "string",
+                "description": "US state or territory postal abbreviation."
+              },
+              "graduationYear": {
+                "type": "integer",
+                "description": "High-school graduation year. Must be within the current UTC year through nine years ahead."
+              }
+            }
+          },
+          "categories": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "local",
+                "school_resources",
+                "regional",
+                "state",
+                "academic",
+                "humanities",
+                "leadership",
+                "community_service",
+                "language",
+                "employment",
+                "arts",
+                "incoming_college",
+                "national",
+                "general"
+              ]
+            }
+          }
+        }
+      },
+      "ScholarshipDiscoveryResponse": {
+        "type": "object",
+        "required": ["results", "count", "provider", "warnings", "summary"],
+        "properties": {
+          "results": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "$ref": "#/components/schemas/ScholarshipLead"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40
+          },
+          "provider": {
+            "type": "string",
+            "const": "searxng"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DiscoverySummary"
+          }
+        }
+      },
+      "ScholarshipLead": {
+        "type": "object",
+        "description": "An unverified discovery lead. Fields are descriptive evidence only and do not establish sponsor legitimacy, award accuracy, current availability, or applicant eligibility.",
+        "required": ["id", "title", "source_url", "verification_state"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "provider": {
+            "type": ["string", "null"]
+          },
+          "award_text": {
+            "type": ["string", "null"]
+          },
+          "deadline": {
+            "type": ["string", "null"]
+          },
+          "source_url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "discovery_source_url": {
+            "type": ["string", "null"],
+            "format": "uri"
+          },
+          "discovery_category": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "verification_state": {
+            "type": "string",
+            "const": "unverified_lead"
+          },
+          "discovered_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "discovery_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "discovery_queries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "discovery_pages": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "relevance_score": {
+            "type": "number"
+          },
+          "relevance_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "published_at": {
+            "type": ["string", "null"]
+          },
+          "search_engine": {
+            "type": "string",
+            "const": "searxng"
+          }
+        }
+      },
+      "DiscoverySummary": {
+        "type": "object",
+        "required": [
+          "requestedQueries",
+          "successfulQueries",
+          "failedQueries",
+          "failureReasons",
+          "pagesChecked",
+          "rawResultCount",
+          "uniqueResults",
+          "potentialQueries",
+          "queriesAvoided",
+          "retryAttempts",
+          "cacheHit",
+          "cacheAgeMs"
+        ],
+        "properties": {
+          "requestedQueries": {
+            "type": "integer"
+          },
+          "successfulQueries": {
+            "type": "integer"
+          },
+          "failedQueries": {
+            "type": "integer"
+          },
+          "failureReasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["code", "count"],
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "pagesChecked": {
+            "type": "integer"
+          },
+          "rawResultCount": {
+            "type": "integer"
+          },
+          "uniqueResults": {
+            "type": "integer"
+          },
+          "potentialQueries": {
+            "type": "integer"
+          },
+          "queriesAvoided": {
+            "type": "integer"
+          },
+          "retryAttempts": {
+            "type": "integer"
+          },
+          "cacheHit": {
+            "type": "boolean"
+          },
+          "cacheAgeMs": {
+            "type": "integer"
+          }
+        }
+      },
+      "AccountDeletionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["confirmation"],
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "const": "DELETE_MY_ACCOUNT",
+            "description": "Exact destructive-action confirmation string shown by the application."
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "DiscoveryFailureResponse": {
+        "type": "object",
+        "required": ["error", "summary"],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DiscoverySummary"
+          }
+        }
+      }
+    }
+  }
+}
