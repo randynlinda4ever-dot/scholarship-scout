@@ -65,13 +65,13 @@ function SharePrint({ id, onStatus }: { id: ResourceId; onStatus: (message: stri
   return <div className="resource-actions"><button type="button" onClick={() => window.print()}>Print / Save PDF</button><button type="button" onClick={() => void share()}>Share resource</button></div>;
 }
 
-function Field({ label, value, onChange, multiline = false, placeholder = "", type = "text" }: {
-  label: string; value: string; onChange: (value: string) => void; multiline?: boolean; placeholder?: string; type?: "text" | "number" | "month";
+function Field({ label, value, onChange, multiline = false, placeholder = "", type = "text", maxLength }: {
+  label: string; value: string; onChange: (value: string) => void; multiline?: boolean; placeholder?: string; type?: "text" | "number" | "month"; maxLength?: number;
 }) {
   return <label className={`resource-field${multiline ? " resource-field-wide" : ""}`}><span>{label}</span>
     {multiline
-      ? <textarea rows={4} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
-      : <input type={type} min={type === "number" ? 0 : undefined} step={type === "number" ? "0.01" : undefined} inputMode={type === "number" ? "decimal" : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />}
+      ? <textarea rows={4} maxLength={maxLength} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+      : <input type={type} maxLength={maxLength} min={type === "number" ? 0 : undefined} step={type === "number" ? "0.01" : undefined} inputMode={type === "number" ? "decimal" : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />}
   </label>;
 }
 
@@ -315,12 +315,12 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
                     {RESUME_ENTRY_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
                   </select>
                 </label>
-                <Field label="Role or position" value={entry.role} onChange={(value) => updateResumeEntry(entry.id, { role: value })} placeholder="e.g. Volunteer coordinator" />
-                <Field label="Organization or group" value={entry.organization} onChange={(value) => updateResumeEntry(entry.id, { organization: value })} placeholder="e.g. Local food pantry" />
+                <Field label="Role or position" value={entry.role} onChange={(value) => updateResumeEntry(entry.id, { role: value })} placeholder="e.g. Volunteer coordinator" maxLength={120} />
+                <Field label="Organization or group" value={entry.organization} onChange={(value) => updateResumeEntry(entry.id, { organization: value })} placeholder="e.g. Local food pantry" maxLength={160} />
                 <Field label="Start month" value={entry.startDate} onChange={(value) => changeResumeStartMonth(entry.id, value, entry.endDate)} type="month" />
                 <Field label="End month (leave blank if current)" value={entry.endDate} onChange={(value) => changeResumeEndMonth(entry.id, value, entry.startDate)} type="month" />
-                <Field label="Responsibilities and activities" value={entry.details} onChange={(value) => updateResumeEntry(entry.id, { details: value })} multiline placeholder="Describe what you actually did. Keep details specific and accurate." />
-                <Field label="Result, contribution, or achievement" value={entry.impact} onChange={(value) => updateResumeEntry(entry.id, { impact: value })} multiline placeholder="Add a result, contribution, recognition, or skill you can explain." />
+                <Field label="Responsibilities and activities" value={entry.details} onChange={(value) => updateResumeEntry(entry.id, { details: value })} multiline placeholder="Describe what you actually did. Keep details specific and accurate." maxLength={800} />
+                <Field label="Result, contribution, or achievement" value={entry.impact} onChange={(value) => updateResumeEntry(entry.id, { impact: value })} multiline placeholder="Add a result, contribution, recognition, or skill you can explain." maxLength={500} />
               </div>
             </article>)}
           </div> : <div className="resource-empty-state"><h3>Your experience list is empty.</h3><p>Add a job, volunteer role, club, leadership position, award, or academic project when you are ready.</p><button type="button" className="resource-button resource-button-primary" onClick={addResumeEntry}>＋ Add your first experience</button></div>}

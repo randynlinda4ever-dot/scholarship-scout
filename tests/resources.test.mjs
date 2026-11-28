@@ -195,6 +195,15 @@ test("resource UI persists worksheets locally and follows browser Back/Forward n
   assert.match(page, /addEventListener\("popstate", syncHash\)/);
   assert.match(page, /removeEventListener\("popstate", syncHash\)/);
   assert.match(page, /type="number"/);
+  assert.match(page, /maxLength=\{120\}/);
+  assert.match(page, /maxLength=\{160\}/);
+  assert.match(page, /maxLength=\{800\}/);
+  assert.match(page, /maxLength=\{500\}/);
+  const styles = await import("node:fs/promises").then(({ readFile }) =>
+    readFile(new URL("../src/features/resources/ResourcesPage.css", import.meta.url), "utf8"),
+  );
+  assert.match(styles, /\.resource-page select:focus-visible/);
+  assert.match(styles, /\.resource-resume-preview-topline \{ display: flex; flex-wrap: wrap/);
   assert.match(page, /id: "resume"/);
   assert.match(page, /active === "resume"/);
   assert.match(page, /Experience entries/);
