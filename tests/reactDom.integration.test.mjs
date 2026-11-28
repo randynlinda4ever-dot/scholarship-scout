@@ -147,7 +147,6 @@ test("guest workspace supports real navigation, profile edits, tracker validatio
     globalThis.__SCOUT_TEST_SUPABASE_UNCONFIGURED__ = true;
     try {
       const { default: App } = await import("../src/App.tsx?react-dom-integration");
-    try {
       const user = userEvent.setup({ document });
       render(React.createElement(App), { container: root });
       const ui = within(root);
