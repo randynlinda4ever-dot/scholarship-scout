@@ -45,6 +45,26 @@ import './brand-system.css';
 
 // This module is imported only after legal acceptance and local-vault unlock.
 const localStorage = vaultStorage;
+
+function readUiPreference(key: string): string | null {
+  try {
+    const current = window.localStorage.getItem(key);
+    if (current !== null) return current;
+  } catch { /* continue with a previously encrypted preference when available */ }
+  try {
+    const legacy = vaultStorage.getItem(key);
+    if (legacy === null) return null;
+    try {
+      window.localStorage.setItem(key, legacy);
+      void Promise.resolve(vaultStorage.removeItem(key)).catch(() => {});
+    } catch {
+      // Keep the encrypted legacy copy when plain preference storage is unavailable.
+    }
+    return legacy;
+  } catch {
+    return null;
+  }
+}
 const FORCE_PASSPHRASE_SESSION_KEY = 'scout-vault-force-passphrase';
 installReliabilityMonitoring();
 
@@ -210,10 +230,10 @@ function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavToggleRef = useRef<HTMLButtonElement>(null);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('scout-sidebar-collapsed') === 'true'; } catch { return false; }
+    try { return readUiPreference('scout-sidebar-collapsed') === 'true'; } catch { return false; }
   });
   useEffect(() => {
-    try { localStorage.setItem('scout-sidebar-collapsed', String(desktopSidebarCollapsed)); } catch { /* sidebar preference is optional */ }
+    try { window.localStorage.setItem('scout-sidebar-collapsed', String(desktopSidebarCollapsed)); } catch { /* sidebar preference is optional */ }
   }, [desktopSidebarCollapsed]);
   useEffect(() => {
     setMobileNavOpen(false);
@@ -231,13 +251,13 @@ function App() {
   }, [mobileNavOpen]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
-      const savedTheme = localStorage.getItem('scout-theme');
-      const hasExplicitPreference = localStorage.getItem('scout-theme-choice') === 'true';
+      const savedTheme = readUiPreference('scout-theme');
+      const hasExplicitPreference = readUiPreference('scout-theme-choice') === 'true';
       return hasExplicitPreference && savedTheme === 'light' ? 'light' : 'dark';
     } catch { return 'dark'; }
   });
   const [compactView, setCompactView] = useState(() => {
-    try { return localStorage.getItem('scout-compact-view') === 'true'; }
+    try { return readUiPreference('scout-compact-view') === 'true'; }
     catch { return false; }
   });
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
@@ -443,14 +463,14 @@ function App() {
   }, [deadlineCalendarDay]);
 
   useEffect(() => {
-    try { localStorage.setItem('scout-theme', theme); } catch { /* storage may be unavailable */ }
+    try { window.localStorage.setItem('scout-theme', theme); } catch { /* storage may be unavailable */ }
   }, [theme]);
   const chooseTheme = (nextTheme: 'dark' | 'light') => {
-    try { localStorage.setItem('scout-theme-choice', 'true'); } catch { /* storage may be unavailable */ }
+    try { window.localStorage.setItem('scout-theme-choice', 'true'); } catch { /* storage may be unavailable */ }
     setTheme(nextTheme);
   };
   useEffect(() => {
-    try { localStorage.setItem('scout-compact-view', String(compactView)); } catch { /* storage may be unavailable */ }
+    try { window.localStorage.setItem('scout-compact-view', String(compactView)); } catch { /* storage may be unavailable */ }
   }, [compactView]);
 
   useEffect(() => {
@@ -1003,9 +1023,6 @@ function App() {
       return { state: 'not-enabled' as const, localStatus: null };
     }
     const localStatus = getLocalAccountVaultSyncStatus({ ownerId: cloudUser.id });
-    if (!localStatus.enabled || localStatus.revision < 1) {
-      return { state: 'not-enabled' as const, localStatus };
-    }
     const remoteBackup = await getAccountVaultBackup();
     return {
       state: getAccountVaultSyncState(localStatus, remoteBackup),
@@ -1023,7 +1040,7 @@ function App() {
     }
     if (snapshot.state === 'remote-ahead') {
       setAccountVaultSyncStatus('available');
-      setAccountVaultSyncMessage('A newer encrypted account backup exists from another device. This device was not overwritten and automatic syncing is paused to protect your local records. Export your current local vault before restoring the newer backup on a clean browser profile. Vault histories are not merged automatically.');
+      setAccountVaultSyncMessage('An encrypted account vault already exists or has a newer revision on another device. This device cannot create a second account vault or overwrite that backup. Export any separate local records before restoring the existing account vault on a clean browser profile; vault histories are not merged automatically.');
       return;
     }
     if (snapshot.state === 'missing') {

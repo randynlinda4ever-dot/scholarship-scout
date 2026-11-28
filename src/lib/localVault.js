@@ -1,4 +1,12 @@
-import { destroySecureAuthStorage } from "./secureAuthStorage.js";
+import { destroySecureAuthStorage, secureAuthStorage } from "./secureAuthStorage.js";
+import {
+  APP_OWNED_LOCAL_STORAGE_KEYS,
+  APP_OWNED_SESSION_STORAGE_KEYS,
+  AUTH_STORAGE_KEY_MIGRATION,
+  getSecureAuthStorageKey,
+  isPrivateVaultRecordKey,
+  isUiPreferenceRecordKey,
+} from "./vaultRecordPolicy.js";
 export const LOCAL_VAULT_FORMAT = "scholarship-scout-local-vault";
 export const LOCAL_VAULT_VERSION = 2;
 export const LOCAL_VAULT_DATABASE = "scholarship-scout-local-vault";
@@ -8,10 +16,6 @@ export const LOCAL_VAULT_DEVICE_KEY = "device-unlock-key";
 export const LOCAL_VAULT_KDF_ITERATIONS = 600_000;
 const LEGACY_LOCAL_VAULT_VERSION = 1;
 
-const LEGAL_ACCEPTANCE_KEY = "scholarship-scout.legal-acceptance";
-const RELIABILITY_KEY = "scout-local-reliability";
-const SUPABASE_AUTH_STORAGE_KEY = "sb-wjrwvempgjvoxlioodse-auth-token";
-const SUPABASE_AUTH_CODE_VERIFIER_KEY = `${SUPABASE_AUTH_STORAGE_KEY}-code-verifier`;
 const MIN_PASSPHRASE_LENGTH = 12;
 const MAX_PASSPHRASE_LENGTH = 1024;
 const MAX_RECORDS = 2_000;
@@ -371,9 +375,142 @@ function getBackend(backend) {
 }
 
 function isExcludedPlaintextKey(key) {
-  const isScoutRecord = key.startsWith("scout-") && key !== RELIABILITY_KEY;
-  const isCurrentSupabaseSession = key === SUPABASE_AUTH_STORAGE_KEY || key === SUPABASE_AUTH_CODE_VERIFIER_KEY;
-  return key === LEGAL_ACCEPTANCE_KEY || key === RELIABILITY_KEY || (!isScoutRecord && !isCurrentSupabaseSession);
+  return !isPrivateVaultRecordKey(key);
+}
+
+async function ensureAuthRecordsStored(entries, authStorage = secureAuthStorage) {
+  if (!authStorage || typeof authStorage.getItem !== "function" || typeof authStorage.setItem !== "function") {
+    throw new Error("Encrypted account-session storage is unavailable. Existing session data was not removed.");
+  }
+  for (const entry of entries) {
+    const targetKey = getSecureAuthStorageKey(entry.key);
+    if (!targetKey) continue;
+    const existing = await authStorage.getItem(targetKey);
+    if (existing === null || existing === undefined) {
+      await authStorage.setItem(targetKey, entry.value);
+    }
+    const verified = await authStorage.getItem(targetKey);
+    if (typeof verified !== "string") {
+      throw new Error("The account session could not be verified in encrypted authentication storage.");
+    }
+  }
+}
+
+async function migrateLegacyAuthStorage(storage, authStorage = secureAuthStorage) {
+  if (!storage || typeof storage.getItem !== "function" ||
+      typeof storage.removeItem !== "function" || typeof storage.setItem !== "function") {
+    throw new Error("Browser authentication migration is unavailable. Existing session data was not removed.");
+  }
+  const snapshots = [];
+  for (const { sourceKey } of AUTH_STORAGE_KEY_MIGRATION) {
+    const value = storage.getItem(sourceKey);
+    if (typeof value === "string") snapshots.push({ key: sourceKey, value });
+  }
+  if (!snapshots.length) return;
+  await ensureAuthRecordsStored(snapshots.map(({ key, value }) => ({ key, value })), authStorage);
+  try {
+    for (const { key } of snapshots) storage.removeItem(key);
+    for (const { key } of snapshots) {
+      if (storage.getItem(key) !== null) {
+        throw new Error("A plaintext authentication record could not be removed after encrypted migration.");
+      }
+    }
+  } catch (error) {
+    let rollbackSucceeded = true;
+    for (const { key, value } of [...snapshots].reverse()) {
+      try {
+        if (storage.getItem(key) !== value) storage.setItem(key, value);
+        if (storage.getItem(key) !== value) rollbackSucceeded = false;
+      } catch {
+        rollbackSucceeded = false;
+      }
+    }
+    if (!rollbackSucceeded) {
+      throw new Error("Authentication was copied to encrypted storage, but the plaintext rollback could not be fully verified. Keep this tab open and contact support.");
+    }
+    throw error;
+  }
+}
+
+async function migrateLegacyVaultRecords(records, {
+  storage = globalThis.localStorage,
+  authStorage = secureAuthStorage,
+} = {}) {
+  const normalized = normalizeRecords(records);
+  const privateRecords = [];
+  const preferences = [];
+  const authentication = [];
+  const unknownKeys = [];
+  for (const entry of normalized.records) {
+    if (isPrivateVaultRecordKey(entry.key)) privateRecords.push(entry);
+    else if (isUiPreferenceRecordKey(entry.key)) preferences.push(entry);
+    else if (getSecureAuthStorageKey(entry.key)) authentication.push(entry);
+    else unknownKeys.push(entry.key);
+  }
+  if (unknownKeys.length) {
+    throw new Error("This encrypted vault contains unclassified legacy records (" +
+      unknownKeys.slice(0, 5).join(", ") +
+      "). Its contents were left unchanged. Export an encrypted backup and contact support before continuing.");
+  }
+  await ensureAuthRecordsStored(authentication, authStorage);
+  if (preferences.length) {
+    if (!storage || typeof storage.getItem !== "function" ||
+        typeof storage.setItem !== "function") {
+      throw new Error("Local preference storage is unavailable. The encrypted vault was not changed.");
+    }
+    for (const { key, value } of preferences) {
+      const existing = storage.getItem(key);
+      if (existing === null || existing === undefined) storage.setItem(key, value);
+      const verified = storage.getItem(key);
+      if (typeof verified !== "string") {
+        throw new Error("A saved display preference could not be moved out of the private vault.");
+      }
+    }
+  }
+  return normalizeRecords(privateRecords);
+}
+
+async function decryptPayloadWithContentKey(envelope, key) {
+  if (!isSupportedEnvelope(envelope) || envelope.version !== LOCAL_VAULT_VERSION ||
+      !envelope.iv || !envelope.ciphertext) {
+    throw new Error("The updated encrypted vault could not be verified.");
+  }
+  const iv = base64ToBytes(envelope.iv);
+  const ciphertext = base64ToBytes(envelope.ciphertext);
+  const plaintext = await getCrypto().subtle.decrypt(
+    { name: "AES-GCM", iv, additionalData: additionalData(LOCAL_VAULT_VERSION, "payload"), tagLength: 128 },
+    key,
+    ciphertext,
+  );
+  let payload;
+  try { payload = JSON.parse(decoder.decode(plaintext)); }
+  catch { throw new Error("The updated encrypted vault could not be decoded."); }
+  if (!payload || payload.format !== LOCAL_VAULT_FORMAT + "-data" || payload.version !== LOCAL_VAULT_VERSION) {
+    throw new Error("The updated encrypted vault payload is not supported.");
+  }
+  return normalizeRecords(payload.records);
+}
+
+async function persistMigratedVaultRecords(unlocked, backend, payload) {
+  if (JSON.stringify(unlocked.payload) === JSON.stringify(payload)) return unlocked;
+  const envelope = await encryptV2Payload(
+    payload,
+    unlocked.key,
+    unlocked.salt,
+    unlocked.keyWrap,
+    unlocked.deviceKeyWrap,
+    unlocked.ownerId,
+    unlocked.accountKeyWrap,
+    unlocked.cloudRevision,
+    unlocked.localDirty,
+  );
+  await backend.set(envelope);
+  const stored = await backend.get();
+  const verified = await decryptPayloadWithContentKey(stored, unlocked.key);
+  if (JSON.stringify(verified) !== JSON.stringify(payload)) {
+    throw new Error("The migrated encrypted vault did not pass read-back verification. The previous vault remains available.");
+  }
+  return { ...unlocked, payload: verified };
 }
 
 function readLegacyRecords(storage) {
@@ -574,7 +711,7 @@ async function releaseActiveVaultTabLock() {
   }
 }
 
-export async function createLocalVault(passphrase, { storage = globalThis.localStorage, backend, lockManager, ownerId = null } = {}) {
+export async function createLocalVault(passphrase, { storage = globalThis.localStorage, backend, lockManager, ownerId = null, authStorage = secureAuthStorage } = {}) {
   validatePassphrase(passphrase);
   if (activeVault) throw new Error("The local vault is already unlocked.");
   await acquireVaultTabLock(lockManager);
@@ -590,6 +727,7 @@ export async function createLocalVault(passphrase, { storage = globalThis.localS
     if (JSON.stringify(verified.payload) !== JSON.stringify(payload)) {
       throw new Error("The encrypted local vault did not pass its read-back verification. Existing browser data was not removed.");
     }
+    await migrateLegacyAuthStorage(storage, authStorage);
     removeLegacyRecords(storage);
     return activateVault({ ...verified, backend: selectedBackend });
   } catch (error) {
@@ -604,6 +742,7 @@ export async function unlockLocalVault(passphrase, {
   lockManager,
   rememberDevice = false,
   ownerId = null,
+  authStorage = secureAuthStorage,
 } = {}) {
   if (activeVault) return { recordCount: activeVault.records.size };
   await acquireVaultTabLock(lockManager);
@@ -642,6 +781,9 @@ export async function unlockLocalVault(passphrase, {
       await selectedBackend.set(boundEnvelope);
       unlocked = await decryptEnvelope(await selectedBackend.get(), passphrase);
     }
+    const sanitizedPayload = await migrateLegacyVaultRecords(unlocked.payload.records, { storage, authStorage });
+    unlocked = await persistMigratedVaultRecords(unlocked, selectedBackend, sanitizedPayload);
+    await migrateLegacyAuthStorage(storage, authStorage);
     let deviceKey = null;
     if (unlocked.deviceKeyWrap && typeof selectedBackend.getDeviceKey === "function") {
       const candidate = await selectedBackend.getDeviceKey();
@@ -675,6 +817,7 @@ export async function unlockLocalVaultWithDeviceKey({
   backend,
   lockManager,
   ownerId = null,
+  authStorage = secureAuthStorage,
 } = {}) {
   if (activeVault) return { recordCount: activeVault.records.size };
   await acquireVaultTabLock(lockManager);
@@ -713,13 +856,29 @@ export async function unlockLocalVaultWithDeviceKey({
     if (!payload || payload.format !== LOCAL_VAULT_FORMAT + "-data" || payload.version !== LOCAL_VAULT_VERSION) {
       throw new Error("The local vault payload is not supported.");
     }
+    let sanitizedPayload = await migrateLegacyVaultRecords(payload.records, { storage, authStorage });
+    const originalPayload = normalizeRecords(payload.records);
+    if (JSON.stringify(sanitizedPayload) !== JSON.stringify(originalPayload)) {
+      const sanitizedEnvelope = await encryptV2Payload(
+        sanitizedPayload, key, salt, envelope.keyWrap, envelope.deviceKeyWrap,
+        envelope.ownerId ?? null, envelope.accountKeyWrap ?? null,
+        envelope.cloudRevision ?? 0, envelope.localDirty === true,
+      );
+      await selectedBackend.set(sanitizedEnvelope);
+      const verified = await decryptPayloadWithContentKey(await selectedBackend.get(), key);
+      if (JSON.stringify(verified) !== JSON.stringify(sanitizedPayload)) {
+        throw new Error("The migrated encrypted vault did not pass read-back verification.");
+      }
+      sanitizedPayload = verified;
+    }
+    await migrateLegacyAuthStorage(storage, authStorage);
     removeLegacyRecords(storage);
     return activateVault({
       key, rawContentKey, keyWrap: envelope.keyWrap, deviceKeyWrap: envelope.deviceKeyWrap,
       deviceKey, ownerId: typeof envelope.ownerId === "string" ? envelope.ownerId : null,
       accountKeyWrap: envelope.accountKeyWrap ?? null,
       cloudRevision: Number.isSafeInteger(envelope.cloudRevision) && envelope.cloudRevision > 0 ? envelope.cloudRevision : 0,
-      salt, payload: normalizeRecords(payload.records), backend: selectedBackend,
+      salt, payload: sanitizedPayload, backend: selectedBackend,
     });
   } catch (error) {
     await releaseActiveVaultTabLock();
@@ -895,10 +1054,9 @@ export async function getAccountVaultSyncEnvelope({ ownerId } = {}) {
     throw new Error("Enable a synced passkey before creating an account vault backup.");
   }
   await flushLocalVault();
-  const excluded = new Set([SUPABASE_AUTH_STORAGE_KEY, SUPABASE_AUTH_CODE_VERIFIER_KEY]);
   const payload = normalizeRecords(
     [...state.records]
-      .filter(([key]) => !excluded.has(key))
+      .filter(([key]) => isPrivateVaultRecordKey(key))
       .map(([key, value]) => ({ key, value })),
   );
   const generation = state.writeGeneration;
@@ -996,6 +1154,7 @@ export async function restoreLocalVaultWithAccountKey(envelope, wrappingKey, {
   storage = globalThis.localStorage,
   backend,
   lockManager,
+  authStorage = secureAuthStorage,
 } = {}) {
   if (!ownerId || !Number.isSafeInteger(cloudRevision) || cloudRevision < 1 ||
       !isValidAccountWrappingKey(wrappingKey)) {
@@ -1045,6 +1204,8 @@ export async function restoreLocalVaultWithAccountKey(envelope, wrappingKey, {
       rawContentKey.fill(0);
       throw new Error("The account vault payload is not supported.");
     }
+    const content = await migrateLegacyVaultRecords(payload.records, { storage, authStorage });
+    await migrateLegacyAuthStorage(storage, authStorage);
 
     const deviceKey = await getCrypto().subtle.generateKey(
       { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"],
@@ -1054,7 +1215,6 @@ export async function restoreLocalVaultWithAccountKey(envelope, wrappingKey, {
       throw new Error("This browser could not create its local remembered-device key.");
     }
     const deviceKeyWrap = await encryptBytes(rawContentKey, deviceKey, "device-key-wrap");
-    const content = normalizeRecords(payload.records);
     const localEnvelope = await encryptV2Payload(
       content, key, salt, safeEnvelope.keyWrap, deviceKeyWrap,
       ownerId, safeEnvelope.accountKeyWrap, cloudRevision,
@@ -1174,14 +1334,11 @@ export async function destroyLocalVault({
     throw new Error("The local vault was removed, but browser metadata could not be accessed. Review the privacy notice and contact support.");
   }
 
+  const ownedLocalKeys = new Set(APP_OWNED_LOCAL_STORAGE_KEYS);
   const localKeysToRemove = [];
   for (let index = 0; index < storage.length; index += 1) {
     const key = storage.key(index);
-    if (typeof key === "string" &&
-        (key.startsWith("scout-") || key.startsWith("scholarship-scout.") ||
-         key === SUPABASE_AUTH_STORAGE_KEY || key === SUPABASE_AUTH_CODE_VERIFIER_KEY)) {
-      localKeysToRemove.push(key);
-    }
+    if (typeof key === "string" && ownedLocalKeys.has(key)) localKeysToRemove.push(key);
   }
   for (const key of localKeysToRemove) storage.removeItem(key);
   if (localKeysToRemove.some((key) => storage.getItem(key) !== null)) {
@@ -1190,15 +1347,11 @@ export async function destroyLocalVault({
 
   if (sessionStorage && typeof sessionStorage.length === "number" &&
       typeof sessionStorage.key === "function" && typeof sessionStorage.removeItem === "function") {
+    const ownedSessionKeys = new Set(APP_OWNED_SESSION_STORAGE_KEYS);
     const sessionKeysToRemove = [];
     for (let index = 0; index < sessionStorage.length; index += 1) {
       const key = sessionStorage.key(index);
-      if (typeof key === "string" && (
-        key.startsWith("scout-") ||
-        key.startsWith("scholarship-scout.") ||
-        key === SUPABASE_AUTH_STORAGE_KEY ||
-        key === SUPABASE_AUTH_CODE_VERIFIER_KEY
-      )) sessionKeysToRemove.push(key);
+      if (typeof key === "string" && ownedSessionKeys.has(key)) sessionKeysToRemove.push(key);
     }
     for (const key of sessionKeysToRemove) sessionStorage.removeItem(key);
   }

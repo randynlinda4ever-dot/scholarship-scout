@@ -38,6 +38,17 @@ function createMemoryStorage(initial = {}) {
   };
 }
 
+
+function createMemoryAuthStorage(initial = {}) {
+  const values = new Map(Object.entries(initial));
+  return {
+    values,
+    async getItem(key) { return values.has(String(key)) ? values.get(String(key)) : null; },
+    async setItem(key, value) { values.set(String(key), String(value)); },
+    async removeItem(key) { values.delete(String(key)); },
+  };
+}
+
 function createMemoryBackend() {
   let value = null;
   let deviceKey = null;
@@ -107,32 +118,43 @@ test("the storage adapter stays inert after an intentional lock while reload is 
   await lockLocalVault();
 });
 
-test("migration encrypts Scholarship Scout records and Supabase session/PKCE values only", async () => {
+test("migration encrypts only private student records and moves authentication into its separate encrypted store", async () => {
   const storage = createMemoryStorage({
     [LEGAL_KEY]: JSON.stringify({ accepted: true, version: "2026-11-26.2", acceptedAt: "2026-11-27T00:00:00.000Z" }),
     [RELIABILITY_KEY]: JSON.stringify([{ type: "runtime_error", occurredAt: "2026-11-27T00:00:00.000Z" }]),
     "unrelated-widget-preference": "leave-me-alone",
     "scout-profile": JSON.stringify({ school: "Private School", gpa: "3.8" }),
     "scout-scholarships": JSON.stringify([{ id: "one", name: "Private draft" }]),
+    "scout-theme": "light",
+    "scout-theme-choice": "true",
+    "scout-sidebar-collapsed": "false",
+    "scout-compact-view": "true",
     [SESSION_KEY]: JSON.stringify({ access_token: "session-secret" }),
     [PKCE_KEY]: "pkce-verifier-secret",
   });
   const backend = createMemoryBackend();
+  const authStorage = createMemoryAuthStorage();
   const lockManager = createMemoryLockManager();
 
-  await createLocalVault(PASS, { storage, backend, lockManager });
+  await createLocalVault(PASS, { storage, backend, authStorage, lockManager });
   await flushLocalVault();
 
   assert.equal(await hasEncryptedVault({ backend }), true);
   for (const key of ["scout-profile", "scout-scholarships", SESSION_KEY, PKCE_KEY]) {
-    assert.equal(storage.getItem(key), null, key + " should be removed after verified migration");
+    assert.equal(storage.getItem(key), null, key + " should be removed only after verified migration");
   }
+  for (const key of ["scout-theme", "scout-theme-choice", "scout-sidebar-collapsed", "scout-compact-view"]) {
+    assert.notEqual(storage.getItem(key), null, key + " is a display preference and remains outside the private vault");
+    assert.equal(vaultStorage.getItem(key), null, key + " must not be part of the private vault");
+  }
+  assert.equal(JSON.parse(await authStorage.getItem("scholarship-scout-auth")).access_token, "session-secret");
+  assert.equal(await authStorage.getItem("scholarship-scout-auth-code-verifier"), "pkce-verifier-secret");
   assert.notEqual(storage.getItem(LEGAL_KEY), null);
   assert.notEqual(storage.getItem(RELIABILITY_KEY), null);
   assert.equal(storage.getItem("unrelated-widget-preference"), "leave-me-alone");
   assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), { school: "Private School", gpa: "3.8" });
-  assert.equal(JSON.parse(vaultStorage.getItem(SESSION_KEY)).access_token, "session-secret");
-  assert.equal(vaultStorage.getItem(PKCE_KEY), "pkce-verifier-secret");
+  assert.equal(vaultStorage.getItem(SESSION_KEY), null);
+  assert.equal(vaultStorage.getItem(PKCE_KEY), null);
 
   const envelopeText = JSON.stringify(backend.inspect());
   for (const privateValue of ["Private School", "session-secret", "pkce-verifier-secret", PASS]) {
@@ -147,26 +169,27 @@ test("a remembered browser unlocks the encrypted local vault without another pas
     "scout-scholarships": JSON.stringify([{ id: "saved", title: "Local scholarship" }]),
   });
   const backend = createMemoryBackend();
+  const authStorage = createMemoryAuthStorage();
   const lockManager = createMemoryLockManager();
 
-  await createLocalVault(PASS, { storage, backend, lockManager });
+  await createLocalVault(PASS, { storage, backend, authStorage, lockManager });
   await enableLocalVaultDeviceUnlock();
   assert.equal(await hasDeviceUnlock({ backend }), true);
   assert.equal(backend.inspectDeviceKey()?.extractable, false);
   assert.ok(backend.inspect()?.deviceKeyWrap);
 
-  vaultStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "cloud-session" }));
+  await authStorage.setItem("scholarship-scout-auth", JSON.stringify({ access_token: "cloud-session" }));
   await flushLocalVault();
   await lockLocalVault();
 
   assert.equal(vaultStorage.getItem("scout-profile"), null);
-  const result = await unlockLocalVaultWithDeviceKey({ storage, backend, lockManager });
-  assert.equal(result.recordCount, 3);
+  const result = await unlockLocalVaultWithDeviceKey({ storage, backend, authStorage, lockManager });
+  assert.equal(result.recordCount, 2);
   assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), {
     state: "Texas",
     graduationYear: 2027,
   });
-  assert.equal(JSON.parse(vaultStorage.getItem(SESSION_KEY)).access_token, "cloud-session");
+  assert.equal(JSON.parse(await authStorage.getItem("scholarship-scout-auth")).access_token, "cloud-session");
   await lockLocalVault();
 });
 
@@ -231,22 +254,25 @@ test("wrong passphrases never unlock the vault or expose encrypted records", asy
   assert.equal(await hasEncryptedVault({ backend }), true);
 });
 
-test("workspace records, Supabase session, and PKCE verifier survive lock and unlock", async () => {
+test("private workspace records and separately encrypted authentication survive vault lock and unlock", async () => {
   const storage = createMemoryStorage({ "scout-profile": JSON.stringify({ state: "Texas" }) });
   const backend = createMemoryBackend();
+  const authStorage = createMemoryAuthStorage();
   const lockManager = createMemoryLockManager();
 
-  await createLocalVault(PASS, { storage, backend, lockManager });
+  await createLocalVault(PASS, { storage, backend, authStorage, lockManager });
   vaultStorage.setItem("scout-profile", JSON.stringify({ state: "New Mexico" }));
-  vaultStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "rotated-secret" }));
-  vaultStorage.setItem(PKCE_KEY, "rotated-pkce-secret");
+  await authStorage.setItem("scholarship-scout-auth", JSON.stringify({ access_token: "rotated-secret" }));
+  await authStorage.setItem("scholarship-scout-auth-code-verifier", "rotated-pkce-secret");
   await flushLocalVault();
   await lockLocalVault();
 
-  await unlockLocalVault(PASS, { storage, backend, lockManager });
+  await unlockLocalVault(PASS, { storage, backend, authStorage, lockManager });
   assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), { state: "New Mexico" });
-  assert.deepEqual(JSON.parse(vaultStorage.getItem(SESSION_KEY)), { access_token: "rotated-secret" });
-  assert.equal(vaultStorage.getItem(PKCE_KEY), "rotated-pkce-secret");
+  assert.equal(vaultStorage.getItem(SESSION_KEY), null);
+  assert.equal(vaultStorage.getItem(PKCE_KEY), null);
+  assert.deepEqual(JSON.parse(await authStorage.getItem("scholarship-scout-auth")), { access_token: "rotated-secret" });
+  assert.equal(await authStorage.getItem("scholarship-scout-auth-code-verifier"), "rotated-pkce-secret");
   await lockLocalVault();
 });
 
@@ -293,51 +319,63 @@ test("a failed encrypted write remains unsaved until a retry succeeds", async ()
   await lockLocalVault();
 });
 
-test("Supabase PKCE storage writes remain pending until encrypted persistence completes", async () => {
-  const storage = createMemoryStorage({ "scout-profile": JSON.stringify({ state: "Texas" }) });
-  const backend = createMemoryBackend();
-  let delayWrites = false;
-  let releaseWrite;
-  let markWriteStarted;
-  const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
-  const delayedBackend = {
-    async get() { return backend.get(); },
-    async set(value) {
-      if (delayWrites) {
-        markWriteStarted();
-        await new Promise((resolve) => { releaseWrite = resolve; });
+test("plaintext migration restores every private record if cleanup fails partway through", async () => {
+  const initial = {
+    "scout-profile": JSON.stringify({ state: "Texas" }),
+    "scout-scholarships": JSON.stringify([{ id: "saved", name: "Local record" }]),
+  };
+  const base = createMemoryStorage(initial);
+  let failOnce = true;
+  const storage = {
+    get length() { return base.length; },
+    key(index) { return base.key(index); },
+    getItem(key) { return base.getItem(key); },
+    setItem(key, value) { return base.setItem(key, value); },
+    removeItem(key) {
+      if (key === "scout-scholarships" && failOnce) {
+        failOnce = false;
+        throw new Error("Injected storage cleanup failure");
       }
-      return backend.set(value);
+      return base.removeItem(key);
     },
   };
-  const options = { storage, backend: delayedBackend, lockManager: createMemoryLockManager() };
+  const backend = createMemoryBackend();
+  const lockManager = createMemoryLockManager();
+  const authStorage = createMemoryAuthStorage();
 
-  await createLocalVault(PASS, options);
-  await flushLocalVault();
-  delayWrites = true;
+  await assert.rejects(createLocalVault(PASS, { storage, backend, authStorage, lockManager }));
+  assert.equal(base.getItem("scout-profile"), initial["scout-profile"]);
+  assert.equal(base.getItem("scout-scholarships"), initial["scout-scholarships"]);
+  assert.equal(await hasEncryptedVault({ backend }), true);
 
-  const persistResult = vaultStorage.setItem(PKCE_KEY, "fresh-pkce-verifier");
-  await writeStarted;
-  let settledBeforePersistence = false;
-  const observedWrite = Promise.resolve(persistResult).then(() => {
-    settledBeforePersistence = true;
-  });
-  await Promise.resolve();
-
-  const isAwaitable = Boolean(persistResult && typeof persistResult.then === "function");
-  const hadResolvedBeforePersistence = settledBeforePersistence;
-  releaseWrite();
-  await observedWrite;
-  await flushLocalVault();
+  await unlockLocalVault(PASS, { storage, backend, authStorage, lockManager });
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), { state: "Texas" });
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-scholarships")), [{ id: "saved", name: "Local record" }]);
+  assert.equal(base.getItem("scout-profile"), null);
+  assert.equal(base.getItem("scout-scholarships"), null);
   await lockLocalVault();
+});
 
-  await unlockLocalVault(PASS, options);
-  const restoredVerifier = vaultStorage.getItem(PKCE_KEY);
+test("the private vault rejects authentication sessions and display preferences", async () => {
+  const storage = createMemoryStorage({ "scout-profile": JSON.stringify({ state: "Texas" }) });
+  const backend = createMemoryBackend();
+  const authStorage = createMemoryAuthStorage();
+  const lockManager = createMemoryLockManager();
+
+  await createLocalVault(PASS, { storage, backend, authStorage, lockManager });
+  assert.throws(
+    () => vaultStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "must-not-enter-vault" })),
+    /allowlisted private student records/i,
+  );
+  assert.throws(
+    () => vaultStorage.setItem("scout-theme", "light"),
+    /allowlisted private student records/i,
+  );
+  await authStorage.setItem("scholarship-scout-auth", JSON.stringify({ access_token: "separate-store" }));
+  assert.equal(vaultStorage.getItem(SESSION_KEY), null);
+  assert.equal(vaultStorage.getItem("scout-theme"), null);
+  assert.deepEqual(JSON.parse(await authStorage.getItem("scholarship-scout-auth")), { access_token: "separate-store" });
   await lockLocalVault();
-
-  assert.equal(isAwaitable, true, "Supabase must be able to await encrypted PKCE storage writes");
-  assert.equal(hadResolvedBeforePersistence, false, "the write promise must not resolve before the encrypted record is durable");
-  assert.equal(restoredVerifier, "fresh-pkce-verifier");
 });
 
 test("the browser lock is required and a storage failure leaves original data intact", async () => {
@@ -358,7 +396,7 @@ test("account-linked encrypted vaults restore on another device and enable same-
   const ownerId = "account-user-1";
   const sourceStorage = createMemoryStorage({
     "scout-profile": JSON.stringify({ state: "Texas", graduationYear: 2027 }),
-    "scout-tracker": JSON.stringify([{ id: "award-1", name: "Local draft" }]),
+    "scout-application-progress": JSON.stringify([{ id: "award-1", name: "Local draft" }]),
   });
   const sourceBackend = createMemoryBackend();
   const lockManager = createMemoryLockManager();
@@ -399,7 +437,7 @@ test("account-linked encrypted vaults restore on another device and enable same-
     state: "Texas",
     graduationYear: 2027,
   });
-  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-tracker")), [
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-application-progress")), [
     { id: "award-1", name: "Local draft" },
   ]);
   assert.equal(await hasDeviceUnlock({ backend: destinationBackend, ownerId }), true);

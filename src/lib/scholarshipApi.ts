@@ -170,7 +170,7 @@ export async function createAccountVaultBackup({
     .single();
   if (error || !data) {
     throw new Error(error?.code === "23505"
-      ? "An account vault backup already exists. Refresh the backup status before trying again."
+      ? "A single encrypted account vault already exists for this account. This device cannot create another; refresh backup status and restore the existing vault instead."
       : "The encrypted account vault backup could not be created.");
   }
   return data as AccountVaultBackup;

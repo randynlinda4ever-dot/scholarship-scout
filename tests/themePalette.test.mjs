@@ -15,7 +15,7 @@ const bootstrap = await read('src/bootstrap.ts');
 const stylePaths = [...appCss.matchAll(/@import\s+['"]([^'"]+)['"]\s*;/g)]
   .map((match) => 'src/' + match[1].replace(/^\.\//, ''));
 const activeStyles = await Promise.all(stylePaths.map(read));
-const activeCss = activeStyles.join('\n');
+const activeCss = [activeStyles.join('\n'), brandSystem, legalGate, vaultGate, guide].join('\n');
 
 const darkTokens = [
   '--bg: #0E1210',
@@ -105,7 +105,7 @@ test('the active component styles consume shared tokens rather than shadow palet
   assert.doesNotMatch(brandSystem, /(^|\n):root\s*\{|--bg:\s*#|--accent:\s*#/);
   assert.match(activeCss, /\.status-likely-eligible/);
   assert.match(activeCss, /var\(--surface\)/);
-  assert.doesNotMatch(activeCss, /color:\s*var\(--accent\)\s*;/,
+  assert.doesNotMatch(activeCss, /(?:^|[;{])\s*color\s*:\s*var\(--accent\)\s*;/,
     'small foreground text must use the contrast-safe accent-strong token');
   assert.equal(stylePaths.length, 11, 'all ordered application stylesheets must be included in this test');
 });

@@ -4,7 +4,8 @@ import { getAccountVaultSyncState } from "../src/lib/accountVaultSyncState.js";
 
 test("classifies accounts without enabled backups", () => {
   assert.equal(getAccountVaultSyncState({ enabled: false, revision: 0, dirty: false }, null), "not-enabled");
-  assert.equal(getAccountVaultSyncState(null, { revision: 1 }), "not-enabled");
+  assert.equal(getAccountVaultSyncState(null, { revision: 1 }), "remote-ahead");
+  assert.equal(getAccountVaultSyncState({ enabled: false, revision: 0, dirty: false }, { revision: 1 }), "remote-ahead");
 });
 
 test("detects a newer cloud backup without allowing a stale device to overwrite it", () => {

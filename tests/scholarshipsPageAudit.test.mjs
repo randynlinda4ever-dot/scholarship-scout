@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 const pageTypes = await readFile(new URL("../src/features/workspace/pageTypes.ts", import.meta.url), "utf8");
 const fields = await readFile(new URL("../src/components/WorkspaceFields.tsx", import.meta.url), "utf8");
+const statusPills = await readFile(new URL("../src/components/StatusPills.tsx", import.meta.url), "utf8");
 const trackerStart = app.indexOf("{tab === 'Scholarships'");
 const prepStart = app.indexOf("{tab === 'Application prep'", trackerStart);
 const trackerPage = app.slice(trackerStart, prepStart);
@@ -14,7 +15,7 @@ const selectedStart = app.indexOf("{selected && selectedAssessment", editorStart
 const backupStart = app.indexOf("{backupDialogMode !== 'closed'", selectedStart);
 const editor = app.slice(editorStart, selectedStart);
 const details = app.slice(selectedStart, backupStart > 0 ? backupStart : app.length);
-const eligibilitySummary = app.slice(app.indexOf("function EligibilityMatchSummary"), app.indexOf("function Empty", app.indexOf("function EligibilityMatchSummary")));
+const eligibilitySummary = statusPills.slice(statusPills.indexOf("export function EligibilityMatchSummary"), statusPills.length);
 
 function fieldLine(label) {
   return editor.split("\n").find((line) => line.includes(`label="${label}"`) || line.includes(`label='${label}'`))?.trim() ?? "";

@@ -111,7 +111,7 @@ html, body { background: var(--bg); color: var(--text); }
   border-radius: 11px;
   background: var(--surface);
 }
-.sidebar .secure>span { color: var(--accent); }
+.sidebar .secure>span { color: var(--accent-strong); }
 .sidebar .secure small { color: var(--muted); }
 .sidebar-collapse-toggle {
   min-height: 44px;
