@@ -40,7 +40,7 @@ function isValidFieldValue(field, value) {
 }
 
 export function extractProfileDetails(sourceText) {
-  if (typeof sourceText !== 'string' || !sourceText.trim()) return {};
+  if (typeof sourceText !== 'string' || !sourceText.trim() || sourceText.includes('\\u0000')) return {};
   const text = sourceText.replace(/\u0000/g, '').slice(0, 1_000_000);
   const result = {};
   for (const rawLine of text.split(/[\r\n]+/)) {
