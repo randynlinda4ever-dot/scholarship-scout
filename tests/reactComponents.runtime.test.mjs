@@ -10,14 +10,15 @@ let components;
 test('load React components through the production Vite TypeScript transform', async (t) => {
   vite = await createServer({ configFile: './vite.config.ts', server: { middlewareMode: true }, appType: 'custom' });
   t.after(async () => { await vite?.close(); });
-  const [brand, nav, status, home, boundary] = await Promise.all([
+  const [brand, nav, status, home, boundary, cards] = await Promise.all([
     vite.ssrLoadModule('/src/components/BrandMark.tsx'),
     vite.ssrLoadModule('/src/components/NavGlyph.tsx'),
     vite.ssrLoadModule('/src/components/StatusPills.tsx'),
     vite.ssrLoadModule('/src/features/home/StartHomePage.tsx'),
     vite.ssrLoadModule('/src/components/AppErrorBoundary.tsx'),
+    vite.ssrLoadModule('/src/components/ScholarshipCards.tsx'),
   ]);
-  components = { ...brand, ...nav, ...status, ...home, AppErrorBoundary: boundary.default };
+  components = { ...brand, ...nav, ...status, ...home, ...cards, AppErrorBoundary: boundary.default };
   assert.equal(typeof components.BrandMark, 'function');
   assert.equal(typeof components.NavGlyph, 'function');
 });
@@ -74,4 +75,44 @@ test('StartHomePage hides email form for anonymous users and disables offline si
   assert.doesNotMatch(html, /start-home-email/);
   assert.match(html, /Connect Google account/);
   assert.match(html, /disabled=""/);
+});
+
+test('FilteredEmpty renders a distinct recoverable no-match state', () => {
+  const html = renderToStaticMarkup(React.createElement(components.FilteredEmpty, { onClear: () => {} }));
+  assert.match(html, /role="status"/);
+  assert.match(html, /No scholarships match these filters/);
+  assert.match(html, /Clear filters/);
+});
+
+test('CandidateCard renders eligibility status from the supplied assessment', () => {
+  const item = {
+    id: 'runtime-test', name: 'Community Scholars Award', provider: 'Community Foundation',
+    award: '$1,000', notes: 'Synthetic fixture', sourceUrl: '',
+    deadline: '', deadlineNotPublished: true,
+  };
+  const assessment = {
+    status: 'Needs information',
+    checks: [{ label: 'Residency', outcome: 'unknown', detail: 'Confirm residency.' }],
+  };
+  const html = renderToStaticMarkup(React.createElement(components.CandidateCard, {
+    item, assessment, added: false, onAdd: () => {},
+  }));
+  assert.match(html, /Community Scholars Award/);
+  assert.match(html, /Needs information/);
+  assert.match(html, /1 unknown/);
+});
+
+test('CloudResultCard keeps cloud results as list items and gates tracker actions', () => {
+  const item = {
+    id: 'cloud-runtime-test', title: 'Synthetic Award', provider: 'Example Sponsor',
+    source_url: 'https://example.org/scholarship', source_domain: 'example.org',
+    verification_state: 'needs_human_review', discovery_category: 'general',
+    excerpt: 'Synthetic public scholarship record',
+  };
+  const html = renderToStaticMarkup(React.createElement(components.CloudResultCard, {
+    item, tracked: false, onTrack: () => {},
+  }));
+  assert.match(html, /role="listitem"/);
+  assert.match(html, /Synthetic Award/);
+  assert.match(html, /Verification not deployed/);
 });
