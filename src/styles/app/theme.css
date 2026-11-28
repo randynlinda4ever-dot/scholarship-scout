@@ -1,0 +1,31 @@
+/* Interactive theme switch uses the canonical Midnight Violet tokens. */
+.theme-toggle {
+  display: inline-flex;
+  min-height: 35px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 30px;
+  background: var(--surface-raised);
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); background: var(--surface-soft); }
+.theme-toggle span:first-child { color: var(--accent-strong); font-size: 15px; }
+.cloud-config-note, .profile-search-hint {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.cloud-config-note code { color: var(--accent-strong); }
+.profile-search-hint { margin-top: -2px; }
+
