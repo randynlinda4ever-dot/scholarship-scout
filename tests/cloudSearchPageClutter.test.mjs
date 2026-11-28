@@ -26,7 +26,7 @@ test('category instructions do not explain the obvious rerun workflow', () => {
 });
 
 test('connected account panel does not duplicate persistent Settings navigation', () => {
-  assert.match(cloudSearch, /Cloud sponsor records are private to this account/);
+  assert.match(cloudSearch, /Sign in to save sponsor records to your account/);
   assert.doesNotMatch(cloudSearch, />Manage account<\/button>/);
 });
 

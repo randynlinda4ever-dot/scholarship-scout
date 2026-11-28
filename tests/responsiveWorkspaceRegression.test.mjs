@@ -14,7 +14,7 @@ test('the mobile drawer preserves the six updated primary destinations', () => {
   const nav = app.slice(navStart, navEnd);
 
   assert.equal((nav.match(/tab: '/g) || []).length, 6);
-  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Resources', 'Settings']) {
+  for (const label of ['Home', 'Find scholarships', 'My scholarships', 'My profile', 'Resources', 'Settings']) {
     assert.ok(nav.includes(`label: '${label}'`), `missing destination: ${label}`);
   }
 });

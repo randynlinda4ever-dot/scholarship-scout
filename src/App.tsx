@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites } from './lib/localVault.js';
+import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites, enableLocalVaultDeviceUnlock, forgetLocalVaultDeviceUnlock, createLocalAccountVaultKeyWrap, getAccountVaultSyncEnvelope, getLocalAccountVaultSyncStatus, setLocalAccountVaultRevision, forgetLocalAccountVaultSync } from './lib/localVault.js';
 import { clearReliabilityEvents, installReliabilityMonitoring, readReliabilityEvents, RELIABILITY_CHANGE_EVENT } from './lib/reliabilityMonitor.js';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
 import { deriveSourceStatus, getEvidenceCompleteness, getEvidenceExcerptAttributions, getOfficialSourceFreshness, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
@@ -22,18 +22,22 @@ import { buildTrackerCsvReport } from './lib/trackerReport.js';
 import { getDiscoveryErrorMessage } from './lib/discoveryErrors.js';
 import { writeJsonStorage, writeJsonStorageBatch } from './lib/browserStorage.js';
 import { AUTH_EMAIL_COOLDOWN_SECONDS, getAuthCooldownRemainingSeconds, isAuthRateLimitError, isExpiredAuthLinkError } from './lib/authCooldown.js';
-import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveCloudScholarship, sendMagicLink, signInWithGoogle, linkGoogleIdentity, signOutCloudUser, deleteCloudAccount, type LiveScholarship, type LiveDiscoverySummary } from './lib/scholarshipApi';
+import { getCloudUser, listCloudScholarships, runLiveScholarshipDiscovery, saveCloudScholarship, sendMagicLink, signInWithGoogle, linkGoogleIdentity, signOutCloudUser, deleteCloudAccount, getAccountVaultBackup, createAccountVaultBackup, updateAccountVaultBackup, deleteAccountVaultBackup, type LiveScholarship, type LiveDiscoverySummary } from './lib/scholarshipApi';
+import { registerAccountVaultPasskey } from './lib/accountVaultPasskey.js';
+import { getAccountVaultSyncState } from './lib/accountVaultSyncState.js';
 import { hasPendingAuthCallback, hasPendingAuthCallbackError } from './lib/authRedirect.js';
 import { PRIVACY_REQUEST_TYPES, PRIVACY_REQUESTER_TYPES, buildPrivacyRequestMailto } from './lib/privacyRequests.js';
 import { BrandMark } from './components/BrandMark';
 import { workspacePathToTab, workspaceTabToPath } from './lib/workspaceRoutes.js';
 import { createResourceWorkspace, normalizeResourceWorkspace } from './lib/resourceWorkspace.js';
 import { ResourcesPage } from './features/resources/ResourcesPage';
+import { StartHomePage } from './features/home/StartHomePage';
 import './App.css';
 import './brand-system.css';
 
 // This module is imported only after legal acceptance and local-vault unlock.
 const localStorage = vaultStorage;
+const FORCE_PASSPHRASE_SESSION_KEY = 'scout-vault-force-passphrase';
 installReliabilityMonitoring();
 
 function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record: T): T {
@@ -262,6 +266,7 @@ function App() {
       timeout = window.setTimeout(() => {
         if (lockStarted) return;
         lockStarted = true;
+        try { sessionStorage.setItem(FORCE_PASSPHRASE_SESSION_KEY, 'true'); } catch { /* best effort; vault lock still proceeds */ }
         void stopSupabaseAutoRefreshForVaultLock()
           .catch(() => undefined)
           .then(() => lockLocalVault())
@@ -308,9 +313,17 @@ function App() {
   }, [notice]);
   const [profileSaveStatus, setProfileSaveStatus] = useState<'idle'|'saved'|'draft'|'unavailable'>('idle');
   const [cloudUser, setCloudUser] = useState<{id:string;email?:string;is_anonymous?:boolean}|null>(null);
+  const [cloudAuthReady, setCloudAuthReady] = useState(false);
+  const [guestMode, setGuestMode] = useState(() => {
+    try { return sessionStorage.getItem('scholarship-scout-guest-session') === 'true'; }
+    catch { return false; }
+  });
   const [cloudEmail, setCloudEmail] = useState('');
   const [cloudMessage, setCloudMessage] = useState('');
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [accountVaultSyncStatus, setAccountVaultSyncStatus] = useState<'checking'|'not-enabled'|'enabled'|'available'|'syncing'|'error'>('checking');
+  const [accountVaultSyncMessage, setAccountVaultSyncMessage] = useState('');
+  const [accountVaultSyncConsent, setAccountVaultSyncConsent] = useState(false);
   const [privacyRequestType, setPrivacyRequestType] = useState("access");
   const [privacyRequestRequesterType, setPrivacyRequestRequesterType] = useState("self");
   const [privacyRequestDetails, setPrivacyRequestDetails] = useState("");
@@ -496,68 +509,86 @@ function App() {
 
 
   useEffect(() => {
-    // Avoid loading the Supabase SDK on the local-first landing experience.
-    // OAuth and email callbacks must also initialize auth when they return to Overview.
+    // Authentication is checked at the Home entry point. The private workspace
+    // remains inaccessible until a real (non-anonymous) account is connected.
     const hasAuthCallback = hasPendingAuthCallback();
     const hasAuthCallbackError = hasPendingAuthCallbackError();
-    if (tab !== 'Settings' && tab !== 'Cloud Search' && !hasAuthCallback) return;
     let active = true;
     let authEventObserved = false;
     let subscription: { unsubscribe: () => void } | null = null;
 
+    const rememberSignedInDevice = (user: { is_anonymous?: boolean } | null) => {
+      if (!user || user.is_anonymous) return;
+      void enableLocalVaultDeviceUnlock().then(() => {
+        if (active) setCloudMessage('Signed in. This browser is remembered, so your local vault will open automatically on future visits.');
+      }).catch(() => {
+        if (active) setCloudMessage('Signed in successfully. Automatic unlock could not be enabled in this browser; keep your local vault passphrase for future visits.');
+      });
+    };
+
     void getSupabaseClient().then((client) => {
-      if (!active || !client) return;
+      if (!active) return;
+      if (!client) {
+        setCloudAuthReady(true);
+        setCloudMessage('Account sign-in is not configured in this deployment.');
+        return;
+      }
       const { data: { subscription: authSubscription } } = client.auth.onAuthStateChange((event, session) => {
         if (!active) return;
         authEventObserved = true;
-        setCloudUser(session?.user
-          ? { id: session.user.id, email: session.user.email, is_anonymous: session.user.is_anonymous }
-          : null);
-        if (session?.user && (event === 'SIGNED_IN' || (hasAuthCallback && event === 'INITIAL_SESSION'))) {
-          setTab('Settings');
-          if (session.user.is_anonymous) {
-            setCloudMessage('A private anonymous browser session is ready. No email or password was required.');
-          } else if (session.user.app_metadata?.provider === 'google') {
-            setCloudMessage('Google sign-in completed. Your cloud account is connected in this browser.');
-          } else {
-            setCloudMessage('Signed in successfully. Your cloud account is connected in this browser.');
+        setCloudAuthReady(true);
+        const user = session?.user ?? null;
+        setCloudUser(user ? { id: user.id, email: user.email, is_anonymous: user.is_anonymous } : null);
+        if (user && !user.is_anonymous) {
+          setGuestMode(false);
+          try { sessionStorage.removeItem('scholarship-scout-guest-session'); } catch { /* best effort */ }
+          rememberSignedInDevice(user);
+          if (event === 'SIGNED_IN' || (hasAuthCallback && event === 'INITIAL_SESSION')) {
+            setTab('Overview');
+            try { sessionStorage.removeItem('scout-auth-email-cooldown-until'); } catch { /* storage may be unavailable */ }
+            setAuthCooldownUntil(0);
           }
-          try { sessionStorage.removeItem('scout-auth-email-cooldown-until'); } catch { /* storage may be unavailable */ }
-          setAuthCooldownUntil(0);
-        } else if (!session?.user && hasAuthCallback && event === 'INITIAL_SESSION') {
-          setTab('Settings');
-          setCloudMessage('Sign-in could not be completed. The sign-in link may have expired or the provider may have cancelled the request. Try again from Settings.');
+        } else if (user?.is_anonymous) {
+          setCloudMessage('Connect a Google account to keep access to this temporary browser account and its saved sponsor records.');
+        } else {
+          setLiveResults([]);
+          if (hasAuthCallback && event === 'INITIAL_SESSION') {
+            setTab('Overview');
+            setCloudMessage('Sign-in could not be completed. The link may have expired or the provider may have cancelled the request. Try again here.');
+          }
         }
-        if (!session?.user) setLiveResults([]);
       });
       subscription = authSubscription;
 
-      // The initial user lookup can resolve after a magic-link SIGNED_IN event.
-      // Do not let that older lookup overwrite the newer auth state.
+      // Do not let an older initial lookup overwrite a newer auth event.
       void client.auth.getUser().then(({ data, error }) => {
-        if (active && !authEventObserved) {
-          const user = !error ? data.user : null;
-          setCloudUser(user
-            ? { id: user.id, email: user.email, is_anonymous: user.is_anonymous }
-            : null);
-          if (hasAuthCallback) {
-            setTab('Settings');
-            setCloudMessage(user
-              ? 'Sign-in completed. Your cloud account is connected in this browser.'
-              : 'Sign-in could not be completed. The link may have expired or the provider may have cancelled the request. Try again from Settings.');
-          }
+        if (!active || authEventObserved) return;
+        const user = !error ? data.user : null;
+        setCloudAuthReady(true);
+        setCloudUser(user ? { id: user.id, email: user.email, is_anonymous: user.is_anonymous } : null);
+        if (user && !user.is_anonymous) {
+          setGuestMode(false);
+          try { sessionStorage.removeItem('scholarship-scout-guest-session'); } catch { /* best effort */ }
+        }
+        rememberSignedInDevice(user);
+        if (hasAuthCallback) {
+          setTab('Overview');
+          setCloudMessage(user && !user.is_anonymous
+            ? 'Sign-in completed. Your account is ready.'
+            : 'Sign-in could not be completed. The link may have expired or the provider may have cancelled the request. Try again here.');
         }
       });
       if (hasAuthCallbackError) {
-        setTab('Settings');
-        setCloudMessage('Sign-in was cancelled or could not be completed. You can try again from Settings.');
+        setCloudAuthReady(true);
+        setTab('Overview');
+        setCloudMessage('Sign-in was cancelled or could not be completed. You can try again here.');
       }
     }).catch(() => {
       if (active) {
-        if (hasAuthCallback) setTab('Settings');
+        setCloudAuthReady(true);
         setCloudMessage(hasAuthCallback
           ? 'Sign-in could not be completed. Check the provider configuration and try again.'
-          : 'Cloud authentication could not be initialized. Local tracking remains available.');
+          : 'Account authentication could not be initialized. Refresh the page and try again.');
       }
     });
 
@@ -565,7 +596,7 @@ function App() {
       active = false;
       subscription?.unsubscribe();
     };
-  }, [tab]);
+  }, []);
 
   useEffect(() => {
     const updateCooldown = () => {
@@ -587,7 +618,7 @@ function App() {
     const code = hashParams.get('error_code') || searchParams.get('error_code') || '';
     const description = hashParams.get('error_description') || searchParams.get('error_description') || '';
     if (isExpiredAuthLinkError(code, description)) {
-      setTab('Settings');
+      setTab('Overview');
       setCloudMessage('That sign-in link was already used or expired. Wait for the timer, request one new link, and use the newest link only once.');
     }
   }, []);
@@ -944,6 +975,231 @@ function App() {
       setCloudBusy(false);
     }
   };
+  const readAccountVaultSyncSnapshot = async () => {
+    if (!cloudUser || cloudUser.is_anonymous || guestMode) {
+      return { state: 'not-enabled' as const, localStatus: null };
+    }
+    const localStatus = getLocalAccountVaultSyncStatus({ ownerId: cloudUser.id });
+    if (!localStatus.enabled || localStatus.revision < 1) {
+      return { state: 'not-enabled' as const, localStatus };
+    }
+    const remoteBackup = await getAccountVaultBackup();
+    return {
+      state: getAccountVaultSyncState(localStatus, remoteBackup),
+      localStatus,
+    };
+  };
+
+  const refreshAccountVaultSyncStatus = async (isActive: () => boolean = () => true) => {
+    const snapshot = await readAccountVaultSyncSnapshot();
+    if (!isActive()) return;
+    if (snapshot.state === 'not-enabled') {
+      setAccountVaultSyncStatus('not-enabled');
+      setAccountVaultSyncMessage('');
+      return;
+    }
+    if (snapshot.state === 'remote-ahead') {
+      setAccountVaultSyncStatus('available');
+      setAccountVaultSyncMessage('A newer encrypted account backup exists from another device. This device was not overwritten and automatic syncing is paused to protect your local records. Export your current local vault before restoring the newer backup on a clean browser profile. Vault histories are not merged automatically.');
+      return;
+    }
+    if (snapshot.state === 'missing') {
+      throw new Error('The account backup is missing. Your local vault remains unchanged. Do not recreate the cloud copy until you have confirmed which device has the latest records.');
+    }
+    if (snapshot.state === 'invalid-remote') {
+      throw new Error('The account backup metadata is invalid. Automatic syncing is paused and your local vault remains unchanged.');
+    }
+    if (snapshot.state === 'local-ahead') {
+      throw new Error('This device has a revision newer than the account backup. Automatic syncing is paused instead of rolling the cloud copy backward. Export your local vault before resolving the backup state.');
+    }
+    if (snapshot.state === 'dirty') {
+      setAccountVaultSyncStatus('syncing');
+      setAccountVaultSyncMessage('Uploading the latest encrypted local changes…');
+      await syncAccountVaultNow();
+      if (!isActive()) return;
+      const afterSync = await readAccountVaultSyncSnapshot();
+      if (!isActive()) return;
+      if (afterSync.state === 'remote-ahead') {
+        setAccountVaultSyncStatus('available');
+        setAccountVaultSyncMessage('A newer encrypted account backup exists from another device. Your local records were not overwritten; automatic syncing is paused.');
+        return;
+      }
+      if (afterSync.state !== 'current') {
+        throw new Error('The encrypted backup changed while this device was syncing. Your local records remain saved; check the backup status before continuing.');
+      }
+    }
+    setAccountVaultSyncStatus('enabled');
+    setAccountVaultSyncMessage('Your encrypted account vault is up to date.');
+  };
+
+  useEffect(() => {
+    if (!cloudUser || cloudUser.is_anonymous || guestMode) {
+      setAccountVaultSyncStatus('not-enabled');
+      setAccountVaultSyncMessage('');
+      return;
+    }
+    let active = true;
+    let timer: number | null = null;
+    let running = false;
+    let rerun = false;
+
+    const runSync = async () => {
+      if (running) {
+        rerun = true;
+        return;
+      }
+      running = true;
+      try {
+        do {
+          rerun = false;
+          await refreshAccountVaultSyncStatus(() => active);
+        } while (rerun && active);
+      } catch (error) {
+        if (active) {
+          setAccountVaultSyncStatus('error');
+          setAccountVaultSyncMessage(error instanceof Error
+            ? error.message
+            : 'Encrypted account backup sync failed. Your local records remain saved on this device.');
+        }
+      } finally {
+        running = false;
+      }
+    };
+
+    const onLocalPersisted = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        void runSync();
+      }, 900);
+    };
+    const onResume = () => {
+      if (document.visibilityState === 'hidden') return;
+      void runSync();
+    };
+
+    window.addEventListener('scout:vault-local-persisted', onLocalPersisted);
+    window.addEventListener('focus', onResume);
+    document.addEventListener('visibilitychange', onResume);
+    void runSync();
+    return () => {
+      active = false;
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener('scout:vault-local-persisted', onLocalPersisted);
+      window.removeEventListener('focus', onResume);
+      document.removeEventListener('visibilitychange', onResume);
+    };
+  }, [cloudUser?.id, guestMode]);
+
+  const handleRefreshCrossDeviceVault = async () => {
+    if (!cloudUser || cloudUser.is_anonymous || guestMode || cloudBusy) return;
+    setCloudBusy(true);
+    setAccountVaultSyncStatus('syncing');
+    try {
+      await refreshAccountVaultSyncStatus();
+    } catch (error) {
+      setAccountVaultSyncStatus('error');
+      setAccountVaultSyncMessage(error instanceof Error
+        ? error.message
+        : 'The encrypted account backup status could not be checked.');
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const handleForgetRememberedDevice = async () => {
+    try {
+      await forgetLocalVaultDeviceUnlock();
+      setNotice('This browser will ask for your local vault passphrase next time. Your encrypted data and recovery passphrase are unchanged.');
+    } catch {
+      setAlert('This browser could not remove remembered-device access. Your vault is still protected by its recovery passphrase.');
+    }
+  };
+
+  const handleEnableCrossDeviceVault = async () => {
+    if (!cloudUser || cloudUser.is_anonymous || guestMode || cloudBusy) return;
+    setCloudBusy(true);
+    setAccountVaultSyncStatus('syncing');
+    setAccountVaultSyncMessage('Setting up an account-linked passkey. Your authenticator may ask you to verify your identity.');
+    try {
+      const existing = await getAccountVaultBackup();
+      if (existing) {
+        const localStatus = getLocalAccountVaultSyncStatus({ ownerId: cloudUser.id });
+        if (!localStatus.enabled || localStatus.revision !== existing.revision) {
+          throw new Error('An account vault backup already exists at a different revision. To avoid replacing newer records, restore it on a clean browser using the synced passkey instead of attaching this separate local vault.');
+        }
+        setAccountVaultSyncStatus('enabled');
+        setAccountVaultSyncMessage('This device is connected to your existing encrypted account vault. New changes will sync automatically.');
+      } else {
+        const passkey = await registerAccountVaultPasskey({
+          userId: cloudUser.id,
+          displayName: cloudUser.email || 'Scholarship Scout account',
+        });
+        await createLocalAccountVaultKeyWrap(passkey.wrappingKey, { ownerId: cloudUser.id });
+        const syncSnapshot = await getAccountVaultSyncEnvelope({ ownerId: cloudUser.id });
+        const created = await createAccountVaultBackup({
+          credentialId: passkey.credentialId,
+          prfSalt: passkey.prfSalt,
+          encryptedEnvelope: syncSnapshot.envelope,
+        });
+        await setLocalAccountVaultRevision(created.revision, {
+          ownerId: cloudUser.id,
+          expectedGeneration: syncSnapshot.generation,
+        });
+        setAccountVaultSyncStatus('enabled');
+        setAccountVaultSyncMessage('Cross-device encrypted backup is enabled. Future local changes will sync automatically; the server receives ciphertext only.');
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Passkey setup could not be completed.';
+      setAccountVaultSyncStatus('error');
+      setAccountVaultSyncMessage(detail);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const syncAccountVaultNow = async () => {
+    if (!cloudUser || cloudUser.is_anonymous || guestMode) return;
+    const localStatus = getLocalAccountVaultSyncStatus({ ownerId: cloudUser.id });
+    if (!localStatus.enabled || localStatus.revision < 1 || !localStatus.dirty) return;
+    const backup = await getAccountVaultBackup();
+    if (!backup) {
+      throw new Error('The account backup is missing. Re-enable cross-device backup before continuing.');
+    }
+    if (backup.revision !== localStatus.revision) {
+      throw new Error('A newer account vault exists on another device. This device has paused syncing to avoid overwriting it. Use the synced passkey to restore the newer vault on a clean device, or export this device’s encrypted backup before resolving the conflict.');
+    }
+    const syncSnapshot = await getAccountVaultSyncEnvelope({ ownerId: cloudUser.id });
+    const revision = await updateAccountVaultBackup({
+      encryptedEnvelope: syncSnapshot.envelope,
+      expectedRevision: localStatus.revision,
+    });
+    await setLocalAccountVaultRevision(revision, {
+      ownerId: cloudUser.id,
+      expectedGeneration: syncSnapshot.generation,
+    });
+  };
+
+  const handleDisableCrossDeviceVault = async () => {
+    if (!cloudUser || cloudUser.is_anonymous || cloudBusy) return;
+    const confirmed = window.confirm('Delete the encrypted cross-device backup from your account? This keeps the local vault on this browser and turns off cloud syncing.');
+    if (!confirmed) return;
+    setCloudBusy(true);
+    setAccountVaultSyncStatus('syncing');
+    try {
+      await deleteAccountVaultBackup();
+      await forgetLocalAccountVaultSync({ ownerId: cloudUser.id });
+      setAccountVaultSyncStatus('not-enabled');
+      setAccountVaultSyncMessage('The encrypted cloud backup was deleted. Your local vault and same-device automatic unlock are unchanged.');
+      setAccountVaultSyncConsent(false);
+    } catch (error) {
+      setAccountVaultSyncStatus('error');
+      setAccountVaultSyncMessage(error instanceof Error ? error.message : 'The cross-device backup could not be disabled.');
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
   const handleCheckCloudSession = async () => {
     setCloudBusy(true);
     setCloudMessage('Checking your sign-in session…');
@@ -955,9 +1211,12 @@ function App() {
         return;
       }
       setCloudUser({id:user.id,email:user.email,is_anonymous:user.is_anonymous});
-      setCloudMessage(user.is_anonymous
-        ? 'Your private anonymous browser session is active. Keep this browser data to retain access to its cloud records.'
-        : 'Signed in successfully. Your cloud account is connected in this browser.');
+      if (!user.is_anonymous) {
+        await enableLocalVaultDeviceUnlock();
+        setCloudMessage('Signed in successfully. This browser is remembered, so your local vault will open automatically on future visits.');
+      } else {
+        setCloudMessage('Your private anonymous browser session is active. Connect Google to keep access to its cloud records.');
+      }
     } catch (error) {
       setCloudMessage('Could not check your account session. Refresh the page and try again.');
     } finally {
@@ -971,7 +1230,9 @@ function App() {
       setCloudUser(null);
       setLiveResults([]);
       setExaResults([]);
-      setCloudMessage('Signed out of the cloud account. Your local profile and tracker were not changed.');
+      try { sessionStorage.removeItem('scholarship-scout-guest-session'); } catch { /* best effort */ }
+      setCloudMessage('Signed out. Your local encrypted vault remains on this device.');
+      window.location.reload();
     } catch (error) {
       setCloudMessage('Could not sign out right now. Check your connection and try again.');
     } finally {
@@ -1238,7 +1499,7 @@ function App() {
   const queryGroups = useMemo(() => buildManualSearchQueries(), []);
   const navGroups: { title: string; items: { tab: string; label: string; description: string; icon: GlyphName; count?: boolean }[] }[] = [
     { title: 'WORKSPACE', items: [
-      { tab: 'Overview', label: 'Overview', description: 'Your scholarship home', icon: 'home' },
+      { tab: 'Overview', label: 'Home', description: 'Your scholarship dashboard', icon: 'home' },
     ]},
     { title: 'DISCOVER', items: [
       { tab: 'Discovery', label: 'Find scholarships', description: 'Manual and live scholarship search', icon: 'search' },
@@ -1301,6 +1562,29 @@ function App() {
   const activeCriterionEntries = Object.entries(draft.criteria).filter(([key, value]) =>
     key !== 'applicationFee' && !isInactiveCriterionValue(value)
   );
+
+  if (!cloudAuthReady || (!cloudUser && !guestMode) || cloudUser?.is_anonymous) {
+    return (
+      <StartHomePage
+        email={cloudEmail}
+        onEmailChange={setCloudEmail}
+        onEmailSubmit={handleCloudSignIn}
+        onGoogleSignIn={() => void handleGoogleSignIn()}
+        onContinueGuest={() => {
+          try { sessionStorage.setItem('scholarship-scout-guest-session', 'true'); } catch { /* handled by bootstrap */ }
+          window.location.reload();
+        }}
+        onReviewLegal={() => window.dispatchEvent(new Event('scholarship-scout:review-legal'))}
+        message={cloudMessage}
+        busy={cloudBusy}
+        online={isOnline}
+        configured={supabaseConfigured}
+        authReady={cloudAuthReady}
+        isAnonymous={cloudUser?.is_anonymous === true}
+        cooldownSeconds={authCooldownSeconds}
+      />
+    );
+  }
 
   return <div className="shell" data-theme={theme} data-compact={compactView ? 'true' : 'false'}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -1389,16 +1673,22 @@ function App() {
       {tab === 'Settings' && <div className="page narrow">
         <div className="page-heading"><div><div className="eyebrow">WORKSPACE PREFERENCES</div><h1>Settings</h1><p>Manage how Scholarship Scout looks and how you connect your cloud account. Your profile and tracker stay local unless you choose to save sponsor records to the cloud.</p></div></div>
         <section className="panel settings-section">
-          <div className="panel-heading"><div><h3>Encrypted local vault</h3><p className="muted">Your profile, tracker, application drafts, and sign-in session are encrypted in this browser. The vault locks after 15 minutes without activity.</p></div><span className="source-tag">PROTECTED</span></div>
-          <button type="button" className="secondary" onClick={async () => {
-            try {
-              await stopSupabaseAutoRefreshForVaultLock().catch(() => undefined);
-              await lockLocalVault();
-              window.location.reload();
-            } catch (reason) {
-              setAlert(reason instanceof Error ? reason.message : 'The local vault could not be locked. Keep this tab open and retry.');
-            }
-          }}>Lock vault now</button>
+          <div className="panel-heading"><div><h3>Encrypted local vault</h3><p className="muted">Your profile, tracker, application drafts, Resources worksheets, and sign-in session are encrypted in this browser. The vault locks after 15 minutes without activity. This browser can unlock automatically after you sign in; your passphrase remains the recovery method.</p></div><span className="source-tag">PROTECTED</span></div>
+          <div className="settings-account-actions">
+            <button type="button" className="secondary" onClick={async () => {
+              try {
+                sessionStorage.setItem(FORCE_PASSPHRASE_SESSION_KEY, 'true');
+                await stopSupabaseAutoRefreshForVaultLock().catch(() => undefined);
+                await lockLocalVault();
+                window.location.reload();
+              } catch (reason) {
+                try { sessionStorage.removeItem(FORCE_PASSPHRASE_SESSION_KEY); } catch { /* best effort */ }
+                setAlert(reason instanceof Error ? reason.message : 'The local vault could not be locked. Keep this tab open and retry.');
+              }
+            }}>Lock vault now</button>
+            <button type="button" className="secondary" onClick={() => void handleForgetRememberedDevice()}>Forget this device</button>
+          </div>
+          <p className="muted settings-footnote">“Forget this device” removes only the remembered-device key. You will enter your local vault passphrase again next time. Your encrypted records and recovery passphrase remain unchanged.</p>
         </section>
         <section className="panel settings-section" aria-labelledby="local-diagnostics-title">
           <div className="panel-heading"><div><h3 id="local-diagnostics-title">Local diagnostics active</h3><p className="muted">A small count of generic reliability events is stored only in this browser. No telemetry is sent, and no profile, scholarship, or error-message content is recorded.</p></div><span className="source-tag">{reliabilityEvents.length} / 25 events</span></div>
@@ -1422,26 +1712,67 @@ function App() {
           <button type="button" className="secondary" onClick={() => window.dispatchEvent(new Event('scholarship-scout:review-legal'))}>Review Terms of Service & Privacy Notice</button>
         </section>
         <section className="panel settings-section">
-          <div className="panel-heading"><div><h3>Optional cloud account and access</h3><p className="muted">Live scholarship search is public and does not require an account. Email sign-in is only needed to save sponsor records to your cloud account if you prefer an emailed link; Google sign-in is also available. Your student profile, essays, and local tracker remain on this device.</p></div><span className={`status ${cloudUser ? 'status-eligible' : supabaseConfigured ? 'status-likely-eligible' : 'status-not-eligible'}`}>{cloudUser ? cloudUser.is_anonymous ? 'Anonymous account' : 'Signed in' : supabaseConfigured ? 'Public search configured' : 'Setup needed'}</span></div>
-          {cloudUser ? <div className="settings-account-state">
-            <p><b>{cloudUser.is_anonymous ? 'Anonymous browser session' : 'Connected account'}</b><span>{cloudUser.is_anonymous ? 'No email attached · private to this browser' : cloudUser.email || 'Signed-in account'}</span></p>
-            {cloudUser.is_anonymous ? <p className="cloud-config-note">Link a Google account to keep access to these cloud sponsor records across devices. Your student profile, essays, and application workspace remain on this device.</p> : null}
+          <div className="panel-heading"><div><h3>Connected account</h3><p className="muted">Your account is required to enter the workspace. Student profile, tracker, essays, and Resources work remain encrypted in this browser.</p></div><span className="status status-eligible">SIGNED IN</span></div>
+          <div className="settings-account-state">
+            <p><b>{cloudUser?.email || "Signed-in account"}</b><span>Connected to Scholarship Scout</span></p>
+            <p className="muted">Your student profile and application drafts stay in your local encrypted vault by default. Only when you explicitly enable cross-device backup does the app upload a separately encrypted vault copy; the server cannot read that copy.</p>
             <div className="settings-account-actions">
-              {cloudUser.is_anonymous && <button type="button" className="google-sign-in-button" disabled={!supabaseConfigured || cloudBusy || !isOnline} onClick={() => void handleGoogleSignIn()}><span className="google-sign-in-mark" aria-hidden="true">G</span>Link Google account</button>}
               <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCheckCloudSession()}>Check session status</button>
-              {!cloudUser.is_anonymous && <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCloudSignOut()}>Sign out</button>}
+              <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleCloudSignOut()}>Sign out</button>
             </div>
-          </div> : <div className="settings-account-state">
-            <p><b>No account connected</b><span>Public live search works without signing in.</span></p>
-            <p className="muted">Sign in only when you want to save sponsor records to your cloud account. Cloud sponsor records are private to this account and are not sent with public search requests. Your student profile and essays are never uploaded by the search feature.</p>
-            <form className="cloud-auth-form settings-auth-form" onSubmit={handleCloudSignIn}>
-            <label className="field" htmlFor="cloud-email"><span>Email for sign-in link</span><input id="cloud-email" name="email" type="email" autoComplete="email" required value={cloudEmail} onChange={e=>setCloudEmail(e.target.value)} placeholder="you@example.com"/></label>
-            <button className="primary" type="submit" disabled={!supabaseConfigured || cloudBusy || !isOnline || !cloudEmail.trim() || authCooldownSeconds > 0}>{cloudBusy ? 'Sending…' : authCooldownSeconds > 0 ? `Try again in ${authCooldownSeconds}s` : 'Send sign-in link'}</button>
-            </form>
-            <button type="button" className="google-sign-in-button" disabled={!supabaseConfigured || cloudBusy || !isOnline} onClick={() => void handleGoogleSignIn()}><span className="google-sign-in-mark" aria-hidden="true">G</span>Continue with Google</button>
-          </div>}
-          {!supabaseConfigured && <p className="cloud-config-note" role="status">Cloud services are unavailable in this version. Your local profile, scholarship tracker, and application workspace remain available on this device.</p>}
+          </div>
           {cloudMessage && <p className="cloud-message" role="status" aria-live="polite">{cloudMessage}</p>}
+        </section>
+
+        <section className="panel settings-section" aria-labelledby="account-vault-sync-title">
+          <div className="panel-heading">
+            <div>
+              <h3 id="account-vault-sync-title">Cross-device encrypted vault</h3>
+              <p className="muted">Keep this browser automatic, or optionally make an end-to-end encrypted copy that can be restored on another device using a synced passkey.</p>
+            </div>
+            <span className={`status ${accountVaultSyncStatus === 'enabled' ? 'status-eligible' : accountVaultSyncStatus === 'error' ? 'status-not-eligible' : 'status-likely-eligible'}`}>
+              {accountVaultSyncStatus === 'enabled' ? 'SYNC ENABLED' : accountVaultSyncStatus === 'syncing' ? 'SYNCING' : accountVaultSyncStatus === 'available' ? 'NEWER BACKUP' : accountVaultSyncStatus === 'error' ? 'ACTION NEEDED' : 'OPTIONAL'}
+            </span>
+          </div>
+          <p className="muted">Cross-device backup is off by default. When enabled, Scholarship Scout uploads only an encrypted vault copy to Supabase. Your passphrase and unencrypted student records are never sent. Your account sign-in session and PKCE verifier are not included, so sign in separately on each device. You choose a passkey that can sync through your device provider; only authenticators supporting WebAuthn PRF can restore it on another device. Your recovery passphrase remains the fallback.</p>
+          {accountVaultSyncStatus === 'enabled' ? (
+            <div className="settings-account-state">
+              <p><b>Encrypted account backup is active</b><span>Changes are synchronized after local saves.</span></p>
+              <p className="cloud-message" role="status" aria-live="polite">{accountVaultSyncMessage || 'Your encrypted account vault is connected.'}</p>
+              <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleRefreshCrossDeviceVault()}>Check status and sync changes</button>
+              <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleDisableCrossDeviceVault()}>Delete cloud backup and turn off sync</button>
+            </div>
+          ) : (accountVaultSyncStatus === 'available' ||
+              (accountVaultSyncStatus === 'error' && Boolean(cloudUser && getLocalAccountVaultSyncStatus({ ownerId: cloudUser.id }).enabled))) ? (
+            <div className="settings-account-state">
+              <p><b>{accountVaultSyncStatus === 'available' ? 'A newer encrypted backup is available' : 'Backup status needs attention'}</b><span>Your current local vault remains intact. Scholarship Scout will not overwrite it or merge two device histories automatically.</span></p>
+              {accountVaultSyncMessage && <p className="cloud-message" role="status" aria-live="polite">{accountVaultSyncMessage}</p>}
+              <button type="button" className="secondary" disabled={cloudBusy} onClick={() => void handleRefreshCrossDeviceVault()}>Check backup status</button>
+            </div>
+          ) : (
+            <div className="settings-account-state">
+              <label className="privacy-request-check">
+                <input
+                  type="checkbox"
+                  checked={accountVaultSyncConsent}
+                  onChange={(event) => setAccountVaultSyncConsent(event.target.checked)}
+                />
+                <span>I understand that an encrypted copy of my local vault will be stored in my Scholarship Scout account so it can be restored on another device. The server cannot read the encrypted contents.</span>
+              </label>
+              <button
+                type="button"
+                className="primary"
+                disabled={!accountVaultSyncConsent || cloudBusy || !cloudUser || cloudUser.is_anonymous || guestMode}
+                onClick={() => void handleEnableCrossDeviceVault()}
+              >
+                {accountVaultSyncStatus === 'syncing' || cloudBusy ? 'Preparing secure passkey…' : 'Enable cross-device passkey backup'}
+              </button>
+              <p className="muted settings-footnote">If your authenticator does not support PRF or does not sync the passkey, cross-device unlock will not be available. You can still use your local recovery passphrase. Guest mode cannot enable cloud backup.</p>
+            </div>
+          )}
+          {accountVaultSyncMessage && accountVaultSyncStatus !== 'enabled' && (
+            <p className="cloud-message" role="status" aria-live="polite">{accountVaultSyncMessage}</p>
+          )}
         </section>
 
         <section className="panel settings-section" aria-labelledby="privacy-request-title">
@@ -1548,7 +1879,7 @@ function App() {
       {tab === 'Cloud Search' && <div className="page">
         <div className="page-heading"><div><div className="eyebrow">FIND OPPORTUNITIES</div><h1>Find scholarships</h1><p>Research public scholarship pages, review potential awards, and optionally save sponsor details to your private account.</p></div></div>
         <WorkspaceSubnav label="Scholarship search method" active={tab} options={[{ value: 'Discovery', label: 'Browse search links' }, { value: 'Cloud Search', label: 'Live web discovery' }]} onChange={setTab}/>
-        <div className="cloud-run-row"><div><p className="muted">Public search works without signing in or creating an account. Only your state, graduation year, and selected categories are sent to the search service. Cloud sponsor records are private to this account and are never included in public search requests.</p></div><button className="primary" disabled={cloudBusy || !isOnline || !supabaseConfigured || selectedDiscoveryCategories.length === 0} onClick={()=>void handleCloudSearch()}>{cloudBusy ? 'Researching…' : 'Run research'}</button></div>
+        <div className="cloud-run-row"><div><p className="muted">Public search works without signing in or creating an account. Only your state, graduation year, and selected categories are sent to the search service. Sign in to save sponsor records to your account; those records are never included in public discovery requests.</p></div><button className="primary" disabled={cloudBusy || !isOnline || !supabaseConfigured || selectedDiscoveryCategories.length === 0} onClick={()=>void handleCloudSearch()}>{cloudBusy ? 'Researching…' : 'Run research'}</button></div>
         <div className="panel discovery-category-picker" role="group" aria-labelledby="research-categories-title">
           <div className="panel-heading"><div><h3 id="research-categories-title">Research categories</h3><p className="muted">Choose up to four categories for each search.</p></div><span className="source-tag">{selectedDiscoveryCategories.length}/4 selected</span></div>
           <div className="discovery-category-grid">{DISCOVERY_CATEGORY_OPTIONS.map((category)=><label className="discovery-category-option" key={category.id}>

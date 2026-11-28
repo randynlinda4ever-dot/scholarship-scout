@@ -35,8 +35,14 @@
 }
 .vault-preflight-form { display: grid; gap: 14px; margin-top: 24px; }
 .vault-preflight-form label { display: grid; gap: 7px; color: #E7E4F1; font-size: 13px; font-weight: 650; }
+.vault-password-control {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
 .vault-preflight-form input {
   width: 100%;
+  min-width: 0;
   min-height: 46px;
   padding: 10px 12px;
   border: 1px solid #514D70;
@@ -44,6 +50,19 @@
   background: #090E1D;
   color: #FFF;
   font: inherit;
+}
+.vault-password-toggle {
+  flex: 0 0 68px;
+  min-height: 46px;
+  padding: 0 10px;
+  border: 1px solid #514D70;
+  border-radius: 9px;
+  background: #202741;
+  color: #F5F3FF;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
 }
 .vault-preflight-form input:focus-visible, .vault-preflight-form button:focus-visible {
   outline: 3px solid #D8D0FF;
@@ -75,3 +94,17 @@
     justify-content: center;
   }
 }
+
+.vault-preflight-secondary {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+  border: 1px solid var(--vault-border, #77708f);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.vault-preflight-secondary:disabled { opacity: .45; cursor: wait; }

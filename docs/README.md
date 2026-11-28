@@ -3,6 +3,7 @@
 These documents describe the verified implementation and distinguish current behavior from proposed work.
 
 - [Product and engineering roadmap](roadmap.md) — authoritative priorities for student value, release integrity, Resources, discovery, bug fixes, and optimization.
+- [Cross-device encrypted vault](account-vault-sync.md) — opt-in passkey/PRF recovery, ciphertext-only account backup, sync conflict handling, restore rules, and deletion semantics.
 - [Roadmap audit — November 27, 2026](roadmap-audit-2026-11-27.md) — evidence-based review of the previous roadmap, current gaps, stale assumptions, and recommended execution order.
 - [Roadmap audit — November 28, 2026](roadmap-audit-2026-11-28.md) — current production baseline, deployed Edge Function source parity, database security state, and prioritized follow-up work.
 - [Search visibility and public scholarship guides](search-visibility.md) — crawlable scholarship landing pages, canonical routes, sitemap/robots configuration, privacy boundaries, and indexing verification.

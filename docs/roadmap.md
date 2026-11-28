@@ -2,7 +2,9 @@
 
 **Roadmap review date:** November 27, 2026 (America/Chicago; final live checks completed November 28 UTC).
 
-**Baseline:** GitHub `main` at `92cd7387547eceef8977e6d03c887cdfcf2a7c96`; Vercel production deployment `dpl_76eQ6MdWSHbgAskmkUeiqKmL1L2h` is READY for that exact commit, with `scholarship-scout.org` and `www.scholarship-scout.org` aliases.
+**Production baseline:** GitHub `main` at `3e0d93da9ac029d790f72a49d885da1df981f2be`; Vercel production deployment `dpl_6E1mtxBZ9hdPEv77imyFkNTST5uh` is READY for that exact commit, with the Scholarship Scout production domain aliases.
+
+**Active candidate:** `feat/one-time-vault-unlock-20261128` adds the Start/Home sign-in gate, dedicated encrypted Auth storage, remembered-device unlock, and optional cross-device account-vault restore/sync. It is not production until the candidate passes the release checks, merges through a PR, and Vercel reports READY for the merge SHA.
 
 **Companion audit:** [Roadmap audit — November 28, 2026](roadmap-audit-2026-11-28.md)
 
@@ -10,7 +12,7 @@ This is the prioritized product and engineering plan. It replaces the stale chec
 
 ## Current release snapshot — verified November 27–28, 2026
 
-- **Frontend release:** `main` is `92cd7387547eceef8977e6d03c887cdfcf2a7c96`. Vercel production deployment `dpl_76eQ6MdWSHbgAskmkUeiqKmL1L2h` is READY for that exact SHA. PRs #9–#12 added the Resources workspace, auth/legal fixes, and the RFC 9727 API catalog after the older roadmap baseline.
+- **Frontend release:** `main` is `3e0d93da9ac029d790f72a49d885da1df981f2be`. Vercel production deployment `dpl_6E1mtxBZ9hdPEv77imyFkNTST5uh` is READY for that exact SHA. PRs #9–#12 added the Resources workspace, auth/legal fixes, and the RFC 9727 API catalog; PR #13 refreshed the production-state roadmap.
 - **Product routes:** production GET smoke checks return HTTP 200 for `/`, `/resources`, `/scholarship-guides/`, `/scholarship-guides/high-school-juniors/`, `/scholarship-guides/texas-scholarships/`, `/sitemap.xml`, `/robots.txt`, `/api-docs.html`, `/api/openapi.json`, and `/.well-known/api-catalog`.
 - **Release verification:** the current `main` checkout reports 794 tests passed, 0 failed, 0 skipped; `npm run build` succeeds; `npm audit --audit-level=moderate` reports 0 vulnerabilities. These are source/build checks, not substitutes for the remaining real-browser workflow matrix.
 - **Resources:** the Resources workspace is now in production at `/resources`. It is a five-tool student toolkit, not yet a maintained, searchable resource catalog. Worksheet and progress state are local and included in the encrypted version-3 backup contract.
@@ -102,6 +104,10 @@ These items take precedence over adding more search providers or large product f
 - [ ] Verify magic-link and Google OAuth flows, callback restoration, sign-out, account deletion, and session revocation where applicable.
 - [ ] Verify cloud scholarship ownership with two independent test accounts. Confirm one account cannot read, update, or delete another account's records.
 - [ ] Verify offline behavior: local work remains available, online-only controls are disabled clearly, and recovery after reconnect does not silently lose changes.
+- [ ] Verify account-vault restore on a second device with a synced passkey that supports WebAuthn PRF; confirm the user must authenticate separately on that device.
+- [ ] Verify passphrase fallback when passkey PRF is unavailable, the passkey is not synced, or authenticator access is cancelled.
+- [ ] Verify a newer remote revision is detected on startup, tab focus, visibility resume, and attempted upload; confirm local and remote copies are not silently overwritten or merged.
+- [ ] Verify a failed upload, network loss, remote backup deletion, local-data deletion, and account deletion with synthetic accounts.
 - [x] Verify the production Terms acceptance preflight at Chrome viewports 390×844, 360×640, and 320×568: the Continue action remains visible, no horizontal overflow appears, and guardian acknowledgement is conditional on the selected minor age range (PR #11; merged in `main`).
 - [ ] Verify the remaining app workflows at desktop and mobile viewport sizes using synthetic student data.
 - [ ] Record browser, OS, commit, environment, exact workflow, result, and defects. Do not treat source tests or a Vercel READY state as proof of these flows.
@@ -334,12 +340,18 @@ These are strategic options, not commitments. Start only after the P0 release ga
 
 ### P3.3 Optional cross-device continuity
 
-- [ ] First document the real student need and limitations of device-local storage.
-- [ ] Design explicit opt-in, client-side encryption, key recovery, device enrollment, conflict resolution, deletion, and backup semantics.
-- [ ] Decide whether each data class is eligible for sync; essays and sensitive notes should not be silently included.
-- [ ] Threat-model compromised devices, lost keys, account takeover, stale sessions, and shared devices.
-- [ ] Prototype with synthetic data and independent security review before enabling any real student sync.
-- [ ] Keep local-only mode fully supported.
+**Implementation status — feature branch `feat/one-time-vault-unlock-20261128`:** The opt-in client-encrypted account-vault flow and its Supabase migration are implemented locally. The live `account_vault_backups` table has RLS enabled and excludes anonymous Auth users. Only a ciphertext envelope, passkey credential ID, PRF salt, revision, and timestamps are stored. A synced WebAuthn PRF passkey or the existing vault passphrase can restore the same content key on a second device; Auth sessions and PKCE verifiers remain device-local. Revision compare-and-swap, local write-generation checks, startup/focus conflict detection, and visible conflict pause are implemented. This branch is not yet merged or deployed; the main-branch production baseline remains unchanged until release gates pass.
+
+- [x] Document the student use case, local-first default, and device/browser recovery limitations in `docs/account-vault-sync.md`.
+- [x] Implement explicit opt-in client-side encryption, passkey key wrapping, encrypted backup persistence, and passphrase recovery.
+- [x] Keep the Supabase Auth session and PKCE verifier device-local and encrypted separately; exclude them from cross-device snapshots.
+- [x] Implement revision compare-and-swap, stale-revision conflict detection, write-generation tracking, and no-auto-merge behavior.
+- [x] Preserve local-only and guest mode; guest/anonymous accounts cannot read or write account backups.
+- [ ] Complete synthetic real-browser acceptance across two independent devices and at least two passkey provider/browser combinations.
+- [ ] Complete independent security review of passkey PRF handling, account takeover recovery, same-origin threat limits, and account deletion.
+- [ ] Verify that deleting the cloud copy/account does not misrepresent deletion of separate local copies or downloaded exports.
+
+**Acceptance:** automated tests, CI, production preview, synthetic two-device browser flows, independent security review, conflict behavior, and account/local deletion semantics all pass.
 
 ### P3.4 Sponsor change detection with human review
 

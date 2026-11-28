@@ -110,6 +110,110 @@ export async function sendMagicLink(email: string) {
   if (error) throw error;
 }
 
+export type AccountVaultBackup = {
+  credential_id: string;
+  prf_salt: string;
+  encrypted_envelope: Record<string, unknown>;
+  revision: number;
+  updated_at: string;
+};
+
+async function requireAccountUser() {
+  const { client, user } = await requireUser();
+  if (user.is_anonymous) {
+    throw new Error("A permanent signed-in account is required for cross-device vault recovery.");
+  }
+  return { client, user };
+}
+
+export async function getAccountVaultBackup(): Promise<AccountVaultBackup | null> {
+  const { client, user } = await requireAccountUser();
+  const { data, error } = await client
+    .from("account_vault_backups")
+    .select("credential_id,prf_salt,encrypted_envelope,revision,updated_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw new Error("The encrypted account vault backup could not be checked.");
+  if (!data) return null;
+  if (typeof data.credential_id !== "string" ||
+      typeof data.prf_salt !== "string" ||
+      !data.encrypted_envelope ||
+      typeof data.encrypted_envelope !== "object" ||
+      !Number.isSafeInteger(data.revision) ||
+      data.revision < 1) {
+    throw new Error("The encrypted account vault backup metadata is invalid.");
+  }
+  return data as AccountVaultBackup;
+}
+
+export async function createAccountVaultBackup({
+  credentialId,
+  prfSalt,
+  encryptedEnvelope,
+}: {
+  credentialId: string;
+  prfSalt: string;
+  encryptedEnvelope: Record<string, unknown>;
+}): Promise<AccountVaultBackup> {
+  const { client, user } = await requireAccountUser();
+  const { data, error } = await client
+    .from("account_vault_backups")
+    .insert({
+      user_id: user.id,
+      credential_id: credentialId,
+      prf_salt: prfSalt,
+      encrypted_envelope: encryptedEnvelope,
+      revision: 1,
+    })
+    .select("credential_id,prf_salt,encrypted_envelope,revision,updated_at")
+    .single();
+  if (error || !data) {
+    throw new Error(error?.code === "23505"
+      ? "An account vault backup already exists. Refresh the backup status before trying again."
+      : "The encrypted account vault backup could not be created.");
+  }
+  return data as AccountVaultBackup;
+}
+
+export async function updateAccountVaultBackup({
+  encryptedEnvelope,
+  expectedRevision,
+}: {
+  encryptedEnvelope: Record<string, unknown>;
+  expectedRevision: number;
+}): Promise<number> {
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+    throw new Error("The account vault backup revision is invalid.");
+  }
+  const { client, user } = await requireAccountUser();
+  const nextRevision = expectedRevision + 1;
+  const { data, error } = await client
+    .from("account_vault_backups")
+    .update({
+      encrypted_envelope: encryptedEnvelope,
+      revision: nextRevision,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", user.id)
+    .eq("revision", expectedRevision)
+    .select("revision")
+    .maybeSingle();
+  if (error) throw new Error("The encrypted account vault backup could not be synchronized.");
+  if (!data) {
+    throw new Error("A newer vault backup already exists on another device. Refresh before saving again so newer records are not overwritten.");
+  }
+  return nextRevision;
+}
+
+export async function deleteAccountVaultBackup(): Promise<void> {
+  const { client, user } = await requireAccountUser();
+  const { error } = await client
+    .from("account_vault_backups")
+    .delete()
+    .eq("user_id", user.id);
+  if (error) throw new Error("The encrypted account vault backup could not be deleted. Your local vault was not changed.");
+}
+
 export async function signInWithGoogle(): Promise<void> {
   const client = await requireClient();
   const { error } = await client.auth.signInWithOAuth({

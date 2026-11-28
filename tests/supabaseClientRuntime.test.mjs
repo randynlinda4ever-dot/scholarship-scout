@@ -32,5 +32,5 @@ test('lazy client preserves browser session persistence and callback restoration
   assert.match(source, /autoRefreshToken:\s*true/);
   assert.match(source, /persistSession:\s*true/);
   assert.match(source, /detectSessionInUrl:\s*true/);
-  assert.match(source, /storage:\s*vaultStorage/);
+  assert.match(source, /storage:\s*secureAuthStorage/);
 });
