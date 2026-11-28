@@ -137,7 +137,27 @@ test("accepting analytics loads the configured container with denied ad consent 
     page_type: "scholarship_guides",
   });
   assert.ok(!JSON.stringify(app.window.dataLayer).includes("must-not-be-sent"));
-  assert.ok(!JSON.stringify(app.window.dataLayer).includes("page_referrer"));
+  const pageContext = commands.find((args) => args[0] === "set" && typeof args[1] === "object");
+  assert.equal(pageContext[1].page_location, "https://scholarship-scout.org/");
+  assert.equal(pageContext[1].page_title, "Scholarship Scout");
+  assert.equal(pageContext[1].page_referrer, "");
+});
+
+test("the current app section is buffered without sending data before consent", () => {
+  const app = boot({ pageType: "app" });
+  app.window.dispatchEvent({
+    type: "scholarship-scout:page-view",
+    detail: { pageType: "settings" },
+  });
+  assert.equal(app.externalScripts.length, 0);
+  assert.equal(app.window.dataLayer.length, 0);
+
+  app.findAction("accept").dispatch("click");
+  const event = app.window.dataLayer.find((entry) => entry?.event === "scout_page_view");
+  assert.deepEqual(JSON.parse(JSON.stringify(event)), {
+    event: "scout_page_view",
+    page_type: "settings",
+  });
 });
 
 test("page-view events accept only predefined page categories", () => {
