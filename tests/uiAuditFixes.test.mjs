@@ -7,7 +7,8 @@ import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const fields = await readFile(new URL('../src/components/WorkspaceFields.tsx', import.meta.url), 'utf8');
 const css = await readActiveAppStyles();
-const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');\nconst themeTokens = await readFile(new URL('../public/brand-theme.css', import.meta.url), 'utf8');
+const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
+const themeTokens = await readFile(new URL('../public/brand-theme.css', import.meta.url), 'utf8');
 
 function luminance(hex) {
   const channels = hex.slice(1).match(/.{2}/g).map((value) => parseInt(value, 16) / 255);
