@@ -18,7 +18,6 @@ import { OverviewPage } from "../src/features/workspace/pages/OverviewPage.tsx";
 import { ScholarshipsPage } from "../src/features/workspace/pages/ScholarshipsPage.tsx";
 import { SettingsPage } from "../src/features/workspace/pages/SettingsPage.tsx";
 import { ResourcesPage } from "../src/features/resources/ResourcesPage.tsx";
-import StatusPills from "../src/components/StatusPills.tsx";
 import * as status from "../src/components/StatusPills.tsx";
 import * as cards from "../src/components/ScholarshipCards.tsx";
 import * as home from "../src/features/home/StartHomePage.tsx";
