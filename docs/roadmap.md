@@ -111,7 +111,9 @@ These items take precedence over adding more search providers or large product f
 
 ## P1 — Resources tab and student support
 
-**Status note:** the owner reports that a Resources tab is currently being implemented. It is not present in the audited `main` revision, so the work is treated as in progress but has not been source-reviewed here.
+**Implementation status — November 27, 2026:** The reviewed production baseline (`main` at `ae3577848c075cdfeececfa46537871fafc0a62c`) does not contain a Resources destination in `src/App.tsx` or `src/lib/workspaceRoutes.js`. A separate local checkout on `feature/my-scholarships-audit-20261127` now contains an implemented Resources route with five interactive tools: reuse of the existing My Scholarships tracker, an essay planner, a financial-aid checklist and net-cost comparison, a scholarship scam red-flag guide, and a junior-to-senior preparation calendar. The local implementation stores worksheet/progress state in the encrypted browser vault and includes it in version-3 encrypted backups while retaining version-1 and version-2 import support. Its recorded verification is 786 passing tests, zero failures, zero skips, and a successful TypeScript/Vite production build.
+
+That implementation remains uncommitted local work; it is not part of GitHub `main`, has not been reviewed or deployed, and is based on an earlier feature-branch checkout that must be reconciled with current `main` before release. It is a fixed set of interactive tools, not yet the maintained, searchable resource catalog described below. Catalog metadata, editorial review states, category/keyword/geography filters, catalog bookmarks, source-quality operations, and a full real-browser acceptance pass remain open. Treat the Resources work as in progress, not production-complete.
 
 ### P1.1 Build a useful, maintained resource catalog
 
@@ -264,7 +266,7 @@ These items take precedence over adding more search providers or large product f
 ### P2.4 Improve dependency and data lifecycle management
 
 - [ ] Review Dependabot updates in focused groups; test framework major upgrades independently.
-- [ ] Keep Node runtime, package engine, CI runtime, lockfile, and documentation aligned.
+- [ ] Keep Node runtime, package engine, CI runtime, lockfile, and documentation aligned. `package.json`, `.nvmrc`, and CI specify Node 26, while the current `README.md` setup instructions still say Node 22.12+; correct the README and check remaining setup/testing docs before the next code release.
 - [ ] Review Supabase schema and RLS changes independently from frontend features.
 - [ ] Reconcile and document migrations before any DDL; never use the legacy schema file.
 - [ ] Test backup version upgrades and old-backup compatibility whenever a new local data type is introduced.
