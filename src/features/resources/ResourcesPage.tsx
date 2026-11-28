@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   calculateNetPrice,
   MAX_RESOURCE_COMPARISONS,
+  MAX_RESUME_ENTRIES,
   RESOURCE_AID_CHECKLIST,
   RESOURCE_CALENDAR,
+  RESUME_ENTRY_CATEGORIES,
   type ResourceWorkspace,
 } from "../../lib/resourceWorkspace.js";
 import "./ResourcesPage.css";
@@ -12,7 +14,7 @@ type ScholarshipRow = {
   id: string; name: string; provider: string; award: string; deadline: string;
   deadlineText?: string; applicationStatus?: string; priority?: string; archived?: boolean;
 };
-type ResourceId = "tracker" | "essay" | "aid" | "scams" | "calendar";
+type ResourceId = "tracker" | "essay" | "aid" | "scams" | "calendar" | "resume";
 type Props = {
   workspace: ResourceWorkspace;
   scholarships: ScholarshipRow[];
@@ -27,6 +29,7 @@ const CARDS: Array<{ id: ResourceId; number: string; category: string; title: st
   { id: "aid", number: "03", category: "PAY FOR COLLEGE", title: "Financial-aid checklist", description: "Track FAFSA tasks and compare college costs.", detail: "Includes an editable side-by-side cost worksheet." },
   { id: "scams", number: "04", category: "STAY SAFE", title: "Scholarship scam prevention guide", description: "Check messages for common scholarship scam signs.", detail: "An interactive red-flag check and trusted links." },
   { id: "calendar", number: "05", category: "PLAN AHEAD", title: "Junior-to-senior preparation calendar", description: "Plan key tasks across junior and senior year.", detail: "Check off tasks as you complete them." },
+  { id: "resume", number: "06", category: "BUILD YOUR RESUME", title: "Activities & resume builder", description: "Organize work, service, leadership, activities, and achievements.", detail: "Create a private, printable experience record." },
 ];
 
 const SCAM_QUESTIONS = [
@@ -63,7 +66,7 @@ function SharePrint({ id, onStatus }: { id: ResourceId; onStatus: (message: stri
 }
 
 function Field({ label, value, onChange, multiline = false, placeholder = "", type = "text" }: {
-  label: string; value: string; onChange: (value: string) => void; multiline?: boolean; placeholder?: string; type?: "text" | "number";
+  label: string; value: string; onChange: (value: string) => void; multiline?: boolean; placeholder?: string; type?: "text" | "number" | "month";
 }) {
   return <label className={`resource-field${multiline ? " resource-field-wide" : ""}`}><span>{label}</span>
     {multiline
@@ -96,6 +99,10 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
   const activeCard = CARDS.find((card) => card.id === active);
   const activeScholarships = useMemo(() => scholarships.filter((item) => !item.archived), [scholarships]);
   const essay = workspace.essayPlan;
+  const resumeEntries = workspace.resumeEntries ?? [];
+  const resumeEntriesForPreview = resumeEntries.filter((entry) =>
+    entry.role.trim() || entry.organization.trim() || entry.details.trim() || entry.impact.trim()
+  );
   const update = (patch: Partial<ResourceWorkspace>) => onWorkspaceChange({ ...workspace, ...patch });
   const updateEssay = (key: keyof ResourceWorkspace["essayPlan"], value: string) =>
     update({ essayPlan: { ...essay, [key]: value } });
@@ -112,6 +119,49 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
   };
   const updateCollege = (id: string, patch: Partial<ResourceWorkspace["aidChecklist"]["comparisons"][number]>) =>
     updateAid({ comparisons: workspace.aidChecklist.comparisons.map((row) => row.id === id ? { ...row, ...patch } : row) });
+  const addResumeEntry = () => {
+    if (resumeEntries.length >= MAX_RESUME_ENTRIES) return;
+    update({
+      resumeEntries: [...resumeEntries, {
+        id: `resume-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        category: "Activities",
+        role: "",
+        organization: "",
+        startDate: "",
+        endDate: "",
+        details: "",
+        impact: "",
+      }],
+    });
+    setStatus("New experience added. Your changes save automatically.");
+  };
+  const updateResumeEntry = (id: string, patch: Partial<ResourceWorkspace["resumeEntries"][number]>) =>
+    update({ resumeEntries: resumeEntries.map((entry) => entry.id === id ? { ...entry, ...patch } : entry) });
+  const removeResumeEntry = (id: string) =>
+    update({ resumeEntries: resumeEntries.filter((entry) => entry.id !== id) });
+  const formatResumeMonth = (value: string) => {
+    if (!value) return "";
+    const [year, month] = value.split("-").map(Number);
+    return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  };
+  const changeResumeStartMonth = (id: string, value: string, endDate: string) => {
+    const clearEndDate = Boolean(endDate && (!value || endDate < value));
+    updateResumeEntry(id, { startDate: value, endDate: clearEndDate ? "" : endDate });
+    if (clearEndDate) setStatus("The end month was cleared. Add a start month first, then choose an end month on or after it.");
+    else setStatus("");
+  };
+  const changeResumeEndMonth = (id: string, value: string, startDate: string) => {
+    if (value && !startDate) {
+      setStatus("Add a start month before an end month.");
+      return;
+    }
+    if (value && value < startDate) {
+      setStatus("End month must be the same as or later than the start month.");
+      return;
+    }
+    updateResumeEntry(id, { endDate: value });
+    setStatus("");
+  };
   const toggleCalendar = (id: string, checked: boolean) => update({
     calendarCompleted: checked ? [...new Set([...workspace.calendarCompleted, id])] : workspace.calendarCompleted.filter((item) => item !== id),
   });
@@ -241,6 +291,63 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
           <a href="https://consumer.ftc.gov/articles/how-avoid-scholarship-and-financial-aid-scams" target="_blank" rel="noreferrer">FTC: How to avoid scholarship and financial-aid scams ↗</a>
           <a href="https://reportfraud.ftc.gov/" target="_blank" rel="noreferrer">Report suspected fraud to the FTC ↗</a>
         </div>
+      </section>}
+
+      {active === "resume" && <section className="resource-document resource-printable" aria-label="Student activities and resume builder">
+        <div className="resource-callout">
+          <b>Keep a clear record of what you do and contribute.</b>
+          <span>Record roles, service, leadership, activities, awards, and projects as you go. Use specific responsibilities and results rather than broad claims.</span>
+        </div>
+        <div className="resource-resume-editor resource-no-print">
+          <div className="resource-section-heading">
+            <div><h2>Experience entries</h2><p>Add one entry for each role, activity, service project, award, or academic project.</p></div>
+            <button type="button" className="resource-button resource-button-primary" onClick={addResumeEntry} disabled={resumeEntries.length >= MAX_RESUME_ENTRIES}>＋ Add experience</button>
+          </div>
+          {resumeEntries.length ? <div className="resource-resume-list">
+            {resumeEntries.map((entry, index) => <article className="resource-resume-entry" key={entry.id}>
+              <div className="resource-resume-entry-heading">
+                <b>Experience {index + 1}</b>
+                <button type="button" className="resource-inline-link" aria-label={`Remove experience ${entry.role || index + 1}`} onClick={() => removeResumeEntry(entry.id)}>Remove</button>
+              </div>
+              <div className="resource-form-grid">
+                <label className="resource-field"><span>Resume section</span>
+                  <select value={entry.category} onChange={(event) => updateResumeEntry(entry.id, { category: event.target.value })}>
+                    {RESUME_ENTRY_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                </label>
+                <Field label="Role or position" value={entry.role} onChange={(value) => updateResumeEntry(entry.id, { role: value })} placeholder="e.g. Volunteer coordinator" />
+                <Field label="Organization or group" value={entry.organization} onChange={(value) => updateResumeEntry(entry.id, { organization: value })} placeholder="e.g. Local food pantry" />
+                <Field label="Start month" value={entry.startDate} onChange={(value) => changeResumeStartMonth(entry.id, value, entry.endDate)} type="month" />
+                <Field label="End month (leave blank if current)" value={entry.endDate} onChange={(value) => changeResumeEndMonth(entry.id, value, entry.startDate)} type="month" />
+                <Field label="Responsibilities and activities" value={entry.details} onChange={(value) => updateResumeEntry(entry.id, { details: value })} multiline placeholder="Describe what you actually did. Keep details specific and accurate." />
+                <Field label="Result, contribution, or achievement" value={entry.impact} onChange={(value) => updateResumeEntry(entry.id, { impact: value })} multiline placeholder="Add a result, contribution, recognition, or skill you can explain." />
+              </div>
+            </article>)}
+          </div> : <div className="resource-empty-state"><h3>Your experience list is empty.</h3><p>Add a job, volunteer role, club, leadership position, award, or academic project when you are ready.</p><button type="button" className="resource-button resource-button-primary" onClick={addResumeEntry}>＋ Add your first experience</button></div>}
+          <p className="resource-private-note">{resumeEntries.length} of {MAX_RESUME_ENTRIES} entries used. Changes save automatically in your encrypted local vault.</p>
+        </div>
+        <div className="resource-resume-preview">
+          <div className="resource-section-heading"><div><h2>Printable resume content</h2><p>Review the experiences you want to include. Add your name and contact details to the final copy only when you are ready to share it.</p></div></div>
+          {resumeEntriesForPreview.length ? <div className="resource-resume-preview-sections">
+            {RESUME_ENTRY_CATEGORIES.map((category) => {
+              const entries = resumeEntriesForPreview.filter((entry) => entry.category === category);
+              if (!entries.length) return null;
+              return <section className="resource-resume-preview-section" key={category}>
+                <h3>{category}</h3>
+                {entries.map((entry) => {
+                  const dateRange = [formatResumeMonth(entry.startDate), entry.endDate ? formatResumeMonth(entry.endDate) : entry.startDate ? "Present" : ""].filter(Boolean).join(" – ");
+                  return <article className="resource-resume-preview-entry" key={entry.id}>
+                    <div className="resource-resume-preview-topline"><b>{entry.role || entry.organization}</b>{dateRange && <span>{dateRange}</span>}</div>
+                    {entry.role && entry.organization && <p className="resource-resume-organization">{entry.organization}</p>}
+                    {entry.details && <p>{entry.details}</p>}
+                    {entry.impact && <p>{entry.impact}</p>}
+                  </article>;
+                })}
+              </section>;
+            })}
+          </div> : <div className="resource-empty-state"><h3>Your printable content will appear here.</h3><p>Add experience entries, then review the preview before using Print / Save PDF.</p></div>}
+        </div>
+        <p className="resource-private-note">Your entries are stored in this browser’s encrypted vault and included in your encrypted backup. They are not added to your scholarship profile or sent to scholarship discovery or analytics. Add contact details only to the copy you choose to share.</p>
       </section>}
 
       {active === "calendar" && <section className="resource-document resource-printable" aria-label="Junior to senior scholarship preparation calendar">

@@ -1,4 +1,14 @@
 export const MAX_RESOURCE_COMPARISONS = 8;
+export const MAX_RESUME_ENTRIES = 30;
+export const RESUME_ENTRY_CATEGORIES = Object.freeze([
+  "Work",
+  "Leadership",
+  "Community service",
+  "Activities",
+  "Awards & honors",
+  "Academic projects",
+]);
+const RESUME_ENTRY_CATEGORY_SET = new Set(RESUME_ENTRY_CATEGORIES);
 
 export const RESOURCE_AID_CHECKLIST = Object.freeze([
   { id: "fsa-account", label: "Create or confirm your StudentAid.gov account", detail: "Each required contributor uses their own account. Never share account passwords." },
@@ -118,12 +128,18 @@ const isRecord = (value) => Boolean(value && typeof value === "object" && !Array
 const isSafeId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(value) && !RESERVED_IDS.has(value);
 const isNonNegativeAmount = (value) => typeof value === "string" &&
   value.length <= 20 && (value === "" || /^(?:0|[1-9]\d{0,11})(?:\.\d{0,2})?$/.test(value));
+const isValidMonth = (value) => typeof value === "string" &&
+  (value === "" || /^\d{4}-(0[1-9]|1[0-2])$/.test(value));
+const RESUME_ENTRY_FIELDS = Object.freeze([
+  "id", "category", "role", "organization", "startDate", "endDate", "details", "impact",
+]);
 
 export function createResourceWorkspace() {
   return {
     essayPlan: Object.fromEntries(ESSAY_FIELDS.map((field) => [field, ""])),
     aidChecklist: { completed: [], comparisons: [] },
     calendarCompleted: [],
+    resumeEntries: [],
   };
 }
 
@@ -158,11 +174,34 @@ export function normalizeResourceWorkspace(input) {
   if (Array.isArray(input.calendarCompleted)) {
     empty.calendarCompleted = [...new Set(input.calendarCompleted.filter((id) => CALENDAR_TASK_IDS.has(id)))];
   }
+
+  if (Array.isArray(input.resumeEntries)) {
+    const seenResumeIds = new Set();
+    empty.resumeEntries = input.resumeEntries.slice(0, MAX_RESUME_ENTRIES).flatMap((row) => {
+      if (!isRecord(row) || !isSafeId(row.id) || seenResumeIds.has(row.id)) return [];
+      seenResumeIds.add(row.id);
+
+      const startDate = isValidMonth(row.startDate) ? row.startDate : "";
+      let endDate = isValidMonth(row.endDate) ? row.endDate : "";
+      if (!startDate || (endDate && endDate < startDate)) endDate = "";
+
+      return [{
+        id: row.id,
+        category: RESUME_ENTRY_CATEGORY_SET.has(row.category) ? row.category : "Activities",
+        role: typeof row.role === "string" ? row.role.slice(0, 120) : "",
+        organization: typeof row.organization === "string" ? row.organization.slice(0, 160) : "",
+        startDate,
+        endDate,
+        details: typeof row.details === "string" ? row.details.slice(0, 800) : "",
+        impact: typeof row.impact === "string" ? row.impact.slice(0, 500) : "",
+      }];
+    });
+  }
   return empty;
 }
 
 export function isValidResourceWorkspace(input) {
-  if (!isRecord(input) || Object.keys(input).some((key) => !["essayPlan", "aidChecklist", "calendarCompleted"].includes(key))) return false;
+  if (!isRecord(input) || Object.keys(input).some((key) => !["essayPlan", "aidChecklist", "calendarCompleted", "resumeEntries"].includes(key))) return false;
   if (!isRecord(input.essayPlan) || Object.keys(input.essayPlan).some((key) => !ESSAY_FIELDS.includes(key))) return false;
   if (ESSAY_FIELDS.some((field) => input.essayPlan[field] !== undefined &&
     (typeof input.essayPlan[field] !== "string" || input.essayPlan[field].length > 8000))) return false;
@@ -186,10 +225,28 @@ export function isValidResourceWorkspace(input) {
   }
 
   const calendarCompleted = input.calendarCompleted;
-  return Array.isArray(calendarCompleted) &&
-    calendarCompleted.length <= CALENDAR_TASK_IDS.size &&
-    calendarCompleted.every((id) => typeof id === "string" && CALENDAR_TASK_IDS.has(id)) &&
-    new Set(calendarCompleted).size === calendarCompleted.length;
+  if (!Array.isArray(calendarCompleted) ||
+      calendarCompleted.length > CALENDAR_TASK_IDS.size ||
+      !calendarCompleted.every((id) => typeof id === "string" && CALENDAR_TASK_IDS.has(id)) ||
+      new Set(calendarCompleted).size !== calendarCompleted.length) return false;
+
+  // The field is optional when reading older version-three backups.
+  const resumeEntries = input.resumeEntries ?? [];
+  if (!Array.isArray(resumeEntries) || resumeEntries.length > MAX_RESUME_ENTRIES) return false;
+  const resumeIds = new Set();
+  for (const entry of resumeEntries) {
+    if (!isRecord(entry) || Object.keys(entry).some((key) => !RESUME_ENTRY_FIELDS.includes(key))) return false;
+    if (!isSafeId(entry.id) || resumeIds.has(entry.id) ||
+        !RESUME_ENTRY_CATEGORY_SET.has(entry.category) ||
+        typeof entry.role !== "string" || entry.role.length > 120 ||
+        typeof entry.organization !== "string" || entry.organization.length > 160 ||
+        !isValidMonth(entry.startDate) || !isValidMonth(entry.endDate) ||
+        (entry.endDate && (!entry.startDate || entry.endDate < entry.startDate)) ||
+        typeof entry.details !== "string" || entry.details.length > 800 ||
+        typeof entry.impact !== "string" || entry.impact.length > 500) return false;
+    resumeIds.add(entry.id);
+  }
+  return true;
 }
 
 export function calculateNetPrice(totalCost, grantAid) {
