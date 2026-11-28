@@ -1,9 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
-const appCss = await read('src/App.css');
+const appCss = await readActiveAppStyles();
 const brand = await read('src/brand-system.css');
 const tokens = await read('public/brand-theme.css');
 const foundation = await read('src/styles/app/foundation.css');
