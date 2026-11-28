@@ -6,7 +6,7 @@ export type NavGlyphName =
   | 'menu' | 'close' | 'chevron-left' | 'chevron-right';
 
 export function NavGlyph({ name }: { name: NavGlyphName }) {
-  const glyphs: Record<GlyphName, ReactNode> = {
+  const glyphs: Record<NavGlyphName, ReactNode> = {
     home: <><path d="m3.5 10.5 8.5-7 8.5 7" /><path d="M5.5 9.5v10h5.2v-5.8h2.6v5.8h5.2v-10" /></>,
     search: <><circle cx="10.8" cy="10.8" r="6.6" /><path d="m16 16 4.5 4.5" /></>,
     cloud: <path d="M6.2 18.5h11.4a4 4 0 0 0 .5-8 6.3 6.3 0 0 0-12.1-1.3 4.7 4.7 0 0 0 .2 9.3Z" />,
