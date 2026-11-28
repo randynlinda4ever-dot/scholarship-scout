@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
