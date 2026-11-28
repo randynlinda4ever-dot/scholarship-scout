@@ -2027,7 +2027,7 @@ function App() {
               setProfileImportError('The file could not be read. Try exporting it as plain text and upload it again.');
               resetInput();
             }
-          }}/></label>l>
+          }}/></label>
           <p className="profile-search-hint">Your document is processed locally and is not uploaded to Scholarship Scout’s servers. PDF and Word document parsing are not enabled yet; export those documents as text first. Scanned images require OCR and are not read.</p>
           {profileImportError ? <p className="field-error" role="alert">{profileImportError}</p> : null}
           {profileImportPreview ? <div className="profile-import-review" aria-live="polite">
