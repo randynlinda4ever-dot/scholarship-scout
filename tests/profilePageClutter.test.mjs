@@ -9,7 +9,9 @@ test('profile removes duplicate optional matching fields already represented els
   for (const field of ['Academic strengths or favorite subjects', 'Career fields you want to explore', 'Awards, honors, and recognitions', 'Preferred college location', 'Expected enrollment plan']) {
     assert.doesNotMatch(profile, new RegExp(field));
   }
-  assert.match(profile, /Extra scholarship search keywords/);
+  assert.match(profile, /Private result-ranking keywords/);
+  assert.match(profile, /Topics to prioritize locally/);
+  assert.doesNotMatch(profile, /Extra scholarship search keywords/);
 });
 
 test('profile does not print transcript rank clarification twice', () => {
@@ -18,11 +20,13 @@ test('profile does not print transcript rank clarification twice', () => {
 });
 
 test('school district guidance accurately describes the remaining field', () => {
-  assert.match(profile, /Add your district to help find school-based awards/);
+  assert.match(profile, /School district/);
+  assert.match(profile, /Used only when a saved scholarship specifies a school-district requirement/);
   assert.doesNotMatch(profile, /Both fields are optional/);
 });
 
 test('age label avoids repeating the page privacy explanation', () => {
-  assert.match(profile, /Age \(optional\)/);
+  assert.match(profile, /Age \(whole years\)/);
+  assert.match(profile, /Age \(whole years\)[\s\S]*?requirement="optional"/);
   assert.doesNotMatch(profile, /Age \(whole years; optional, stays on this device\)/);
 });

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { vaultStorage } from "./localVault.js";
+import { encryptedAuthStorage } from "./deviceKeyStorage.js";
 
 type ScoutRuntimeConfig = {
   VITE_SUPABASE_URL?: string;
@@ -43,7 +43,7 @@ export function getSupabaseClient(): Promise<SupabaseClient | null> {
           persistSession: true,
           detectSessionInUrl: true,
           flowType: "pkce",
-          storage: vaultStorage,
+          storage: encryptedAuthStorage,
         },
       }))
       .catch((error) => {

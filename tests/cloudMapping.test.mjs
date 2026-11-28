@@ -149,7 +149,7 @@ test("omits inactive any-valued criteria and their stale importance/evidence met
   assert.deepEqual(row.eligibility.criteria, {});
   assert.deepEqual(row.eligibility.criteria_importance, {});
   assert.deepEqual(row.eligibility.criteria_evidence, {});
-  assert.equal(row.verification_status, "verified");
+  assert.equal(row.verification_status, "unverified");
 });
 
 test("keeps structured criteria unverified when criterion-level sponsor evidence is missing", () => {

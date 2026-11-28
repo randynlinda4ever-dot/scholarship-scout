@@ -294,3 +294,18 @@ test("canonical URL sorting collapses equivalent query parameter order", () => {
   }]);
   assert.equal(first[0].source_url, second[0].source_url);
 });
+
+
+test("local result ranking uses academic coursework and honors stored in the current profile", () => {
+  const results = rankAndDeduplicateLiveResults([
+    { id: "generic", title: "General Student Scholarship", source_url: "https://example.org/general", excerpt: "Open to students nationwide." },
+    { id: "academic", title: "Public History and Anthropology Award", source_url: "https://example.org/academic", excerpt: "For students with the Public History Research Award, AP United States History coursework, and anthropology." },
+  ], {
+    academicHonors: "Public History Research Award",
+    apCourses: "AP United States History",
+    interests: "anthropology",
+  });
+  assert.equal(results[0].id, "academic");
+  assert.ok(results[0].relevance_score > results[1].relevance_score);
+  assert.ok(results[0].relevance_reasons.some((reason) => /public history|ap united states history/i.test(reason)));
+});

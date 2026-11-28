@@ -5,6 +5,7 @@ import { AUTH_EMAIL_COOLDOWN_SECONDS, getAuthCooldownRemainingSeconds, isAuthRat
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 const api = await readFile(new URL("../src/lib/scholarshipApi.ts", import.meta.url), "utf8");
 const client = await readFile(new URL("../src/lib/supabaseClient.ts", import.meta.url), "utf8");
+const emailGate = await readFile(new URL("../src/lib/emailAuthGate.js", import.meta.url), "utf8");
 
 test("email cooldown counts down and never becomes negative", () => {
   assert.equal(AUTH_EMAIL_COOLDOWN_SECONDS, 60);
@@ -25,13 +26,17 @@ test("expired or consumed one-time links receive a distinct explanation", () => 
   assert.equal(isExpiredAuthLinkError("", "network unavailable"), false);
 });
 
-test("account access and appearance preferences are grouped in Settings", () => {
-  assert.match(app, /Optional cloud account and access/);
-  assert.match(app, /Send sign-in link/);
-  assert.match(app, /Check session status/);
-  assert.match(app, /Optional cloud account/);
-  assert.match(app, /authCooldownSeconds/);
-  assert.match(app, /signed in successfully/i);
+test("verified email authentication and account controls are described as required", () => {
+  assert.match(app, /Email account and sign-in/);
+  assert.match(app, /A verified email account is required to open Scholarship Scout/);
+  assert.match(emailGate, /Email me a sign-in link/);
+  assert.match(emailGate, /email_confirmed_at/);
+  assert.match(app, /Lock workspace and sign out/);
+  assert.match(app, /Export encrypted backup/);
+  assert.match(app, /Import backup/);
+  assert.match(emailGate, /cooldownSeconds/);
+  assert.match(api, /signInWithOtp/);
+  assert.doesNotMatch(app, /Optional cloud account and access/);
 });
 
 test("expired callback state is surfaced inside the Settings section", () => {

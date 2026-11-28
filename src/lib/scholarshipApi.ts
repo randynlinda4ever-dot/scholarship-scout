@@ -105,7 +105,10 @@ export async function sendMagicLink(email: string) {
   const emailRedirectTo = getMagicLinkRedirectUrl();
   const { error } = await client.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo },
+    options: {
+      emailRedirectTo,
+      shouldCreateUser: true,
+    },
   });
   if (error) throw error;
 }
@@ -113,27 +116,6 @@ export async function sendMagicLink(email: string) {
 export async function signInWithGoogle(): Promise<void> {
   const client = await requireClient();
   const { error } = await client.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: getMagicLinkRedirectUrl(),
-      scopes: "openid email profile",
-      queryParams: { prompt: "select_account" },
-    },
-  });
-  if (error) throw error;
-}
-
-/**
- * Convert the current anonymous browser account into a Google-backed account
- * without changing its auth.users id or ownership of existing cloud rows.
- */
-export async function linkGoogleIdentity(): Promise<void> {
-  const client = await requireClient();
-  const { data, error: userError } = await client.auth.getUser();
-  if (userError || !data.user?.is_anonymous) {
-    throw new Error("Google can only be linked from an active anonymous cloud session.");
-  }
-  const { error } = await client.auth.linkIdentity({
     provider: "google",
     options: {
       redirectTo: getMagicLinkRedirectUrl(),
@@ -155,7 +137,7 @@ export async function getCloudUser() {
 export async function signOutCloudUser() {
   const client = await getSupabaseClient();
   if (!client) return;
-  const { error } = await client.auth.signOut();
+  const { error } = await client.auth.signOut({ scope: "local" });
   if (error) throw error;
 }
 

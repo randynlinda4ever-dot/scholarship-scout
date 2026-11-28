@@ -8,6 +8,11 @@ import {
   LEGAL_SECTIONS,
   LEGAL_ACCEPTANCE_VERSION,
 } from "./legal/terms";
+import { renderEmailAuthGate } from "./lib/emailAuthGate.js";
+import { renderAuthenticatedVaultGate } from "./lib/localVaultGate.js";
+import { lockLocalVault } from "./lib/localVault.js";
+import { signOutCloudUser } from "./lib/scholarshipApi";
+import { stopSupabaseAutoRefreshForVaultLock } from "./lib/supabaseClient.js";
 
 const root = document.getElementById("root") as HTMLElement;
 if (!root) throw new Error("Scholarship Scout could not find its application root.");
@@ -24,8 +29,12 @@ function hasCurrentAcceptance(): boolean {
   }
 }
 
-import { renderLocalVaultGate } from "./lib/localVaultGate.js";
-import { lockLocalVault } from "./lib/localVault.js";
+async function signOutAndReturnToLogin(): Promise<void> {
+  await stopSupabaseAutoRefreshForVaultLock();
+  await signOutCloudUser();
+  await lockLocalVault();
+  window.location.replace("/");
+}
 
 async function startWorkspace(): Promise<void> {
   if (workspaceStarting) return;
@@ -35,13 +44,20 @@ async function startWorkspace(): Promise<void> {
   document.documentElement.style.removeProperty("color-scheme");
   document.title = "Scholarship Scout";
   try {
-    await renderLocalVaultGate(root, async () => {
-      try {
-        await import("./main");
-      } catch (error) {
-        await lockLocalVault();
-        throw error;
-      }
+    await renderEmailAuthGate(root, async (user) => {
+      await renderAuthenticatedVaultGate(
+        root,
+        user,
+        async () => {
+          try {
+            await import("./main");
+          } catch (error) {
+            await lockLocalVault();
+            throw error;
+          }
+        },
+        signOutAndReturnToLogin,
+      );
     });
   } catch (reason) {
     workspaceStarting = false;
@@ -49,7 +65,7 @@ async function startWorkspace(): Promise<void> {
     error.setAttribute("role", "alert");
     error.textContent = reason instanceof Error
       ? reason.message
-      : "Scholarship Scout could not open its encrypted local vault.";
+      : "Scholarship Scout could not initialize email sign-in.";
     root.replaceChildren(error);
   }
 }

@@ -1,5 +1,13 @@
+import {
+  getOrCreateDeviceVaultKey,
+  getDeviceVaultKey,
+  deleteDeviceVaultKey,
+  clearEncryptedAuthStorage,
+} from "./deviceKeyStorage.js";
+
 export const LOCAL_VAULT_FORMAT = "scholarship-scout-local-vault";
 export const LOCAL_VAULT_VERSION = 1;
+export const DEVICE_VAULT_VERSION = 2;
 export const LOCAL_VAULT_DATABASE = "scholarship-scout-local-vault";
 export const LOCAL_VAULT_STORE = "vault";
 export const LOCAL_VAULT_RECORD_KEY = "primary";
@@ -157,6 +165,71 @@ async function decryptEnvelope(envelope, passphrase) {
   return { key, salt, payload: normalizeRecords(payload.records) };
 }
 
+
+function deviceAdditionalData(userId) {
+  return encoder.encode([
+    LOCAL_VAULT_FORMAT,
+    `v${DEVICE_VAULT_VERSION}`,
+    "device-key-v1",
+    "AES-256-GCM",
+    userId,
+  ].join(":"));
+}
+
+async function encryptDevicePayload(payload, key, userId) {
+  const crypto = getCrypto();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: deviceAdditionalData(userId), tagLength: 128 },
+    key,
+    encoder.encode(JSON.stringify(payload)),
+  );
+  return {
+    format: LOCAL_VAULT_FORMAT,
+    version: DEVICE_VAULT_VERSION,
+    kdf: "device-key-v1",
+    accountId: userId,
+    cipher: "AES-256-GCM",
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
+  };
+}
+
+async function decryptDeviceEnvelope(envelope, key, userId) {
+  if (!envelope || typeof envelope !== "object" ||
+      envelope.format !== LOCAL_VAULT_FORMAT ||
+      envelope.version !== DEVICE_VAULT_VERSION ||
+      envelope.kdf !== "device-key-v1" ||
+      envelope.cipher !== "AES-256-GCM" ||
+      envelope.accountId !== userId) {
+    throw new Error("This local workspace is not linked to the signed-in account on this device.");
+  }
+  const iv = base64ToBytes(envelope.iv);
+  const ciphertext = base64ToBytes(envelope.ciphertext);
+  if (iv.length !== 12 || ciphertext.length < 16) {
+    throw new Error("The trusted-device workspace record is malformed.");
+  }
+  const plaintext = await getCrypto().subtle.decrypt(
+    { name: "AES-GCM", iv, additionalData: deviceAdditionalData(userId), tagLength: 128 },
+    key,
+    ciphertext,
+  );
+  let payload;
+  try { payload = JSON.parse(decoder.decode(plaintext)); }
+  catch { throw new Error("The trusted-device workspace could not be decoded."); }
+  if (!payload || payload.format !== LOCAL_VAULT_FORMAT + "-data" ||
+      payload.version !== LOCAL_VAULT_VERSION) {
+    throw new Error("The trusted-device workspace payload is not supported.");
+  }
+  return normalizeRecords(payload.records);
+}
+
+function stripLegacyAuthRecords(payload) {
+  return normalizeRecords(payload.records.filter(({ key }) =>
+    key !== SUPABASE_AUTH_STORAGE_KEY && key !== SUPABASE_AUTH_CODE_VERIFIER_KEY
+  ));
+}
+
 function openVaultDatabase() {
   if (databasePromise) return databasePromise;
   if (!globalThis.indexedDB?.open) {
@@ -269,7 +342,7 @@ function removeLegacyRecords(storage) {
   }
 }
 
-function activateVault({ key, salt, payload, backend }) {
+function activateVault({ key, salt, payload, backend, encrypt }) {
   inactiveUntilReload = false;
   const records = new Map(payload.records.map(({ key: recordKey, value }) => [recordKey, value]));
   activeVault = {
@@ -277,6 +350,7 @@ function activateVault({ key, salt, payload, backend }) {
     salt,
     records,
     backend,
+    encrypt,
     queue: Promise.resolve(),
     pendingWrites: 0,
     lastError: null,
@@ -288,7 +362,7 @@ function queuePersist(state) {
   const persist = async () => {
     if (activeVault !== state) return;
     const payload = normalizeRecords([...state.records].map(([key, value]) => ({ key, value })));
-    const envelope = await encryptPayload(payload, state.key, state.salt);
+    const envelope = await state.encrypt(payload);
     await state.backend.set(envelope);
     state.lastError = null;
   };
@@ -308,8 +382,192 @@ function queuePersist(state) {
 
 export async function hasEncryptedVault({ backend } = {}) {
   const envelope = await getBackend(backend).get();
-  return Boolean(envelope && typeof envelope === "object" &&
-    envelope.format === LOCAL_VAULT_FORMAT && envelope.version === LOCAL_VAULT_VERSION);
+  return Boolean(
+    envelope &&
+    typeof envelope === "object" &&
+    envelope.format === LOCAL_VAULT_FORMAT &&
+    (envelope.version === LOCAL_VAULT_VERSION || envelope.version === DEVICE_VAULT_VERSION)
+  );
+}
+
+function validateVaultAccountId(userId) {
+  if (typeof userId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(userId)) {
+    throw new Error("A verified signed-in account is required to open this local workspace.");
+  }
+}
+
+export async function getLocalVaultStatus(userId, { backend, keyProvider = getDeviceVaultKey } = {}) {
+  validateVaultAccountId(userId);
+  const envelope = await getBackend(backend).get();
+  if (!envelope) return { mode: "missing" };
+  if (envelope.format !== LOCAL_VAULT_FORMAT) return { mode: "unsupported" };
+  if (
+    envelope.version === LOCAL_VAULT_VERSION &&
+    envelope.kdf === "PBKDF2-SHA-256" &&
+    envelope.iterations === LOCAL_VAULT_KDF_ITERATIONS
+  ) return { mode: "legacy-passphrase" };
+  if (
+    envelope.version === DEVICE_VAULT_VERSION &&
+    envelope.kdf === "device-key-v1" &&
+    envelope.cipher === "AES-256-GCM"
+  ) {
+    if (envelope.accountId !== userId) return { mode: "different-account" };
+    try {
+      await keyProvider(userId);
+      return { mode: "trusted-device" };
+    } catch (error) {
+      if (error?.name === "DeviceVaultKeyMissingError") return { mode: "device-key-missing" };
+      throw error;
+    }
+  }
+  return { mode: "unsupported" };
+}
+
+export async function createDeviceVault(userId, {
+  storage = globalThis.localStorage,
+  backend,
+  lockManager,
+  keyProvider = getOrCreateDeviceVaultKey,
+} = {}) {
+  validateVaultAccountId(userId);
+  if (activeVault) throw new Error("The local workspace is already unlocked.");
+  await acquireVaultTabLock(lockManager);
+  try {
+    const selectedBackend = getBackend(backend);
+    if (await selectedBackend.get()) {
+      throw new Error("A local workspace already exists. Unlock or recover it instead of replacing it.");
+    }
+    const payload = stripLegacyAuthRecords(readLegacyRecords(storage));
+    const key = await keyProvider(userId);
+    const encrypt = (nextPayload) => encryptDevicePayload(nextPayload, key, userId);
+    const envelope = await encrypt(payload);
+    await selectedBackend.set(envelope);
+    const storedEnvelope = await selectedBackend.get();
+    const verified = await decryptDeviceEnvelope(storedEnvelope, key, userId);
+    if (JSON.stringify(verified) !== JSON.stringify(payload)) {
+      throw new Error("The trusted-device workspace failed read-back verification. Existing browser data was not removed.");
+    }
+    removeLegacyRecords(storage);
+    return activateVault({ key, salt: null, payload: verified, backend: selectedBackend, encrypt });
+  } catch (error) {
+    await releaseActiveVaultTabLock();
+    throw error;
+  }
+}
+
+export async function unlockDeviceVault(userId, {
+  storage = globalThis.localStorage,
+  backend,
+  lockManager,
+  keyProvider = getDeviceVaultKey,
+} = {}) {
+  validateVaultAccountId(userId);
+  if (activeVault) return { recordCount: activeVault.records.size };
+  await acquireVaultTabLock(lockManager);
+  try {
+    const selectedBackend = getBackend(backend);
+    const envelope = await selectedBackend.get();
+    if (!envelope) throw new Error("No encrypted local workspace exists in this browser.");
+    if (envelope.version !== DEVICE_VAULT_VERSION || envelope.accountId !== userId) {
+      throw new Error("This browser's encrypted workspace belongs to a different sign-in or needs one-time migration.");
+    }
+    const key = await keyProvider(userId);
+    const payload = await decryptDeviceEnvelope(envelope, key, userId);
+    const encrypt = (nextPayload) => encryptDevicePayload(nextPayload, key, userId);
+    removeLegacyRecords(storage);
+    return activateVault({ key, salt: null, payload, backend: selectedBackend, encrypt });
+  } catch (error) {
+    await releaseActiveVaultTabLock();
+    throw error;
+  }
+}
+
+export async function resetUnrecoverableDeviceVault(userId, {
+  backend,
+  confirmation,
+  keyDeleter = deleteDeviceVaultKey,
+} = {}) {
+  validateVaultAccountId(userId);
+  if (confirmation !== "RESET THIS DEVICE VAULT") {
+    throw new Error("Explicit confirmation is required before removing an unrecoverable local workspace.");
+  }
+  if (activeVault) throw new Error("Lock the current workspace before recovery reset.");
+  await acquireVaultTabLock();
+  try {
+    const selectedBackend = getBackend(backend);
+    const envelope = await selectedBackend.get();
+    if (!envelope || envelope.version !== DEVICE_VAULT_VERSION || envelope.accountId !== userId) {
+      throw new Error("The local workspace does not match this account or is not eligible for device-key recovery reset.");
+    }
+    try {
+      await getDeviceVaultKey(userId);
+      throw new Error("The original device key is available. Unlock the existing workspace instead of resetting it.");
+    } catch (error) {
+      if (error?.name !== "DeviceVaultKeyMissingError") throw error;
+    }
+    if (typeof selectedBackend.delete !== "function") {
+      throw new Error("This browser cannot remove the unrecoverable encrypted workspace safely.");
+    }
+    await selectedBackend.delete();
+    await keyDeleter(userId);
+    return true;
+  } finally {
+    await releaseActiveVaultTabLock();
+  }
+}
+
+export async function migrateLocalVaultToDevice(passphrase, userId, {
+  storage = globalThis.localStorage,
+  backend,
+  lockManager,
+  keyProvider = getOrCreateDeviceVaultKey,
+} = {}) {
+  validateVaultAccountId(userId);
+  validatePassphrase(passphrase);
+  if (activeVault) throw new Error("Lock the current workspace before migrating its encryption.");
+  await acquireVaultTabLock(lockManager);
+  const selectedBackend = getBackend(backend);
+  let originalEnvelope = null;
+  try {
+    originalEnvelope = await selectedBackend.get();
+    if (
+      !originalEnvelope ||
+      originalEnvelope.format !== LOCAL_VAULT_FORMAT ||
+      originalEnvelope.version !== LOCAL_VAULT_VERSION
+    ) {
+      throw new Error("This browser does not contain a passphrase-protected workspace to migrate.");
+    }
+
+    const legacy = await decryptEnvelope(originalEnvelope, passphrase);
+    const payload = stripLegacyAuthRecords(legacy.payload);
+    const key = await keyProvider(userId);
+    const encrypt = (nextPayload) => encryptDevicePayload(nextPayload, key, userId);
+    const nextEnvelope = await encrypt(payload);
+    await selectedBackend.set(nextEnvelope);
+
+    const storedEnvelope = await selectedBackend.get();
+    const verified = await decryptDeviceEnvelope(storedEnvelope, key, userId);
+    if (JSON.stringify(verified) !== JSON.stringify(payload)) {
+      throw new Error("The migrated workspace failed read-back verification.");
+    }
+
+    try {
+      removeLegacyRecords(storage);
+    } catch (error) {
+      await selectedBackend.set(originalEnvelope);
+      throw error;
+    }
+    return activateVault({ key, salt: null, payload: verified, backend: selectedBackend, encrypt });
+  } catch (error) {
+    if (originalEnvelope) {
+      try {
+        const current = await selectedBackend.get();
+        if (current?.version === DEVICE_VAULT_VERSION) await selectedBackend.set(originalEnvelope);
+      } catch { /* keep the original migration error and the safest available copy */ }
+    }
+    await releaseActiveVaultTabLock();
+    throw error;
+  }
 }
 
 const VAULT_WEB_LOCK_NAME = "scholarship-scout-local-vault-session";
@@ -396,7 +654,11 @@ export async function createLocalVault(passphrase, { storage = globalThis.localS
       throw new Error("The encrypted local vault did not pass its read-back verification. Existing browser data was not removed.");
     }
     removeLegacyRecords(storage);
-    return activateVault({ ...verified, backend: selectedBackend });
+    return activateVault({
+      ...verified,
+      backend: selectedBackend,
+      encrypt: (nextPayload) => encryptPayload(nextPayload, verified.key, verified.salt),
+    });
   } catch (error) {
     await releaseActiveVaultTabLock();
     throw error;
@@ -413,7 +675,11 @@ export async function unlockLocalVault(passphrase, { storage = globalThis.localS
     const unlocked = await decryptEnvelope(envelope, passphrase);
     // The encrypted copy is authoritative; this finishes interrupted cleanup.
     removeLegacyRecords(storage);
-    return activateVault({ ...unlocked, backend: selectedBackend });
+    return activateVault({
+      ...unlocked,
+      backend: selectedBackend,
+      encrypt: (nextPayload) => encryptPayload(nextPayload, unlocked.key, unlocked.salt),
+    });
   } catch (error) {
     await releaseActiveVaultTabLock();
     throw error;
@@ -462,6 +728,9 @@ export async function destroyLocalVault({
   storage = globalThis.localStorage,
   sessionStorage = globalThis.sessionStorage,
   backend,
+  userId,
+  keyDeleter = deleteDeviceVaultKey,
+  authStorageCleaner = clearEncryptedAuthStorage,
 } = {}) {
   const state = activeVault;
   const selectedBackend = state?.backend ?? getBackend(backend);
@@ -478,8 +747,21 @@ export async function destroyLocalVault({
     throw new Error("This browser storage provider does not support permanent local-data removal.");
   }
 
-  // Clear the encrypted record before changing browser metadata or reporting success.
+  // Determine the vault owner from the authenticated envelope so local-data
+  // deletion also removes its matching device key and encrypted auth session.
+  const existingEnvelope = await selectedBackend.get();
+  const vaultOwnerId = existingEnvelope?.version === DEVICE_VAULT_VERSION
+    ? existingEnvelope.accountId
+    : userId;
+  if (userId && vaultOwnerId && userId !== vaultOwnerId) {
+    throw new Error("The local workspace belongs to a different account and was not removed.");
+  }
+
+  // Remove the reusable auth session first: a page reload must not silently
+  // restore the current account after the user explicitly deletes local data.
+  await authStorageCleaner();
   await selectedBackend.delete();
+  if (vaultOwnerId) await keyDeleter(vaultOwnerId);
 
   if (state) {
     state.records.clear();

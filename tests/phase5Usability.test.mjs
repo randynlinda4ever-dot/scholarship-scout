@@ -41,7 +41,7 @@ test("compact layout preference persists locally and is exposed as an accessible
 test("offline state is announced while local workflows remain available", () => {
   assert.match(app, /addEventListener\('offline'/);
   assert.match(app, /addEventListener\('online'/);
-  assert.match(app, /You are offline[\s\S]*Local changes still work/);
+  assert.match(app, /You are offline[\s\S]*currently unlocked workspace can continue saving locally/);
   assert.match(app, /disabled=\{cloudBusy \|\| !isOnline/);
 });
 

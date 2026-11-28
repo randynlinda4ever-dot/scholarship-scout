@@ -19,12 +19,17 @@ test("query cleanup preserves ordinary words and removes repeated whitespace", (
   assert.doesNotMatch(result.query, /\\s{2,}/);
 });
 
-test("builds generic local and school resource searches from user-entered fields", () => {
+test("builds generic local and school resource searches without including private school or county details", () => {
   const queries = buildScholarshipQueries(profile, ["local", "school_resources"]);
   assert.equal(queries.length, 2);
-  assert.match(queries[0].query, /Sample County/);
-  assert.match(queries[1].query, /Example High School Example District/);
+  assert.match(queries[0].query, /Oregon/);
+  assert.match(queries[0].query, /community foundations/);
+  assert.match(queries[1].query, /school-based scholarships/i);
   assert.match(queries[1].query, /scholarship/i);
+  const serialized = JSON.stringify(queries);
+  assert.equal(serialized.includes("Sample County"), false);
+  assert.equal(serialized.includes("Example District"), false);
+  assert.equal(serialized.includes("Example High School"), false);
 });
 
 test("school resource searches remain generic when no school or district is entered", () => {

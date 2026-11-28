@@ -20,18 +20,19 @@ test("Google sign-in uses the same validated app callback and limited identity s
   assert.match(api, /queryParams:\s*\{\s*prompt:\s*[\"']select_account[\"']/);
 });
 
-test("anonymous cloud accounts link Google instead of switching to a different user id", () => {
-  assert.match(api, /linkIdentity\(\{\s*provider:\s*[\"']google[\"']/);
-  assert.match(api, /!data\.user\?\.is_anonymous/);
-  assert.match(app, /cloudUser\?\.is_anonymous/);
-  assert.match(app, /Link Google account/);
-  assert.match(app, /identity_already_exists/);
+test("Google is an alternate verified sign-in method and anonymous account linking is not exposed", async () => {
+  const emailGate = await read("src/lib/emailAuthGate.js");
+  assert.match(emailGate, /Continue with Google/);
+  assert.match(emailGate, /signInWithGoogle/);
+  assert.match(emailGate, /email_confirmed_at/);
+  assert.doesNotMatch(api, /linkIdentity\(/);
+  assert.doesNotMatch(app, /linkGoogleIdentity|Link Google account/);
 });
 
 test("PKCE callbacks initialize Auth even when the app initially opens on Overview", () => {
   assert.match(client, /flowType:\s*[\"']pkce[\"']/);
   assert.match(client, /detectSessionInUrl:\s*true/);
-  assert.match(client, /storage:\s*vaultStorage/);
+  assert.match(client, /storage:\s*encryptedAuthStorage/);
   assert.match(app, /hasPendingAuthCallback\(\)/);
   assert.match(app, /hasAuthCallback && event === 'INITIAL_SESSION'/);
 });
@@ -47,15 +48,16 @@ test("callback detection recognizes PKCE, provider errors, and legacy hash sessi
   assert.equal(getMagicLinkRedirectUrl({ origin: "https://scholarship-scout.org", pathname: "/" }), "https://scholarship-scout.org/");
 });
 
-test("Settings exposes Google sign-in when signed out and identity linking for anonymous users", () => {
-  assert.match(app, /Continue with Google/);
-  assert.match(app, /Link Google account/);
-  assert.match(app, /handleGoogleSignIn/);
-  assert.match(app, /Google sign-in is not enabled for this project yet/);
+test("the email entry screen exposes Google sign-in without creating anonymous sessions", async () => {
+  const emailGate = await read("src/lib/emailAuthGate.js");
+  assert.match(emailGate, /Continue with Google/);
+  assert.match(emailGate, /signInWithGoogle/);
+  assert.match(emailGate, /email_confirmed_at/);
+  assert.doesNotMatch(emailGate, /signInAnonymously/);
 });
 
 test("Google authentication is disclosed and requires a fresh legal acceptance", () => {
   assert.match(terms, /Google and Supabase Auth process the account identifier/);
-  assert.match(terms, /does not request access to Gmail, Drive/);
-  assert.match(acceptance, /2026-11-27\.4/);
+  assert.match(terms, /does not request access to Gmail, Google Drive/);
+  assert.match(acceptance, /2026-11-27\.7/);
 });

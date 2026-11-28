@@ -14,20 +14,35 @@ test("student workspace reads and writes through the encrypted storage adapter",
   assert.doesNotMatch(storage, /resolveStorage = \(\) => globalThis\.localStorage/);
 });
 
-test("Supabase authentication sessions use the encrypted storage adapter", async () => {
+test("Supabase auth and PKCE sessions use a separate encrypted IndexedDB adapter", async () => {
   const client = await read("src/lib/supabaseClient.ts");
-  assert.match(client, /import \{ vaultStorage \} from "\.\/localVault\.js"/);
-  assert.match(client, /storage:\s*vaultStorage/);
+  const keyStorage = await read("src/lib/deviceKeyStorage.js");
+  assert.match(client, /import \{ encryptedAuthStorage \} from "\.\/deviceKeyStorage\.js"/);
+  assert.match(client, /storage:\s*encryptedAuthStorage/);
   assert.match(client, /persistSession:\s*true/);
   assert.match(client, /autoRefreshToken:\s*true/);
+  assert.match(keyStorage, /createEncryptedAuthStorage/);
+  assert.match(keyStorage, /AES-GCM/);
+  assert.match(keyStorage, /AUTH_RECORD_PREFIX/);
+  assert.doesNotMatch(client, /storage:\s*vaultStorage/);
 });
 
-test("idle and manual vault locks stop an existing Supabase auto-refresh process", async () => {
+test("idle and manual vault locks stop Supabase refresh and serialize save/sign-out/lock", async () => {
   const app = await read("src/App.tsx");
   const client = await read("src/lib/supabaseClient.ts");
+  const coordinator = await read("src/lib/vaultSessionLock.js");
   assert.match(client, /export async function stopSupabaseAutoRefreshForVaultLock/);
   assert.match(client, /await client\.auth\.stopAutoRefresh\(\)/);
-  assert.match(app, /stopSupabaseAutoRefreshForVaultLock\(\)[\s\S]*?lockLocalVault\(\)/);
+  assert.match(app, /createVaultSessionLockCoordinator/);
+  assert.match(app, /signOutAndLock\(\)/);
+  assert.match(app, /lockAfterSignOut\(\)/);
+  assert.match(coordinator, /await flush\(\)/);
+  assert.match(coordinator, /await stopAutoRefresh\(\)/);
+  assert.match(coordinator, /await signOut\(\)/);
+  assert.match(coordinator, /await lock\(\)/);
+  assert.match(coordinator, /if \(inFlight\) return inFlight/);
+  assert.match(app, /15 \* 60 \* 1000/);
+  assert.match(app, /Lock workspace and sign out/);
 });
 
 test("the vault uses authenticated encryption and the browser's exclusive single-tab lock", async () => {
@@ -45,7 +60,7 @@ test("the vault uses authenticated encryption and the browser's exclusive single
   assert.match(vault, /activeVault\.pendingWrites > 0 \|\| activeVault\.lastError/);
   assert.doesNotMatch(vault, /BroadcastChannel/);
   assert.match(app, /15 \* 60 \* 1000/);
-  assert.match(app, /Lock vault now/);
+  assert.match(app, /Lock workspace and sign out/);
   assert.match(app, /scout:vault-persistence-error/);
   assert.doesNotMatch(app, /scout:vault-locked-elsewhere|scout:vault-lock-error/);
 });

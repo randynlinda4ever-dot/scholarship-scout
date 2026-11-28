@@ -7,26 +7,20 @@ const SOURCES = {
 };
 
 const CATEGORY_QUERIES = {
-  local: (p) => {
-    const place = [p.county, p.state].filter(Boolean).join(", ");
-    return { query: (place ? '"' + place + '" ' : "") + "local scholarships community foundations student awards " + (p.grade || "students") + " " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web };
-  },
-  school_resources: (p) => {
-    const institution = [p.school, p.district].filter(Boolean).join(" ");
-    return { query: institution ? '"' + institution + '" scholarships financial aid counselor school awards ' + (p.graduationYear || "") + " official" : "school-based scholarships counselor financial aid office student awards " + (p.graduationYear || "") + " official", sourceUrl: SOURCES.web };
-  },
-  regional: (p) => ({ query: ([p.county, p.state].filter(Boolean).join(" ") || "regional and community") + " scholarships foundations student awards " + (p.graduationYear || "") + " official", sourceUrl: SOURCES.web }),
-  state: (p) => ({ query: (p.state ? p.state + " " : "") + "state scholarship programs education grants student financial aid " + (p.graduationYear || "") + " official", sourceUrl: SOURCES.aid }),
-  academic: (p) => ({ query: "academic merit scholarships student achievement grades honors " + (p.grade || "students") + " " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
-  humanities: (p) => ({ query: ([p.plannedMajor, p.interests].filter(Boolean).join(" ") || "humanities arts and social sciences") + " scholarships students " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
-  leadership: (p) => ({ query: "student leadership civic engagement organization officer scholarships " + (p.grade || "students") + " " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
-  community_service: (p) => ({ query: "volunteer community service nonprofit involvement scholarships students " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
-  language: (p) => ({ query: (p.languages || "world language and multilingual") + " language learning bilingual student scholarships " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
-  employment: (p) => ({ query: "employer workplace career training student scholarships " + (p.careerInterests || "") + " " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
-  arts: (p) => ({ query: "visual art design theater music speech creative student scholarships " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
-  incoming_college: (p) => ({ query: (p.plannedCollege ? '"' + p.plannedCollege + '" ' : "") + "incoming college university student scholarships first year " + (p.graduationYear || "") + " official", sourceUrl: SOURCES.college }),
-  national: (p) => ({ query: "national scholarships for students " + (p.grade || "") + " " + (p.graduationYear || "") + " official foundations sponsors", sourceUrl: SOURCES.web }),
-  general: (p) => ({ query: "general scholarships for students broad eligibility application requirements " + (p.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
+  local: (profile) => ({ query: (profile.state ? profile.state + " " : "") + "local scholarships community foundations student awards " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
+  school_resources: (profile) => ({ query: "school-based scholarships counselor financial aid office district foundation student awards " + (profile.graduationYear || "") + " official", sourceUrl: SOURCES.web }),
+  regional: (profile) => ({ query: (profile.state ? profile.state + " " : "") + "regional scholarships foundations student awards " + (profile.graduationYear || "") + " official", sourceUrl: SOURCES.web }),
+  state: (profile) => ({ query: (profile.state ? profile.state + " " : "") + "state scholarship programs education grants student financial aid " + (profile.graduationYear || "") + " official", sourceUrl: SOURCES.aid }),
+  academic: (profile) => ({ query: "academic merit scholarships student achievement grades honors " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
+  humanities: (profile) => ({ query: "humanities arts history culture and social science student scholarships " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
+  leadership: (profile) => ({ query: "student leadership civic engagement organization officer scholarships " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
+  community_service: (profile) => ({ query: "volunteer community service nonprofit involvement scholarships students " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
+  language: (profile) => ({ query: "world language learning bilingual student scholarships " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
+  employment: (profile) => ({ query: "employer workplace career training student scholarships " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
+  arts: (profile) => ({ query: "visual art design theater music speech creative student scholarships " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.college }),
+  incoming_college: (profile) => ({ query: "incoming college university student scholarships first year " + (profile.graduationYear || "") + " official", sourceUrl: SOURCES.college }),
+  national: (profile) => ({ query: "national scholarships for students " + (profile.graduationYear || "") + " official foundations sponsors", sourceUrl: SOURCES.web }),
+  general: (profile) => ({ query: "general scholarships for students broad eligibility application requirements " + (profile.graduationYear || "") + " official sponsor", sourceUrl: SOURCES.web }),
 };
 const KNOWN_CATEGORIES = new Set(Object.keys(CATEGORY_QUERIES));
 
@@ -54,16 +48,9 @@ function clean(value, maxLength) {
 export function buildScholarshipQueries(profile = {}, categories = []) {
   const safeProfile = {
     state: clean(profile.state, 60),
-    county: clean(profile.county, 80),
-    district: clean(profile.district, 100),
-    school: clean(profile.school, 120),
-    grade: clean(profile.grade, 60),
-    graduationYear: clean(profile.graduationYear, 4),
-    plannedMajor: clean(profile.plannedMajor, 100),
-    plannedCollege: clean(profile.plannedCollege, 120),
-    interests: clean(profile.interests, 180),
-    careerInterests: clean(profile.careerInterests, 120),
-    languages: clean(profile.languages, 100),
+    graduationYear: /^\d{4}$/.test(clean(profile.graduationYear, 4))
+      ? clean(profile.graduationYear, 4)
+      : "",
   };
   const unique = [...new Set((Array.isArray(categories) ? categories : [])
     .filter((item) => typeof item === "string" && KNOWN_CATEGORIES.has(item)))];

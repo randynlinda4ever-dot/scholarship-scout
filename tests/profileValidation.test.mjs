@@ -44,6 +44,7 @@ test("rejects negative and nonnumeric service-hour values", () => {
   assert.equal(validateProfileChanges({ serviceHours: "" }, { serviceHours: "-1" }).valid, false);
   assert.equal(validateProfileChanges({ serviceHours: "" }, { serviceHours: "many" }).valid, false);
   assert.equal(validateProfileChanges({ serviceHours: "" }, { serviceHours: "42.5" }).valid, true);
+  assert.equal(validateProfileChanges({ serviceHours: "" }, { serviceHours: "1000001" }).valid, false);
 });
 
 test("validates GPA numerically and respects an explicitly entered scale", () => {
@@ -52,6 +53,8 @@ test("validates GPA numerically and respects an explicitly entered scale", () =>
   assert.equal(validateProfileChanges({ gpa: "", gpaType: "Unweighted 4.0 scale" }, { gpa: "4.1", gpaType: "Unweighted 4.0 scale" }).valid, false);
   assert.equal(validateProfileChanges({ gpa: "", gpaType: "Weighted 5.0 scale" }, { gpa: "4.8", gpaType: "Weighted 5.0 scale" }).valid, true);
   assert.equal(validateProfileChanges({ gpa: "" }, { gpa: "4.8" }).valid, true);
+  assert.equal(validateProfileChanges({ gpa: "" }, { gpa: "5.1" }).valid, false);
+  assert.equal(validateProfileChanges({ gpa: "", gpaType: "Weighted 6.0 scale" }, { gpa: "5.5", gpaType: "Weighted 6.0 scale" }).valid, false);
 });
 
 test("does not block unrelated profile edits because of older unchanged values", () => {

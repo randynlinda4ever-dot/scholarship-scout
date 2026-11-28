@@ -1,4 +1,4 @@
-const MAX_CATEGORIES = 4;
+const MAX_CATEGORIES = 14;
 const MAX_SEARCH_PAGE = 2;
 const MAX_RESULTS = 40;
 const SEARCH_CONCURRENCY = 4;
@@ -149,7 +149,10 @@ export function buildSearchJobs(state, graduationYear, categories) {
       }
     }
   }
-  return jobs.slice(0, MAX_SEARCH_REQUESTS);
+  // Preserve one initial query for every selected category. The adaptive
+  // runner applies the shared 24-request ceiling across stages; truncating
+  // this list here would silently starve categories after the first four.
+  return jobs;
 }
 export function scoreCandidateQuality({ title = "", excerpt = "", domain = "", state = "", year = "" } = {}) {
   const titleText = clean(title, 220).toLowerCase();
@@ -380,11 +383,12 @@ export async function runAdaptiveSearches(gatewayBase, gatewayToken, jobs, {
     if (!eligibleStageJobs.length) continue;
     let stageRetries = configuredRetries;
     let maxJobsInStage = Math.floor(remainingAttempts / (1 + stageRetries));
-    if (maxJobsInStage < eligibleStageJobs.length && remainingAttempts >= eligibleStageJobs.length) {
-      // Use remaining slots for full category coverage rather than reserving
-      // retries that cannot fit for the entire stage.
+    if (maxJobsInStage < eligibleStageJobs.length) {
+      // When retry reservations would prevent the stage from using the
+      // remaining budget, spend those slots on more distinct category/query
+      // coverage instead. Earlier stages already had retry protection.
       stageRetries = 0;
-      maxJobsInStage = eligibleStageJobs.length;
+      maxJobsInStage = remainingAttempts;
     }
     const stageJobs = eligibleStageJobs.slice(0, maxJobsInStage);
     if (!stageJobs.length) break;

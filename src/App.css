@@ -1355,3 +1355,84 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     font-size: 11px;
   }
 }
+
+
+/* Document import stays visually grouped with the profile or essay it updates. */
+.document-import-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border: 1px dashed var(--border, #514D70);
+  border-radius: 12px;
+  background: var(--surface-muted, rgba(255,255,255,.025));
+}
+.document-import-card p,
+.document-import-card small { display: block; margin: 6px 0 0; color: var(--muted, #A8A5BC); line-height: 1.5; }
+.document-import-card b { color: var(--text, inherit); }
+.document-upload-label { position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: 42px; padding: 0 14px; cursor: pointer; white-space: nowrap; }
+.document-upload-label input { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; clip-path: inset(50%); }
+.document-upload-label:focus-within { outline: 3px solid var(--focus, #A69AE8); outline-offset: 3px; }
+.transcript-import-review { display: grid; gap: 10px; margin: 12px 0 16px; padding: 16px; border: 1px solid var(--border, #514D70); border-radius: 12px; }
+.transcript-import-review .section-title-row { margin-bottom: 2px; }
+.transcript-import-review .check-row { align-items: center; }
+.transcript-import-review .check-row span { display: grid; gap: 3px; }
+.transcript-import-review .check-row small { color: var(--muted, #A8A5BC); overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .document-import-card { align-items: stretch; flex-direction: column; gap: 12px; }
+  .document-upload-label { width: 100%; }
+}
+
+
+/* Profile controls distinguish required search setup from optional sponsor details. */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+.field-requirement {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--border, rgba(148, 163, 184, .35));
+  border-radius: 999px;
+  color: var(--muted, #9ca3af);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .035em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+.field-requirement[data-requirement="required"] {
+  color: var(--text, inherit);
+  border-color: var(--accent, #8b83cf);
+}
+.field-help {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted, #9ca3af);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.advanced-profile-fields {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border, rgba(148, 163, 184, .25));
+  border-radius: 12px;
+  background: var(--surface-muted, rgba(148, 163, 184, .04));
+}
+.advanced-profile-fields summary {
+  color: var(--text, inherit);
+  font-weight: 700;
+  cursor: pointer;
+}
+.advanced-profile-fields[open] summary {
+  margin-bottom: 14px;
+}
+.advanced-profile-fields .form-grid {
+  margin-top: 10px;
+}

@@ -31,15 +31,17 @@ test('manual search and automated discovery communicate separate privacy boundar
   const discovery = section("{tab === 'Discovery'", "{tab === 'Cloud Search'");
   const cloudSearch = section("{tab === 'Cloud Search'", "{tab === 'Scholarships'");
   assert.match(discovery, /generic scholarship terms only/);
-  assert.match(discovery, /Google is contacted only when you choose to open a search link/);
-  assert.match(cloudSearch, /Only your state, graduation year, and selected categories are sent/);
+  assert.match(discovery, /Google receives the generic query and ordinary connection information only when you choose to open a link/);
+  assert.match(cloudSearch, /Automated live research currently targets U\.S\. states and sends only your state, graduation year, and selected research categories/);
   assert.match(cloudSearch, /Verify eligibility, award details, and deadlines on each official sponsor page/);
 });
 
 test('cloud account management remains in Settings while live discovery exposes saved records', () => {
   const settings = section("{tab === 'Settings'", "{tab === 'Discovery'");
   const cloudSearch = section("{tab === 'Cloud Search'", "{tab === 'Scholarships'");
-  assert.match(settings, /id="cloud-email"/);
+  assert.match(settings, /Email account and sign-in/);
+  assert.match(settings, /Lock workspace and sign out/);
+  assert.match(settings, /Import backup/);
   assert.match(cloudSearch, /Saved cloud records/);
   assert.doesNotMatch(cloudSearch, /id="cloud-email"|Check session status|cloud-auth-form/);
 });

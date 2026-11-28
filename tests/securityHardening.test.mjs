@@ -28,14 +28,23 @@ test('an existing browser profile remains locally stored and loadable', () => {
   assert.match(app, /mergeProfile\(readLocalJson\('scout-profile'\)\)/);
 });
 
-test('Supabase sessions persist and refresh automatically in the browser', () => {
+test('Supabase sessions persist and refresh automatically in the browser', async () => {
   assert.match(client, /autoRefreshToken:\s*true/);
   assert.match(client, /persistSession:\s*true/);
   assert.match(client, /detectSessionInUrl:\s*true/);
   assert.match(app, /client\.auth\.onAuthStateChange/);
-  assert.match(app, /const hasAuthCallback = hasPendingAuthCallback\(\);/);
-  assert.match(app, /if \(tab !== 'Settings' && tab !== 'Cloud Search' && !hasAuthCallback\) return;/);
-  assert.match(app, /getSupabaseClient\(\)\.then\(\(client\) =>/);
+  const bootstrap = await read('src/bootstrap.ts');
+  const emailGate = await read('src/lib/emailAuthGate.js');
+  assert.match(bootstrap, /renderEmailAuthGate/);
+  assert.match(bootstrap, /renderAuthenticatedVaultGate/);
+  assert.match(emailGate, /client\.auth\.getUser\(\)/);
+  assert.match(emailGate, /email_confirmed_at/);
+  assert.match(app, /client\.auth\.onAuthStateChange/);
+  const coordinator = await read('src/lib/vaultSessionLock.js');
+  assert.match(app, /createVaultSessionLockCoordinator/);
+  assert.match(app, /lockWorkspace\(true\)/);
+  assert.match(coordinator, /await flush\(\)[\s\S]*?await stopAutoRefresh\(\)[\s\S]*?await signOut\(\)[\s\S]*?await lock\(\)/);
+  assert.match(coordinator, /if \(inFlight\) return inFlight/);
 });
 
 test('browser application code never embeds a privileged Supabase key', () => {

@@ -18,9 +18,9 @@ test("first-run scholarship discovery contains no school, district, county, or p
 });
 
 test("school and district are editable optional profile inputs with no suggested institution", () => {
-  assert.match(app, /Field label="School name \(optional\)" value=\{profileDraft\.school\}/);
-  assert.match(app, /Field label="School district \(optional\)" value=\{profileDraft\.district\}/);
-  assert.match(app, /School name and district are optional/);
+  assert.match(app, /Field label="School name \(local result ordering\)" value=\{profileDraft\.school\}/);
+  assert.match(app, /Field label="School district" value=\{profileDraft\.district\}/);
+  assert.match(app, /Used only on this device to prioritize returned results that mention your school/);
 });
 
 test("discovery categories are reusable and include school-based searches without named schools", () => {
@@ -28,7 +28,9 @@ test("discovery categories are reusable and include school-based searches withou
   assert.match(discovery, /id: "local"/);
 });
 
-test("generic profile version does not embed a student's school, organization, or region", () => {
-  assert.match(app, /profileVersion: 'profile-general-2026-11'/);
-  assert.match(app, /PROFILE_VERSION = 'profile-general-2026-11'/);
+test("generic profile version does not embed a student's school, organization, or region", async () => {
+  assert.match(app, /profileVersion: 'profile-general-2026-11-v3'/);
+  const profileModel = await readFile(new URL("../src/lib/profileModel.js", import.meta.url), "utf8");
+  assert.match(profileModel, /CURRENT_PROFILE_VERSION = "profile-general-2026-11-v3"/);
+  assert.match(app, /PROFILE_VERSION = CURRENT_PROFILE_VERSION/);
 });

@@ -89,7 +89,7 @@ test("the gate keeps all workspace code unloaded until an unchecked agreement is
   assert.doesNotMatch(entry, /<AppErrorBoundary>/);
   assert.doesNotMatch(entry, /installReliabilityMonitoring/);
   assert.match(app, /installReliabilityMonitoring\(\)/);
-  assert.match(app, /imported only after legal acceptance and local-vault unlock/);
+  assert.match(app, /imported only after legal acceptance, verified email sign-in, and local-vault unlock/);
   assert.match(appStyles, /@import url\('https:\/\/fonts\.googleapis\.com/);
   assert.doesNotMatch(gateStyles, /@import|url\(https?:/i);
 });
@@ -100,15 +100,16 @@ test("the full notice discloses actual local, search, cloud, age, and service li
     "at least 13",
     "parent or legal guardian",
     "encrypts your student profile",
-    "local vault passphrase",
-    "does not receive that passphrase",
+    "non-exportable encryption key",
+    "does not receive the local vault contents",
     "malicious software",
     "permanent account-deletion workflow",
     "privacy-request form in settings",
-    "state, expected graduation year, and selected scholarship categories",
+    "selected U.S. state, expected graduation year, and selected scholarship category IDs",
     "Google",
     "account provider",
     "email sign-in link",
+    "does not request access to your email inbox",
     "does not submit scholarship applications",
     "does not warrant that scholarship information",
     "Settings provides a permanent cloud-account deletion workflow",
@@ -118,6 +119,14 @@ test("the full notice discloses actual local, search, cloud, age, and service li
     "stored in this browser",
     "parent/guardian acknowledgement status",
     "not server-side proof of identity",
+    "existing vault passphrase once to verify and migrate",
+    "Cloud sponsor and source records are stored separately",
+    "does not upload a cloud copy of your student profile or local eligibility assessments",
+    "existing vault passphrase once to verify and migrate",
+    "Cloud sponsor and source records are stored separately",
+    "does not upload a cloud copy of your student profile",
+    "The current app does not upload a cloud copy of your student profile or local eligibility assessments.",
+
   ]) {
     assert.ok(terms.toLowerCase().includes(phrase.toLowerCase()), `missing disclosure: ${phrase}`);
   }
@@ -127,4 +136,15 @@ test("accepted users can reopen the notice from Settings", async () => {
   const app = await read("src/App.tsx");
   assert.match(app, /scholarship-scout:review-legal/);
   assert.match(app, /Review Terms of Service & Privacy Notice/);
+});
+
+
+test("privacy notice accurately discloses U.S.-only live search and local post-search ranking", async () => {
+  const terms = await read("src/legal/terms.ts");
+  assert.match(terms, /Automated live discovery currently supports U\.S\. state targeting only/);
+  assert.match(terms, /selected U\.S\. state, expected graduation year, and selected scholarship category IDs/);
+  assert.match(terms, /browser may compare result titles and excerpts against locally stored county, school name, education level, planned major, interests, academic coursework and honors, activities, service experience, employment, languages, certifications, and custom ranking keywords/);
+  assert.match(terms, /are not sent as part of the search request/);
+  assert.match(terms, /non-exportable encryption key/);
+  assert.match(terms, /The sign-in screen also offers Google sign-in/);
 });

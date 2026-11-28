@@ -106,12 +106,6 @@ export interface ScholarshipsPageModel {
   trackerSortBy: 'name' | 'award' | 'deadline' | 'priority' | 'applicationStatus' | 'eligibility';
 }
 
-export interface EligibilityFiltersPageModel {
-  profileDraft: Profile;
-  profileReadiness: ProfileReadiness;
-  profileSaveStatus: 'idle' | 'saved' | 'draft' | 'unavailable';
-  saveProfile: (next: Profile) => void;
-}
 
 export interface ApplicationPrepPageModel {
   APPLICATION_CHECKLIST_STEPS: readonly string[];

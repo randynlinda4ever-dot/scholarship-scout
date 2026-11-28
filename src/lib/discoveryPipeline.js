@@ -85,13 +85,22 @@ function relevance(item, profile = {}) {
     reasons.push(`Mentions class of ${year}`);
   }
 
+  // These values are already present in the encrypted local profile. They are
+  // compared only with returned titles/excerpts in this browser, never added
+  // to the scholarship-discovery request.
   const keywordFields = [
     profile.searchKeywords,
     profile.plannedMajor,
     profile.interests,
-    profile.academicStrengths,
-    profile.careerInterests,
-    profile.awardsHonors,
+    profile.school,
+    profile.academicHonors,
+    profile.apCourses,
+    profile.dualCreditCourses,
+    profile.activities,
+    profile.service,
+    profile.employment,
+    profile.languages,
+    profile.certifications,
   ];
   const keywords = [...new Set(keywordFields
     .flatMap((value) => String(value ?? "").split(/[,;\n]/))

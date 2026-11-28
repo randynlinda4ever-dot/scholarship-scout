@@ -5,7 +5,7 @@ import { webcrypto } from "node:crypto";
 
 globalThis.crypto ??= webcrypto;
 
-const { createLocalVault, flushLocalVault, lockLocalVault, unlockLocalVault, vaultStorage } =
+const { createDeviceVault, flushLocalVault, lockLocalVault, unlockDeviceVault, vaultStorage } =
   await import("../src/lib/localVault.js");
 const { writeJsonStorage } = await import("../src/lib/browserStorage.js");
 
@@ -40,11 +40,13 @@ function memoryLockManager() {
   };
 }
 
-test("profile drafts save and restore locally without a cloud login", async () => {
+test("profile drafts save and restore in the encrypted account-linked device vault", async () => {
   const storage = memoryStorage();
   const backend = memoryBackend();
   const lockManager = memoryLockManager();
-  const passphrase = "a memorable offline vault passphrase";
+  const userId = "11111111-1111-4111-8111-111111111111";
+  const deviceKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  const keyProvider = async () => deviceKey;
   const profileDraft = {
     state: "Texas",
     graduationYear: "2027",
@@ -52,13 +54,13 @@ test("profile drafts save and restore locally without a cloud login", async () =
     activities: "Student activities and community service",
   };
 
-  // No Supabase client, user, or sign-in is created in this test.
-  await createLocalVault(passphrase, { storage, backend, lockManager });
+  // The verified user identity is supplied by the email-authentication gate.
+  await createDeviceVault(userId, { storage, backend, lockManager, keyProvider });
   assert.equal(writeJsonStorage("scout-profile-draft", profileDraft), true);
   await flushLocalVault();
   await lockLocalVault();
 
-  await unlockLocalVault(passphrase, { storage, backend, lockManager });
+  await unlockDeviceVault(userId, { storage, backend, lockManager, keyProvider });
   assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile-draft")), profileDraft);
   await lockLocalVault();
 });
@@ -90,7 +92,10 @@ test("the profile editor autosaves drafts locally before validation and independ
   assert.match(app.slice(saveProfileStart, saveProfileEnd), /setProfileDraft\(next\)/);
   assert.doesNotMatch(app.slice(saveProfileStart, saveProfileEnd), /cloudUser|getSupabaseClient|saveCloudScholarship/);
 
-  assert.match(app, /Profile changes saved in this browser’s encrypted vault\. No account sign-in is required/);
-  assert.match(app, /Your unfinished profile is saved as a draft in this browser’s encrypted vault/);
-  assert.match(app, /Sign-in is only needed for optional cloud scholarship records/);
+  assert.match(app, /A verified email account is required to open Scholarship Scout/);
+  assert.match(app, /Your unfinished profile is saved as a draft in this browser/);
+  const authGate = await readFile(new URL("../src/lib/emailAuthGate.js", import.meta.url), "utf8");
+  assert.match(authGate, /A verified email address is required/);
+  assert.match(authGate, /email_confirmed_at/);
+  assert.doesNotMatch(authGate, /signInAnonymously|is_anonymous\s*:\s*true/);
 });

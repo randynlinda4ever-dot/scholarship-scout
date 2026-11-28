@@ -14,20 +14,23 @@ test('search action row avoids repeating the page title', () => {
   assert.doesNotMatch(cloudSearch, /<b>Live scholarship research<\/b>/);
 });
 
-test('public access and privacy explanation appears only once', () => {
-  assert.match(cloudSearch, /Public search works without signing in or creating an account/);
-  assert.doesNotMatch(cloudSearch, /Public search — no account required/);
-  assert.doesNotMatch(cloudSearch, /Search requests are rate-limited and contain only state/);
+test('required email access and search privacy boundaries are clear', () => {
+  assert.match(cloudSearch, /Your email account is required to use Scholarship Scout/);
+  assert.match(cloudSearch, /Automated live research currently targets U\.S\. states and sends only your state, graduation year, and selected research categories/);
+  assert.match(cloudSearch, /Transcript files, essay drafts, and the rest of your student profile are not sent to the search service/);
+  assert.doesNotMatch(cloudSearch, /Public search works without signing in/);
 });
 
-test('category instructions do not explain the obvious rerun workflow', () => {
-  assert.match(cloudSearch, /Choose up to four categories for each search/);
-  assert.doesNotMatch(cloudSearch, /You can run another search with a different selection/);
+test('research categories expose the full deployed selection set', () => {
+  assert.match(cloudSearch, /All currently deployed categories can be combined in one run/);
+  assert.match(cloudSearch, /selectableDiscoveryCategories\.length/);
+  assert.doesNotMatch(cloudSearch, /up to four categories|length < 4/);
 });
 
-test('connected account panel does not duplicate persistent Settings navigation', () => {
-  assert.match(cloudSearch, /Cloud sponsor records are private to this account/);
-  assert.doesNotMatch(cloudSearch, />Manage account<\/button>/);
+test('saved cloud records are available only inside the authenticated workspace', () => {
+  assert.match(cloudSearch, /cloudUser && liveResults/);
+  assert.match(cloudSearch, /Saved cloud records/);
+  assert.doesNotMatch(cloudSearch, /id="cloud-email"|Manage account/);
 });
 
 test('result verification guidance remains visible', () => {

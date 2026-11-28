@@ -1,14 +1,83 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const cloudApi = await readFile(new URL('../src/lib/scholarshipApi.ts', import.meta.url), 'utf8');
 const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
-test('email sign-in remains available as an optional account path', () => { assert.match(app, /id="cloud-email"/); assert.match(app, /htmlFor="cloud-email"/); assert.match(app, /VITE_SUPABASE_PUBLISHABLE_KEY|supabaseConfigured/); assert.doesNotMatch(app, /!supabaseConfigured \? <div className="panel cloud-setup">/); });
-test('live scholarship search is public while account management stays in Settings', () => { const cloudSearch=app.slice(app.indexOf("{tab === 'Cloud Search'"),app.indexOf("{tab === 'Scholarships'")); const settings=app.slice(app.indexOf("{tab === 'Settings'"),app.indexOf("{tab === 'Discovery'")); assert.match(cloudSearch,/Public search works without signing in or creating an account/); assert.match(settings,/id="cloud-email"/); assert.doesNotMatch(app,/Cloud account required|ensureCloudUser\(/); assert.doesNotMatch(cloudApi,/ensureAnonymousUser/); assert.match(cloudApi,/runLiveScholarshipDiscovery[\s\S]*?const client = await requireClient\(\)/); });
-test('theme preference is toggleable and persisted locally', () => { assert.match(app,/localStorage\.getItem\('scout-theme'\)/); assert.match(app,/localStorage\.setItem\('scout-theme', theme\)/); assert.match(app,/data-theme=\{theme\}/); assert.match(app,/aria-pressed=\{theme === 'light'\}/); assert.match(styles,/\.theme-toggle/); });
-test('manual search suggestions remain generic and do not disclose profile fields', () => { const discovery=app.slice(app.indexOf("{tab === 'Discovery'"),app.indexOf("{tab === 'Cloud Search'")); assert.match(discovery,/generic scholarship terms only/); assert.match(discovery,/do not include your profile, school, grades, activities, location/); assert.match(app,/buildManualSearchQueries\(\)/); assert.match(app,/value=\{profileDraft\.academicHonors\}/); assert.match(app,/value=\{profileDraft\.interests\}/); assert.match(app,/value=\{profileDraft\.searchKeywords\}/); });
-test('older profile backups merge with defaults and restore through a rollback-capable storage batch', () => { assert.match(app,/const restoredProfile = mergeProfile\(imported\.profile\)/); assert.match(app,/const storageResult = writeJsonStorageBatch\(\{/); assert.match(app,/if \(!storageResult\.ok\)/); assert.match(app,/setProfile\(restoredProfile\)/); assert.doesNotMatch(app,/saveProfile\(restoredProfile\)/); });
-test('live web discovery rechecks Supabase auth and protects against stale session state', () => { assert.match(app,/let authEventObserved = false/); assert.match(app,/authEventObserved = true/); assert.match(app,/if \(active && !authEventObserved\)/); assert.match(app,/const user = await getCloudUser\(\)/); assert.ok(app.indexOf('const user = await getCloudUser()') < app.indexOf('const run = await runLiveScholarshipDiscovery')); assert.match(cloudApi,/export async function getCloudUser\(\)[\s\S]*?await getSupabaseClient\(\)[\s\S]*?client\.auth\.getUser\(\)/); });
-test('live web discovery keeps category selection and result review flow', () => { const cloudSearch=app.slice(app.indexOf("{tab === 'Cloud Search'"),app.indexOf("{tab === 'Scholarships'")); assert.match(cloudSearch,/<WorkspaceSubnav label="Scholarship search method"/); assert.match(cloudSearch,/value: 'Cloud Search', label: 'Live web discovery'/); assert.match(cloudSearch,/Run research/); assert.match(cloudSearch,/DISCOVERY_CATEGORY_OPTIONS\.map/); assert.match(cloudSearch,/current\.length < 4/); assert.match(cloudSearch,/Live scholarship results/); assert.match(app,/item\.relevance_score/); assert.match(cloudSearch,/Sponsor, award, deadline, and eligibility remain unverified/); assert.doesNotMatch(cloudSearch,/SearXNG|Exa/); });
-test('manual and automated discovery explain their separate data boundaries', () => { const discovery=app.slice(app.indexOf("{tab === 'Discovery'"),app.indexOf("{tab === 'Cloud Search'")); const cloudSearch=app.slice(app.indexOf("{tab === 'Cloud Search'"),app.indexOf("{tab === 'Scholarships'")); assert.match(discovery,/Google is contacted only when you choose to open a search link/i); assert.match(discovery,/Each link uses generic search terms and does not read your profile/i); assert.match(cloudSearch,/Only your state, graduation year, and selected categories are sent/); assert.match(cloudSearch,/Verify eligibility, award details, and deadlines on each official sponsor page/); });
+const bootstrap = await readFile(new URL('../src/bootstrap.ts', import.meta.url), 'utf8');
+const vaultGate = await readFile(new URL('../src/lib/localVaultGate.js', import.meta.url), 'utf8');
+const emailGate = await readFile(new URL('../src/lib/emailAuthGate.js', import.meta.url), 'utf8');
+
+test('email authentication is the primary bootstrap gate before any local workspace is loaded', () => {
+  assert.match(bootstrap, /renderEmailAuthGate/);
+  assert.match(bootstrap, /renderAuthenticatedVaultGate/);
+  assert.ok(bootstrap.indexOf('await renderEmailAuthGate') < bootstrap.indexOf('await renderAuthenticatedVaultGate'));
+  assert.doesNotMatch(bootstrap, /renderLocalVaultGate\(root/);
+  assert.match(bootstrap, /await import\("\.\/main"\)/);
+  assert.match(vaultGate, /createDeviceVault\(user\.id\)/);
+  assert.match(vaultGate, /unlockDeviceVault\(user\.id\)/);
+  assert.match(vaultGate, /migrateLocalVaultToDevice\(input\.value, user\.id\)/);
+});
+
+test('returning email sessions restore from encrypted auth storage before workspace unlock', () => {
+  assert.match(emailGate, /client\.auth\.getSession\(\)/);
+  assert.match(emailGate, /client\.auth\.getUser\(\)/);
+  assert.match(emailGate, /onAuthStateChange/);
+  assert.ok(emailGate.indexOf('await onAuthenticated(data.user)') < emailGate.indexOf('authenticated = true'));
+  assert.match(emailGate, /signOut\(\{ scope: "local" \}\)/);
+});
+
+test('account UI treats verified email as required and supports full sign-out', () => {
+  const settings = app.slice(app.indexOf("{tab === 'Settings'"), app.indexOf("{tab === 'Discovery'"));
+  assert.match(settings, /Email account and sign-in/);
+  assert.match(settings, /A verified email account is required/);
+  assert.match(settings, /Sign out and lock workspace/);
+  assert.match(settings, /Export encrypted backup/);
+  assert.match(settings, /Import backup/);
+  assert.doesNotMatch(settings, /Optional cloud account|Email sign-in is only needed/);
+});
+
+test('live search uses more than four research categories from the deployed allowlist', () => {
+  const cloudSearch = app.slice(app.indexOf("{tab === 'Cloud Search'"), app.indexOf("{tab === 'Scholarships'"));
+  assert.match(cloudSearch, /selectableDiscoveryCategories\.length/);
+  assert.match(cloudSearch, /toggleDiscoveryCategory\(current, category\.id, event\.target\.checked\)/);
+  assert.match(cloudSearch, /All currently deployed categories can be combined/);
+  assert.doesNotMatch(cloudSearch, /current\.length < 4|length >= 4|\/4 selected|up to four/);
+});
+
+test('transcript upload extracts suggestions that users explicitly review before profile changes', () => {
+  const academicStart = app.indexOf('<h3>Academic record</h3>');
+  const academicEnd = app.indexOf('<h3>Activities, service and reference notes</h3>', academicStart);
+  const academic = app.slice(academicStart, academicEnd);
+  assert.match(academic, /type="file"/);
+  assert.match(academic, /Choose transcript/);
+  assert.match(academic, /transcriptSuggestions\.map/);
+  assert.match(academic, /Apply selected values to profile/);
+  assert.match(app, /extractDocumentText\(file\)/);
+  assert.match(app, /extractTranscriptSuggestions\(text\)/);
+  assert.match(app, /No document is uploaded to the server/);
+});
+
+test('essay documents import to the selected scholarship workspace without remote upload', () => {
+  assert.match(app, /Import an existing essay draft/);
+  assert.match(app, /Upload essay/);
+  assert.match(app, /createEssayDraftFromDocument\(file\.name, text\)/);
+  assert.match(app, /savePrepWorkspace\(\{ \.\.\.prepWorkspace, essays: \[\.\.\.prepWorkspace\.essays, essay\] \}\)/);
+  assert.match(app, /not sent to the sponsor or search service/);
+});
+
+test('theme preference remains persisted and accessible', () => {
+  assert.match(app, /localStorage\.getItem\('scout-theme'\)/);
+  assert.match(app, /localStorage\.setItem\('scout-theme', theme\)/);
+  assert.match(app, /aria-pressed=\{theme === 'light'\}/);
+  assert.match(styles, /\.theme-toggle/);
+});
+
+test('profile and essay document text are not sent in scholarship discovery requests', () => {
+  const searchHandler = app.slice(app.indexOf('const handleCloudSearch'), app.indexOf('const handleCloudSave'));
+  assert.match(searchHandler, /runLiveScholarshipDiscovery\(/);
+  assert.match(searchHandler, /selectedDiscoveryCategories/);
+  assert.doesNotMatch(searchHandler, /transcript|essay|documentText|profileDraft/);
+  assert.match(cloudApi, /runLiveScholarshipDiscovery/);
+});

@@ -63,26 +63,27 @@ export type Scholarship = {
 };
 
 export type Profile = {
+  country: string;
   state: string;
   county: string;
   citizenship: string;
   age: string;
+  /** Legacy user-entered school name. Retained locally and used only for on-device result ordering. */
   school: string;
+  schoolCountry: string;
   schoolState: string;
   grade: string;
   graduationYear: string;
   plannedCollege: string;
+  plannedCollegeCountry: string;
   plannedCollegeState: string;
   plannedMajor: string;
-  degreeGoal: string;
   collegeStatus: string;
   gpa: string;
   gpaType: string;
   classRank: string;
   rankDetails: string;
   credits: string;
-  programNotes: string;
-  texasGrantNotation: string;
   act: string;
   sat: string;
   apCourses: string;
@@ -102,11 +103,6 @@ export type Profile = {
   nseMedalYears: string;
   nseRegistered2027: string;
   fourHMembershipStatus: string;
-  academicStrengths: string;
-  careerInterests: string;
-  awardsHonors: string;
-  preferredCollegeLocation: string;
-  enrollmentPlan: string;
   searchKeywords: string;
   profileVersion: string;
 };

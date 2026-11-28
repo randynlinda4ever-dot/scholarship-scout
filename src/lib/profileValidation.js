@@ -70,15 +70,20 @@ export function validateProfileChanges(previous = {}, next = {}) {
   }
   if (changed(previous, next, "serviceHours")) {
     const hours = parseOptionalNumber(next?.serviceHours);
-    if (!hours.empty && (!hours.valid || hours.value < 0)) errors.push("Enter community service hours as a number of zero or more.");
+    if (!hours.empty && (!hours.valid || hours.value < 0 || hours.value > 1_000_000)) {
+      errors.push("Enter community service hours as a number from 0 through 1,000,000.");
+    }
   }
   if (changed(previous, next, "gpa") || changed(previous, next, "gpaType")) {
     const gpa = parseOptionalNumber(next?.gpa);
-    if (!gpa.empty && (!gpa.valid || gpa.value < 0)) errors.push("Enter GPA as a non-negative number.");
-    else if (!gpa.empty && gpa.valid) {
-      const scaleValues = String(next?.gpaType ?? "").match(/\d+(?:\.\d+)?/g)?.map(Number).filter((value) => Number.isFinite(value) && value >= 2 && value <= 100) ?? [];
+    if (!gpa.empty && (!gpa.valid || gpa.value < 0 || gpa.value > 5)) {
+      errors.push("Enter a comparable GPA from 0 through 5.0. Values on higher scales cannot be compared reliably with the current sponsor criteria.");
+    } else if (!gpa.empty && gpa.valid) {
+      const scaleValues = String(next?.gpaType ?? "").match(/\d+(?:\.\d+)?/g)?.map(Number).filter((value) => Number.isFinite(value) && value >= 2 && value <= 5) ?? [];
       const scale = scaleValues.length ? Math.max(...scaleValues) : null;
-      if (scale !== null && gpa.value > scale) errors.push(`GPA cannot exceed the maximum on the entered scale (${scale}).`);
+      if (scale !== null && gpa.value > scale) {
+        errors.push("GPA cannot exceed the maximum on the entered scale (" + scale + ").");
+      }
     }
   }
   return { valid: errors.length === 0, errors };

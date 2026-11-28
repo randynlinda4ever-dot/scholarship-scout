@@ -57,7 +57,8 @@ test("deletion disclosures cover cloud cascade, token expiry, and the local-devi
 test("privacy request and deletion UI do not expose internal service names or implementation settings", async () => {
   const terms = await read("src/legal/terms.ts");
   assert.doesNotMatch(terms, /SearXNG|Edge Function|verify_jwt|Upstash|service_role|project_ref|table_name|functions\/v1/i);
-  assert.match(terms, /only the broad search filters needed for the request: your state, expected graduation year, and selected scholarship categories/i);
+  assert.match(terms, /Automated live discovery currently supports U\.S\. state targeting only/i);
+  assert.match(terms, /selected U\.S\. state, expected graduation year, and selected scholarship category IDs/i);
   assert.match(terms, /permanent cloud-account deletion workflow/i);
   assert.match(terms, /privacy-request form in Settings/i);
 });

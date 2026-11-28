@@ -53,7 +53,14 @@ test("destroying a local vault removes its encrypted envelope and app-owned brow
   });
   await vaultStorage.setItem("scout-profile", JSON.stringify({ state: "Oklahoma" }));
 
-  await destroyLocalVault({ storage, sessionStorage, backend });
+  let authStorageCleared = false;
+  await destroyLocalVault({
+    storage,
+    sessionStorage,
+    backend,
+    authStorageCleaner: async () => { authStorageCleared = true; return true; },
+  });
+  assert.equal(authStorageCleared, true);
 
   assert.equal(backend.inspect(), null);
   assert.equal(storage.getItem("scholarship-scout.legal-acceptance"), null);

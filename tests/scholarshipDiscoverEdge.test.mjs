@@ -293,7 +293,7 @@ test("bounded searches never exceed four active upstream requests", async () => 
   assert.ok(peak <= 4);
   assert.equal(peak, 4);
 });
-test("handler accepts four categories at most and ignores arbitrary profile fields", async () => {
+test("handler accepts all fourteen deployed categories within the 24-request budget and ignores arbitrary profile fields", async () => {
   const sent = [];
   const handler = createScholarshipDiscoveryHandler(deps({ fetchImpl: async (url) => { sent.push(new URL(url).searchParams.get("q")); return response({ results: [] }); } }));
   const body = { profile: { state: "Texas", graduationYear: "2027", school: "PRIVATE-SCHOOL-SENTINEL", gpa: "PRIVATE-GPA-SENTINEL", email: "PRIVATE-EMAIL-SENTINEL" }, categories: [...categories, "invalid"] };
@@ -301,6 +301,11 @@ test("handler accepts four categories at most and ignores arbitrary profile fiel
   assert.equal(result.status, 200);
   assert.equal(sent.length, 24);
   assert.ok(sent.every((query) => !/PRIVATE-SCHOOL-SENTINEL|PRIVATE-GPA-SENTINEL|PRIVATE-EMAIL-SENTINEL/.test(query)));
+  const firstQueryForEachCategory = buildSearchJobs("TX", 2027, categories)
+    .filter((job) => job.variation === 1 && job.page === 1)
+    .map((job) => job.query);
+  assert.equal(firstQueryForEachCategory.length, 14);
+  assert.ok(firstQueryForEachCategory.every((query) => sent.includes(query)));
 });
 test("gateway bearer secret is trimmed before constructing the Authorization header", async () => {
   const token = "x".repeat(64);

@@ -50,7 +50,8 @@ test("the actual app's legal acceptance check remains the only path into its wor
   const bootstrap = await read("src/bootstrap.ts");
   const main = await read("src/main.tsx");
   assert.match(bootstrap, /if \(hasCurrentAcceptance\(\)\) \{\s*void startWorkspace\(\);\s*\} else \{\s*renderLegalGate\(\);\s*\}/);
-  assert.match(bootstrap, /await renderLocalVaultGate\(root, async \(\) => \{/);
+  assert.match(bootstrap, /await renderEmailAuthGate\(root, async \(user\) => \{/);
+  assert.match(bootstrap, /await renderAuthenticatedVaultGate\(/);
   assert.match(bootstrap, /await import\("\.\/main"\)/);
   assert.match(main, /<LegalAcceptanceGate>/);
 });
