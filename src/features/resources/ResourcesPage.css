@@ -17,7 +17,7 @@
 }
 .resource-card:hover { border-color: var(--accent); background: var(--surface-raised); transform: translateY(-2px); }
 .resource-card:focus-visible, .resource-page button:focus-visible, .resource-page a:focus-visible,
-.resource-page input:focus-visible, .resource-page textarea:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+.resource-page input:focus-visible, .resource-page textarea:focus-visible, .resource-page select:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
 .resource-card-top, .resource-document-topline, .resource-card-bottom, .resource-section-heading,
 .resource-calendar-phase-heading, .resource-college-card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .resource-card-top>span { color: var(--accent-strong); font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -172,7 +172,8 @@
 .resource-resume-preview-section { display: grid; gap: 9px; }
 .resource-resume-preview-section h3 { margin: 0; padding-bottom: 6px; border-bottom: 1px solid var(--line); color: var(--accent-strong); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 .resource-resume-preview-entry { display: grid; gap: 4px; break-inside: avoid; }
-.resource-resume-preview-topline { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--text); font-size: 13px; }
+.resource-resume-preview-topline { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; color: var(--text); font-size: 13px; }
+.resource-resume-preview-topline b { min-width: 0; overflow-wrap: anywhere; }
 .resource-resume-preview-topline span { flex: 0 0 auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .resource-resume-organization { margin: 0; color: var(--text-soft); font-size: 12px; font-style: italic; }
 .resource-resume-preview-entry p:not(.resource-resume-organization) { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
