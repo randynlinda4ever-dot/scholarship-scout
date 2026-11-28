@@ -208,6 +208,7 @@ function App() {
     return () => window.removeEventListener("popstate", syncTabFromPath);
   }, []);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavToggleRef = useRef<HTMLButtonElement>(null);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('scout-sidebar-collapsed') === 'true'; } catch { return false; }
   });
@@ -217,6 +218,17 @@ function App() {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [tab]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setMobileNavOpen(false);
+      mobileNavToggleRef.current?.focus();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileNavOpen]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       const savedTheme = localStorage.getItem('scout-theme');
@@ -1625,6 +1637,7 @@ function App() {
         <button
           type="button"
           className="mobile-nav-toggle"
+          ref={mobileNavToggleRef}
           aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={mobileNavOpen}
           aria-controls="primary-navigation"
@@ -1638,7 +1651,7 @@ function App() {
       <nav id="primary-navigation" className="primary-nav" data-open={mobileNavOpen ? 'true' : 'false'} aria-label="Main navigation">
         {navGroups.map(group => <div className="nav-group" key={group.title} role="group" aria-label={group.title}>
           <div className="nav-group-title">{group.title}</div>
-          {group.items.map(item => <button type="button" key={item.tab} className={'nav-item ' + (activeNavTab === item.tab ? 'active' : '')} onClick={() => { setTab(item.tab); setMobileNavOpen(false); }} aria-current={activeNavTab === item.tab ? 'page' : undefined} aria-label={item.label} title={item.label}>
+          {group.items.map(item => <button type="button" key={item.tab} className={'nav-item ' + (activeNavTab === item.tab ? 'active' : '')} onClick={() => { setTab(item.tab); setMobileNavOpen(false); window.requestAnimationFrame(() => document.getElementById('main-content')?.focus()); }} aria-current={activeNavTab === item.tab ? 'page' : undefined} aria-label={item.label} title={item.label}>
             <span className="nav-icon"><NavGlyph name={item.icon} /></span>
             <span className="nav-copy"><b>{item.label}</b><small>{item.description}</small></span>
             {'count' in item && item.count && <span className="nav-count">{items.length}</span>}
