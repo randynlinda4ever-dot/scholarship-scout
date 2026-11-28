@@ -185,7 +185,7 @@ test("all public guide pages use fixed page categories and the same first-party 
   for (const [path, pageType] of pages) {
     const html = await readFile(new URL("../public/" + path, import.meta.url), "utf8");
     assert.match(html, new RegExp('<body data-analytics-page-type="' + pageType + '">'));
-    assert.match(html, /<script defer src="\\/analytics-consent\\.js"><\\/script>/);
+  assert.match(html, /<script defer src="\/analytics-consent\.js"><\/script>/);
     assert.match(html, /href="\\/analytics-consent\\.css"/);
   }
 });
