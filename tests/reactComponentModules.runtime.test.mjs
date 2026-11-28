@@ -112,9 +112,10 @@ test("AccountStartGate renders a safe session-check state before authentication 
   const html = renderToStaticMarkup(React.createElement(AccountStartGate,{
     onAuthenticated:()=>{},onContinueGuest:()=>{},
   }));
+  assert.match(html,/role="status"/);
+  assert.match(html,/aria-busy="true"/);
   assert.match(html,/Checking your account/);
-  assert.match(html,/start-home-email/);
-  assert.match(html,/Continue without an account/);
+  assert.doesNotMatch(html,/start-home-email/);
 });
 
 test("CloudSearchPage distinguishes loading, empty, and failure states", () => {
