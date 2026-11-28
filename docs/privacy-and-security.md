@@ -78,6 +78,12 @@ The only application data-layer event is `scout_page_view` with one fixed `page_
 
 Google Analytics contractual terms prohibit sending personally identifiable information and require a Privacy Policy to disclose Analytics use, processing, and cookie/identifier technologies. See Google's [Analytics Terms](https://marketingplatform.google.com/about/analytics/terms/us/), [data safeguarding guidance](https://support.google.com/analytics/answer/6004245), and [Privacy Disclosures Policy](https://support.google.com/analytics/answer/7318509).
 
+## Optional contextual advertising
+
+AdSense support is restricted to one manually placed responsive unit on each of the five public scholarship-guide pages. The application workspace, authentication, profile, discovery, saved-scholarship, application, and API-reference experiences do not include AdSense code. Ads are disabled by default; the first-party loader requires the production apex host, an enabled configuration with valid public publisher and slot IDs, an explicit local opt-in, and an adult/parent/guardian confirmation before it requests AdSense. Preview and local hosts never request the advertising script.
+
+The script requests non-personalized ads (`requestNonPersonalizedAds = 1`) and includes the AdSense teen age-treatment attribute on the ad unit. It does not access or transmit local vault data, profile fields, eligibility inputs, graduation year, state, scholarship search terms, application content, or account identifiers. Google may still use limited cookies or device identifiers for frequency capping and aggregate reporting and may process ordinary browser/network metadata. The preference stored locally is only `granted` or `denied`; storage failures keep ads off. The adult publisher must add and obtain approval for `scholarship-scout.org`, configure a manual ad unit, review consent requirements and category exclusions, and then supply the public IDs. The on-page adult confirmation is an acknowledgement only; it does not verify age or guardian identity and is not a substitute for any consent process required by law or provider policy. Do not enable advertising while those external checks are incomplete.
+
 ## Monitoring
 
 The local reliability monitor stores only allowlisted generic event categories and timestamps, retains at most 25 records, and sends no telemetry. It does not store error messages, stack traces, URLs, forms, profile values, or essay content. This local monitor is separate from the optional, consent-gated Google Analytics integration above.
