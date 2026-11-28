@@ -83,8 +83,8 @@ test('Midnight Violet CSS has one canonical token root and no duplicated motion 
 
 test('desktop sidebar collapse is explicit, persistent, and independent of hover', () => {
   assert.match(app, /const \[desktopSidebarCollapsed, setDesktopSidebarCollapsed\] = useState\(\(\) =>/);
-  assert.match(app, /localStorage\.getItem\('scout-sidebar-collapsed'\) === 'true'/);
-  assert.match(app, /localStorage\.setItem\('scout-sidebar-collapsed', String\(desktopSidebarCollapsed\)\)/);
+  assert.match(app, /readUiPreference\('scout-sidebar-collapsed'\) === 'true'/);
+  assert.match(app, /window\.localStorage\.setItem\('scout-sidebar-collapsed', String\(desktopSidebarCollapsed\)\)/);
   assert.match(app, /aria-label=\{desktopSidebarCollapsed \? 'Expand sidebar' : 'Collapse sidebar'\}/);
   assert.match(app, /data-collapsed=\{desktopSidebarCollapsed \? 'true' : 'false'\}/);
   assert.match(css, /\.sidebar,\s*\.sidebar:hover,\s*\.sidebar:focus-within\s*\{[\s\S]*?flex:\s*0 0 258px;[\s\S]*?transition:\s*none;/);
