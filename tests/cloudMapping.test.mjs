@@ -121,7 +121,7 @@ test("omits inactive any-valued criteria and their stale importance/evidence met
     sourceUrl: "https://www.aatspshh.org/award",
     evidenceUrl: "https://www.aatspshh.org/rules",
     sourceAuthority: "official-program",
-    lastCheckedDate: new Date().toISOString().slice(0, 10),
+    lastCheckedDate: (() => { const today = new Date(); return [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-"); })(),
     sourceVerified: true,
     evidenceText: "Official sponsor award rules.",
     awardEvidenceText: "The sponsor awards $1,000.",
