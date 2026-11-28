@@ -59,3 +59,20 @@ test("the app and profile page share one full-featured field-control implementat
   assert.match(fields, /step=\{step\}/);
   assert.match(fields, /<select required=\{required\}/);
 });
+
+test("App reuses shared scholarship cards and status presentation components", async () => {
+  const app = await read("../src/App.tsx");
+  const cards = await read("../src/components/ScholarshipCards.tsx");
+  const pills = await read("../src/components/StatusPills.tsx");
+
+  assert.match(app, /import \{[^}]*CloudResultCard[^}]*CandidateCard[^}]*Empty[^}]*FilteredEmpty[^}]*\} from '\.\/components\/ScholarshipCards\.js'/s);
+  assert.match(app, /import \{[^}]*StatusPill[^}]*ApplicationStatusPill[^}]*PriorityPill[^}]*SourceStatusPill[^}]*DeadlineUrgencyPill[^}]*EvidenceCompletenessList[^}]*EligibilityMatchSummary[^}]*\} from '\.\/components\/StatusPills\.js'/s);
+  for (const name of ["CloudResultCard", "CandidateCard", "Empty", "FilteredEmpty"]) {
+    assert.match(cards, new RegExp("export function " + name + "\\b"));
+    assert.doesNotMatch(app, new RegExp("function " + name + "\\s*\\("));
+  }
+  for (const name of ["StatusPill", "ApplicationStatusPill", "PriorityPill", "SourceStatusPill", "DeadlineUrgencyPill", "EvidenceCompletenessList", "EligibilityMatchSummary"]) {
+    assert.match(pills, new RegExp("export function " + name + "\\b"));
+    assert.doesNotMatch(app, new RegExp("function " + name + "\\s*\\("));
+  }
+});
