@@ -119,11 +119,11 @@ export default function LegalAcceptanceGate({ children }: { children: ReactNode 
             <span>I have read and agree to these Terms of Service and acknowledge the Privacy Notice. I understand the Service's stated limits and my responsibilities when using it.</span>
           </label>
           {storageError ? <p className="legal-gate-error" role="alert">{storageError}</p> : null}
+          <p className="legal-gate-footnote">Age and guardian selections are stored locally. Scholarship Scout does not verify age or guardian identity.</p>
           <div className="legal-gate-actions">
             {accepted ? <button type="button" className="legal-gate-secondary" onClick={() => setReviewOpen(false)}>Close without changing acceptance</button> : null}
             <button type="button" className="legal-gate-primary" disabled={!checked || !readToEnd || !ageGroup || ageGroup === "under13" || (ageGroup === "minor" && !guardianConfirmed)} onClick={handleAccept}>Accept and continue</button>
           </div>
-          <p className="legal-gate-footnote">Age and guardian selections are stored locally. Scholarship Scout does not verify age or guardian identity.</p>
         </footer>
       </section>
     </main>

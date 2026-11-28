@@ -13,4 +13,9 @@ export function destroyLocalVault(options?: { storage?: Storage; sessionStorage?
 export function hasPendingLocalVaultWrites(): boolean;
 export function lockLocalVault(): Promise<boolean>;
 export function isLocalVaultUnlocked(): boolean;
-export const vaultStorage: Storage;
+export type VaultStorage = Pick<Storage, "length" | "key" | "getItem"> & {
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+  clear(): Promise<void>;
+};
+export const vaultStorage: VaultStorage;

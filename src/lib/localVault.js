@@ -293,7 +293,10 @@ function queuePersist(state) {
     state.lastError = null;
   };
   state.pendingWrites += 1;
-  state.queue = state.queue.then(persist, persist).catch((error) => {
+  // Return the actual write promise to callers such as Supabase Auth. PKCE
+  // must not redirect until its verifier has reached encrypted IndexedDB.
+  const writePromise = state.queue.then(persist, persist);
+  state.queue = writePromise.catch((error) => {
     state.lastError = error instanceof Error ? error : new Error("Encrypted local save failed.");
     try {
       globalThis.window?.dispatchEvent?.(new CustomEvent("scout:vault-persistence-error"));
@@ -304,6 +307,7 @@ function queuePersist(state) {
       globalThis.window?.dispatchEvent?.(new Event("scout:vault-write-state"));
     } catch { /* pending-write notifications are best-effort */ }
   });
+  return writePromise;
 }
 
 export async function hasEncryptedVault({ backend } = {}) {
@@ -561,26 +565,26 @@ export const vaultStorage = {
   },
   setItem(key, value) {
     if (!activeVault) {
-      if (inactiveUntilReload) return;
+      if (inactiveUntilReload) return Promise.resolve();
       throw new Error("The local vault is locked.");
     }
     activeVault.records.set(String(key), String(value));
-    queuePersist(activeVault);
+    return queuePersist(activeVault);
   },
   removeItem(key) {
     if (!activeVault) {
-      if (inactiveUntilReload) return;
+      if (inactiveUntilReload) return Promise.resolve();
       throw new Error("The local vault is locked.");
     }
     activeVault.records.delete(String(key));
-    queuePersist(activeVault);
+    return queuePersist(activeVault);
   },
   clear() {
     if (!activeVault) {
-      if (inactiveUntilReload) return;
+      if (inactiveUntilReload) return Promise.resolve();
       throw new Error("The local vault is locked.");
     }
     activeVault.records.clear();
-    queuePersist(activeVault);
+    return queuePersist(activeVault);
   },
 };
