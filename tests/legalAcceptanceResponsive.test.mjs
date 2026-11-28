@@ -42,6 +42,18 @@ test("first-load preflight uses the same compact desktop and mobile legal layout
   assert.match(bootstrap, /\.legal-preflight-document\s*\{[^}]*font-size:\s*13px/s);
 });
 
+test("mobile legal gate keeps the acceptance control reachable in both initial and review screens", async () => {
+  const gateStyles = await read("src/components/LegalAcceptanceGate.css");
+  const bootstrap = await read("src/bootstrap.ts");
+
+  assert.match(gateStyles, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.legal-gate-panel\s*\{[^}]*position:\s*relative/s);
+  assert.match(gateStyles, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.legal-gate-footer\s*\{[^}]*position:\s*absolute[^}]*max-height:\s*min\(\s*58vh,\s*460px\s*\)[^}]*overflow-y:\s*auto/s);
+  assert.match(gateStyles, /\.legal-gate-actions\s*\{[^}]*position:\s*sticky/s);
+  assert.match(bootstrap, /@media \(max-width: 600px\)[\s\S]*?\.legal-preflight-panel\s*\{[^}]*position:\s*relative/);
+  assert.match(bootstrap, /\.legal-preflight-footer\s*\{[^}]*position:\s*absolute[^}]*max-height:\s*min\(\s*58vh,\s*460px\s*\)[^}]*overflow-y:\s*auto/s);
+  assert.match(bootstrap, /\.legal-preflight-actions\s*\{[^}]*position:\s*sticky/s);
+});
+
 test("guardian acknowledgement remains explicit while its wording is concise", async () => {
   const component = await read("src/components/LegalAcceptanceGate.tsx");
   assert.match(component, /I am this user's parent or legal guardian/);

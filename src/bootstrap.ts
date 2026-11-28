@@ -127,14 +127,25 @@ function renderLegalGate(): void {
     }
     @media (max-width: 600px) {
       .legal-preflight { padding: 0; display: block; }
-      .legal-preflight-panel { width: 100%; height: 100vh; height: 100dvh; max-height: none; min-height: 100vh; min-height: 100dvh; border: 0; border-radius: 0; }
+      .legal-preflight-panel { position: relative; width: 100%; height: 100vh; height: 100dvh; max-height: none; min-height: 100vh; min-height: 100dvh; border: 0; border-radius: 0; }
       .legal-preflight-header, .legal-preflight-footer { padding: 9px 16px; }
+      .legal-preflight-footer {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        z-index: 2;
+        width: 100%;
+        max-height: min(58vh, 460px);
+        max-height: min(58dvh, 460px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
       .legal-preflight-brand img { width: 32px; height: 32px; flex-basis: 32px; }
       .legal-preflight-kicker { margin: 7px 0 5px; font-size: 10px; }
       .legal-preflight h1 { font-size: 25px; }
       .legal-preflight-intro { margin: 6px 0 3px; font-size: 12px; }
       .legal-preflight-version { margin-top: 5px; font-size: 11px; }
-      .legal-preflight-document { min-height: 100px; padding: 6px 16px 14px; font-size: 12px; }
+      .legal-preflight-document { min-height: 0; padding: 6px 16px calc(58dvh + 14px); font-size: 12px; }
       .legal-preflight-document section { padding-top: 13px; }
       .legal-preflight-document h2 { font-size: 15px; }
       .legal-preflight-document p, .legal-preflight-document li { font-size: 12px; }
@@ -144,7 +155,14 @@ function renderLegalGate(): void {
       .legal-preflight-age label:last-of-type { grid-column: 1 / -1; }
       .legal-preflight-guardian { margin-bottom: 8px; padding: 9px; }
       .legal-preflight-check { gap: 9px; padding: 8px; font-size: 12px; }
-      .legal-preflight-actions { margin-top: 8px; }
+      .legal-preflight-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        margin-top: 8px;
+        padding: 10px 0 max(8px, env(safe-area-inset-bottom));
+        background: #0E1425;
+      }
       .legal-preflight-actions button { width: 100%; }
       .legal-preflight-footnote { margin-top: 6px; font-size: 11px; }
     }
@@ -297,9 +315,9 @@ function renderLegalGate(): void {
     "legal-preflight-footnote",
     "Age and guardian selections are stored locally. Scholarship Scout does not verify age or guardian identity.",
   );
-  footer.append(status, ageGroupFieldset, guardianLabel, acceptanceLabel, error);
+  footer.append(status, ageGroupFieldset, guardianLabel, acceptanceLabel, error, footnote);
   if (demoNotice) footer.append(demoNotice);
-  footer.append(actions, footnote);
+  footer.append(actions);
   panel.append(header, documentRegion, footer);
   screen.append(panel);
   root.replaceChildren(style, screen);

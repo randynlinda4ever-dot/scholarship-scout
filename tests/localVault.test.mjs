@@ -197,6 +197,53 @@ test("a failed encrypted write remains unsaved until a retry succeeds", async ()
   await lockLocalVault();
 });
 
+test("Supabase PKCE storage writes remain pending until encrypted persistence completes", async () => {
+  const storage = createMemoryStorage({ "scout-profile": JSON.stringify({ state: "Texas" }) });
+  const backend = createMemoryBackend();
+  let delayWrites = false;
+  let releaseWrite;
+  let markWriteStarted;
+  const writeStarted = new Promise((resolve) => { markWriteStarted = resolve; });
+  const delayedBackend = {
+    async get() { return backend.get(); },
+    async set(value) {
+      if (delayWrites) {
+        markWriteStarted();
+        await new Promise((resolve) => { releaseWrite = resolve; });
+      }
+      return backend.set(value);
+    },
+  };
+  const options = { storage, backend: delayedBackend, lockManager: createMemoryLockManager() };
+
+  await createLocalVault(PASS, options);
+  await flushLocalVault();
+  delayWrites = true;
+
+  const persistResult = vaultStorage.setItem(PKCE_KEY, "fresh-pkce-verifier");
+  await writeStarted;
+  let settledBeforePersistence = false;
+  const observedWrite = Promise.resolve(persistResult).then(() => {
+    settledBeforePersistence = true;
+  });
+  await Promise.resolve();
+
+  const isAwaitable = Boolean(persistResult && typeof persistResult.then === "function");
+  const hadResolvedBeforePersistence = settledBeforePersistence;
+  releaseWrite();
+  await observedWrite;
+  await flushLocalVault();
+  await lockLocalVault();
+
+  await unlockLocalVault(PASS, options);
+  const restoredVerifier = vaultStorage.getItem(PKCE_KEY);
+  await lockLocalVault();
+
+  assert.equal(isAwaitable, true, "Supabase must be able to await encrypted PKCE storage writes");
+  assert.equal(hadResolvedBeforePersistence, false, "the write promise must not resolve before the encrypted record is durable");
+  assert.equal(restoredVerifier, "fresh-pkce-verifier");
+});
+
 test("the browser lock is required and a storage failure leaves original data intact", async () => {
   const storage = createMemoryStorage({ "scout-profile": JSON.stringify({ state: "Texas" }) });
   const backend = {
