@@ -28,7 +28,7 @@ jobs:
 
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -38,17 +38,38 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: "26.x"
+          node-version: "26.13.1"
           cache: npm
 
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Check dependency advisories
+      - name: Stage 1 - deprecated API and retired-code scan
+        run: npm run check:deprecated
+
+      - name: Stage 2 - dependency security audit
         run: npm audit --audit-level=moderate
 
-      - name: Run automated tests
+      - name: Stage 3 - TypeScript validation and production build
+        run: npm run build
+
+      - name: Focused discovery profile privacy regression
+        run: node --import ./scripts/register-tsx-coverage-loader.mjs --enable-source-maps --test tests/discoveryLocalProfileFlow.test.mjs
+
+      - name: Focused React DOM interaction regressions
+        run: node --import ./scripts/register-tsx-coverage-loader.mjs --enable-source-maps --test tests/reactDom.integration.test.mjs
+
+      - name: Stage 4 - complete unit and integration test suite
         run: npm test
 
-      - name: Type-check and build
-        run: npm run build
+      - name: Stage 5 - source-mapped TypeScript and TSX coverage
+        run: npm run test:coverage
+
+      - name: Upload machine-readable coverage reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scholarship-scout-coverage-${{ github.sha }}
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14

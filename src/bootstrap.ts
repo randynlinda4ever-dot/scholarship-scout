@@ -174,8 +174,8 @@ function renderLegalGate(): void {
   document.title = "Review Terms of Service — Scholarship Scout";
   document.documentElement.style.colorScheme = "dark";
   document.body.style.margin = "0";
-  document.body.style.background = "#080D1A";
-  document.body.style.color = "#F5F3FF";
+  document.body.style.background = "var(--bg)";
+  document.body.style.color = "var(--text)";
   document.body.style.fontFamily =
     "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
@@ -183,45 +183,45 @@ function renderLegalGate(): void {
   style.textContent = `
     *, *::before, *::after { box-sizing: border-box; }
     .legal-preflight { min-height: 100vh; min-height: 100dvh; padding: 20px; display: grid; place-items: center; }
-    .legal-preflight-panel { width: min(100%, 980px); height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #3A365C; border-radius: 18px; background: #11172A; box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+    .legal-preflight-panel { width: min(100%, 980px); height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 24px 80px rgba(0,0,0,.45); }
     .legal-preflight-header, .legal-preflight-footer { padding: 16px 26px; }
-    .legal-preflight-header { border-bottom: 1px solid #302C4C; }
+    .legal-preflight-header { border-bottom: 1px solid var(--line); }
     .legal-preflight-brand { display: flex; align-items: center; gap: 10px; font-weight: 750; letter-spacing: .01em; }
     .legal-preflight-mark { display: block; width: 36px; height: 36px; flex: 0 0 36px; border-radius: 11px; box-shadow: 0 5px 14px #05061255; }
-    .legal-preflight-kicker { margin: 10px 0 6px; color: #C3B9FF; font-size: 11px; font-weight: 800; letter-spacing: .13em; }
+    .legal-preflight-kicker { margin: 10px 0 6px; color: var(--accent-strong); font-size: 11px; font-weight: 800; letter-spacing: .13em; }
     .legal-preflight h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.15; }
-    .legal-preflight-intro { max-width: 760px; margin: 8px 0 4px; color: #C9C7D8; font-size: 13px; line-height: 1.5; }
+    .legal-preflight-intro { max-width: 760px; margin: 8px 0 4px; color: var(--text-soft); font-size: 13px; line-height: 1.5; }
     .legal-preflight-guides { margin: 8px 0 0; font-size: 12px; line-height: 1.5; }
-    .legal-preflight-guides a { color: #C3B9FF; font-weight: 700; text-underline-offset: 3px; }
-    .legal-preflight-version { margin: 8px 0 0; color: #A8A5BC; font-size: 12px; }
+    .legal-preflight-guides a { color: var(--accent-strong); font-weight: 700; text-underline-offset: 3px; }
+    .legal-preflight-version { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
     .legal-preflight-document { min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 8px 26px 20px; font-size: 13px; line-height: 1.6; }
     .legal-preflight-document section { max-width: 78ch; margin-inline: auto; padding-top: 15px; }
-    .legal-preflight-document h2 { margin: 0 0 8px; color: #E6E1FF; font-size: 16px; }
-    .legal-preflight-document p, .legal-preflight-document li { color: #D0CEDB; font-size: 13px; }
+    .legal-preflight-document h2 { margin: 0 0 8px; color: var(--text); font-size: 16px; }
+    .legal-preflight-document p, .legal-preflight-document li { color: var(--text-soft); font-size: 13px; }
     .legal-preflight-document p { margin: 8px 0; }
     .legal-preflight-document ul { padding-left: 22px; }
     .legal-preflight-document li { overflow-wrap: anywhere; margin: 5px 0; }
-    .legal-preflight-footer { border-top: 1px solid #302C4C; background: #0E1425; }
-    .legal-preflight-status { min-height: 18px; margin: 0 0 8px; color: #C3B9FF; font-size: 12px; }
-    .legal-preflight-age-control { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; margin: 0 0 8px; color: #C9C7D8; font-size: 12px; font-weight: 700; }
-    .legal-preflight-age-select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #3A365C; border-radius: 9px; background: #151D33; color: #E7E4F1; font: inherit; font-weight: 600; }
-    .legal-preflight-age-select:focus-visible { outline: 2px solid #D8D0FF; outline-offset: 2px; }
-    .legal-preflight-guardian { display: flex; align-items: flex-start; gap: 10px; min-width: 0; color: #E7E4F1; font-size: 12px; line-height: 1.5; cursor: pointer; }
-    .legal-preflight-guardian input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #A69AE8; }
+    .legal-preflight-footer { border-top: 1px solid var(--line); background: var(--sidebar); }
+    .legal-preflight-status { min-height: 18px; margin: 0 0 8px; color: var(--accent-strong); font-size: 12px; }
+    .legal-preflight-age-control { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; margin: 0 0 8px; color: var(--text-soft); font-size: 12px; font-weight: 700; }
+    .legal-preflight-age-select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--text); font: inherit; font-weight: 600; }
+    .legal-preflight-age-select:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+    .legal-preflight-guardian { display: flex; align-items: flex-start; gap: 10px; min-width: 0; color: var(--text); font-size: 12px; line-height: 1.5; cursor: pointer; }
+    .legal-preflight-guardian input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); }
     .legal-preflight-guardian[hidden] { display: none !important; }
-    .legal-preflight-guardian { margin: 0 0 8px; padding: 9px; border: 1px solid #6C5D9A; border-radius: 9px; background: #211E3A; font-size: 11px; }
-    .legal-preflight-check { display: flex; align-items: flex-start; gap: 10px; padding: 9px; border: 1px solid #3A365C; border-radius: 9px; background: #151D33; color: #E7E4F1; font-size: 12px; line-height: 1.5; cursor: pointer; }
-    .legal-preflight-check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #A69AE8; }
+    .legal-preflight-guardian { margin: 0 0 8px; padding: 9px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface-soft); font-size: 11px; }
+    .legal-preflight-check { display: flex; align-items: flex-start; gap: 10px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--text); font-size: 12px; line-height: 1.5; cursor: pointer; }
+    .legal-preflight-check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); }
     .legal-preflight-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
-    .legal-preflight-demo { min-height: 46px; padding: 0 16px; border: 1px solid #77739D; border-radius: 10px; background: #202741; color: #E7E4F1; font: inherit; font-weight: 750; cursor: pointer; }
-    .legal-preflight-demo:hover { background: #2A3454; }
-    .legal-preflight-demo:focus-visible { outline: 3px solid #D8D0FF; outline-offset: 3px; }
-    .legal-preflight-demo-note { margin: 10px 0 0; color: #C3B9FF; font-size: 11px; line-height: 1.5; }
-    .legal-preflight-accept { min-height: 46px; padding: 0 20px; border: 0; border-radius: 10px; background: #A69AE8; color: #191B39; font: inherit; font-weight: 800; cursor: pointer; }
+    .legal-preflight-demo { min-height: 46px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-raised); color: var(--text); font: inherit; font-weight: 750; cursor: pointer; }
+    .legal-preflight-demo:hover { background: var(--surface-soft); }
+    .legal-preflight-demo:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+    .legal-preflight-demo-note { margin: 10px 0 0; color: var(--accent-strong); font-size: 11px; line-height: 1.5; }
+    .legal-preflight-accept { min-height: 46px; padding: 0 20px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 800; cursor: pointer; }
     .legal-preflight-accept:disabled { cursor: not-allowed; opacity: .42; }
-    .legal-preflight-accept:focus-visible, .legal-preflight-document:focus-visible, .legal-preflight-check input:focus-visible { outline: 3px solid #D8D0FF; outline-offset: 3px; }
-    .legal-preflight-error { margin: 12px 0 0; color: #FFB9B9; font-size: 12px; }
-    .legal-preflight-footnote { margin: 8px 0 0; color: #A8A5BC; font-size: 11px; line-height: 1.4; }
+    .legal-preflight-accept:focus-visible, .legal-preflight-document:focus-visible, .legal-preflight-check input:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+    .legal-preflight-error { margin: 12px 0 0; color: var(--danger); font-size: 12px; }
+    .legal-preflight-footnote { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
     @media (max-height: 720px) {
       .legal-preflight { padding-top: 10px; padding-bottom: 10px; }
       .legal-preflight-header, .legal-preflight-footer { padding-top: 10px; padding-bottom: 10px; }
@@ -279,7 +279,8 @@ function renderLegalGate(): void {
   const header = element("header", "legal-preflight-header");
   const brand = element("div", "legal-preflight-brand");
   const brandMark = element("img", "legal-preflight-mark");
-  brandMark.setAttribute("src", "/favicon.svg");
+  brandMark.setAttribute("src", "/brand/scholarship-scout-logo.png");
+  brandMark.setAttribute("decoding", "async");
   brandMark.alt = "";
   brandMark.setAttribute("aria-hidden", "true");
   brand.append(brandMark);

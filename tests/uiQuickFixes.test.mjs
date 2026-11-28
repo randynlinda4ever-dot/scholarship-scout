@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const appStyles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
+
+const appStyles = await readActiveAppStyles();
 const brandStyles = await readFile(new URL('../src/brand-system.css', import.meta.url), 'utf8');
 
 test('desktop sidebar collapse control has a 44px target in both dimensions', () => {

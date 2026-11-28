@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { CriteriaImportance, Profile, Scholarship, Status } from './domain/types.js';
 import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites, enableLocalVaultDeviceUnlock, forgetLocalVaultDeviceUnlock, createLocalAccountVaultKeyWrap, getAccountVaultSyncEnvelope, getLocalAccountVaultSyncStatus, setLocalAccountVaultRevision, forgetLocalAccountVaultSync } from './lib/localVault.js';
 import { clearReliabilityEvents, installReliabilityMonitoring, readReliabilityEvents, RELIABILITY_CHANGE_EVENT } from './lib/reliabilityMonitor.js';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
-import { deriveSourceStatus, getEvidenceCompleteness, getEvidenceExcerptAttributions, getOfficialSourceFreshness, getScholarshipSourcePageUrl, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
+import { deriveSourceStatus, getEvidenceExcerptAttributions, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
 import { appendSourceEvidenceHistory, invalidateSourceReviewIfChanged } from './lib/sourceReview.js';
 import { getSupabaseClient, stopSupabaseAutoRefreshForVaultLock, supabaseConfigured } from './lib/supabaseClient';
 import { buildScoutBackup, validateScoutBackup } from './lib/backup.js';
@@ -17,6 +17,7 @@ import { isLiveDiscoveryCategorySupported } from './lib/liveDiscoveryCapabilitie
 import { getProfileReadiness } from './lib/profileReadiness.js';
 import { buildManualSearchQueries } from './lib/manualSearchQueries.js';
 import { validateProfileChanges } from './lib/profileValidation.js';
+import { extractProfileDetails, mergeExtractedProfileDetails } from './lib/profileDocumentImport.js';
 import { COUNTRY_OPTIONS, US_STATE_OPTIONS, PROFILE_CITIZENSHIP_OPTIONS } from './lib/profileLocations.js';
 import { APPLICATION_STATUSES, TRACKER_PRIORITIES, MAX_TRACKER_RECORDS, filterAndSortTrackerRecords, getApplicationStatusCounts, normalizeTrackerRecord, type ApplicationStatus, type TrackerPriority } from './lib/trackerManagement.js';
 import { buildTrackerCsvReport } from './lib/trackerReport.js';
@@ -29,6 +30,10 @@ import { getAccountVaultSyncState } from './lib/accountVaultSyncState.js';
 import { hasPendingAuthCallback, hasPendingAuthCallbackError } from './lib/authRedirect.js';
 import { PRIVACY_REQUEST_TYPES, PRIVACY_REQUESTER_TYPES, buildPrivacyRequestMailto } from './lib/privacyRequests.js';
 import { BrandMark } from './components/BrandMark';
+import { NavGlyph, type NavGlyphName } from './components/NavGlyph.js';
+import { CloudResultCard, CandidateCard, Empty, FilteredEmpty } from './components/ScholarshipCards.js';
+import { StatusPill, ApplicationStatusPill, PriorityPill, SourceStatusPill, DeadlineUrgencyPill, EvidenceCompletenessList, EligibilityMatchSummary } from './components/StatusPills.js';
+import { TrackerDetailsButton } from './components/TrackerDetailsButton.js';
 import { workspacePathToTab, workspaceTabToPath } from './lib/workspaceRoutes.js';
 import { getWorkspaceScrollPosition, saveWorkspaceScrollPosition } from './lib/workspaceScroll.js';
 import { createResourceWorkspace, normalizeResourceWorkspace } from './lib/resourceWorkspace.js';
@@ -42,6 +47,26 @@ import './brand-system.css';
 
 // This module is imported only after legal acceptance and local-vault unlock.
 const localStorage = vaultStorage;
+
+function readUiPreference(key: string): string | null {
+  try {
+    const current = window.localStorage.getItem(key);
+    if (current !== null) return current;
+  } catch { /* continue with a previously encrypted preference when available */ }
+  try {
+    const legacy = vaultStorage.getItem(key);
+    if (legacy === null) return null;
+    try {
+      window.localStorage.setItem(key, legacy);
+      void Promise.resolve(vaultStorage.removeItem(key)).catch(() => {});
+    } catch {
+      // Keep the encrypted legacy copy when plain preference storage is unavailable.
+    }
+    return legacy;
+  } catch {
+    return null;
+  }
+}
 const FORCE_PASSPHRASE_SESSION_KEY = 'scout-vault-force-passphrase';
 installReliabilityMonitoring();
 
@@ -64,32 +89,6 @@ function sanitizeScholarshipSourceUrls<T extends Record<string, unknown>>(record
 
 
 
-type GlyphName =
-  | 'home' | 'search' | 'cloud' | 'book' | 'checklist' | 'user' | 'settings'
-  | 'book-stack' | 'check-circle' | 'info' | 'calendar-clock'
-  | 'menu' | 'close' | 'chevron-left' | 'chevron-right';
-
-function NavGlyph({ name }: { name: GlyphName }) {
-  const glyphs: Record<GlyphName, ReactNode> = {
-    home: <><path d="m3.5 10.5 8.5-7 8.5 7" /><path d="M5.5 9.5v10h5.2v-5.8h2.6v5.8h5.2v-10" /></>,
-    search: <><circle cx="10.8" cy="10.8" r="6.6" /><path d="m16 16 4.5 4.5" /></>,
-    cloud: <path d="M6.2 18.5h11.4a4 4 0 0 0 .5-8 6.3 6.3 0 0 0-12.1-1.3 4.7 4.7 0 0 0 .2 9.3Z" />,
-    book: <><path d="M3.5 5.5c3.8-1.3 7.1-.6 8.5 1.2 1.4-1.8 4.7-2.5 8.5-1.2v13c-3.8-1.3-7.1-.6-8.5 1.2-1.4-1.8-4.7-2.5-8.5-1.2v-13Z" /><path d="M12 6.7v13" /></>,
-    checklist: <><rect x="4" y="3.5" width="16" height="17" rx="2.2" /><path d="m7.2 8 1.2 1.2 2-2.2M12.8 8h4M7.2 13l1.2 1.2 2-2.2M12.8 13h4M7.5 17h9" /></>,
-    user: <><circle cx="12" cy="8" r="3.3" /><path d="M5 20c.5-3.6 2.9-5.5 7-5.5s6.5 1.9 7 5.5" /></>,
-    settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.1 1.8-1.8 3.1-2.1-.5a7.8 7.8 0 0 1-1.7 1l-.5 2.1h-3.6l-.5-2.1a7.8 7.8 0 0 1-1.7-1l-2.1.5-1.8-3.1 1.1-1.8a7.4 7.4 0 0 1 0-2l-1.1-1.8 1.8-3.1 2.1.5a7.8 7.8 0 0 1 1.7-1l.5-2.1h3.6l.5 2.1a7.8 7.8 0 0 1 1.7 1l2.1-.5 1.8 3.1-1.1 1.8a7.4 7.4 0 0 1 .1 1.9Z" transform="translate(-.7 -1.5) scale(1.06)" /></>,
-    'book-stack': <><path d="M4 5.5h13.5a2.5 2.5 0 0 1 2.5 2.5v11H6.5A2.5 2.5 0 0 1 4 16.5v-11Z" /><path d="M4 8H2.8v10a2 2 0 0 0 2 2H18M8 9h8M8 12.5h6" /></>,
-    'check-circle': <><circle cx="12" cy="12" r="8.5" /><path d="m8 12.1 2.6 2.6 5.5-5.5" /></>,
-    info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 10.8v5M12 7.4h.01" /></>,
-    'calendar-clock': <><rect x="3" y="4.5" width="13" height="15.5" rx="2" /><path d="M7 2.8v3.4M12 2.8v3.4M3 9h13M7 12.5h2M7 16h3" /><circle cx="17.3" cy="16.8" r="4" /><path d="M17.3 14.5v2.5l1.5 1" /></>,
-    menu: <><path d="M4 6.5h16M4 12h16M4 17.5h16" /></>,
-    close: <><path d="m6 6 12 12M18 6 6 18" /></>,
-    'chevron-left': <path d="m14.5 5-7 7 7 7" />,
-    'chevron-right': <path d="m9.5 5 7 7-7 7" />,
-  };
-
-  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{glyphs[name]}</svg>;
-}
 
 
 const initialProfile: Profile = {
@@ -231,30 +230,45 @@ function App() {
     return () => window.removeEventListener("popstate", syncTabFromPath);
   }, []);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavToggleRef = useRef<HTMLButtonElement>(null);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('scout-sidebar-collapsed') === 'true'; } catch { return false; }
+    try { return readUiPreference('scout-sidebar-collapsed') === 'true'; } catch { return false; }
   });
   useEffect(() => {
-    try { localStorage.setItem('scout-sidebar-collapsed', String(desktopSidebarCollapsed)); } catch { /* sidebar preference is optional */ }
+    try { window.localStorage.setItem('scout-sidebar-collapsed', String(desktopSidebarCollapsed)); } catch { /* sidebar preference is optional */ }
   }, [desktopSidebarCollapsed]);
   useEffect(() => {
     setMobileNavOpen(false);
   }, [tab]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setMobileNavOpen(false);
+      mobileNavToggleRef.current?.focus();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileNavOpen]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
-      const savedTheme = localStorage.getItem('scout-theme');
-      const hasExplicitPreference = localStorage.getItem('scout-theme-choice') === 'true';
+      const savedTheme = readUiPreference('scout-theme');
+      const hasExplicitPreference = readUiPreference('scout-theme-choice') === 'true';
       return hasExplicitPreference && savedTheme === 'light' ? 'light' : 'dark';
     } catch { return 'dark'; }
   });
   const [compactView, setCompactView] = useState(() => {
-    try { return localStorage.getItem('scout-compact-view') === 'true'; }
+    try { return readUiPreference('scout-compact-view') === 'true'; }
     catch { return false; }
   });
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   const [items, setItems] = useState<Scholarship[]>(loadScholarships);
   const [profile, setProfile] = useState<Profile>(() => mergeProfile(readLocalJson('scout-profile')));
   const [profileDraft, setProfileDraft] = useState<Profile>(() => mergeProfile(readLocalJson('scout-profile-draft') ?? readLocalJson('scout-profile')));
+  const [profileImportPreview, setProfileImportPreview] = useState<Record<string, string> | null>(null);
+  const [profileImportFileName, setProfileImportFileName] = useState('');
+  const [profileImportError, setProfileImportError] = useState('');
   const profilePersistenceRef = useRef<Profile>(profile);
   const profileSaveGenerationRef = useRef(0);
   const [query, setQuery] = useState('');
@@ -454,14 +468,14 @@ function App() {
   }, [deadlineCalendarDay]);
 
   useEffect(() => {
-    try { localStorage.setItem('scout-theme', theme); } catch { /* storage may be unavailable */ }
+    try { window.localStorage.setItem('scout-theme', theme); } catch { /* storage may be unavailable */ }
   }, [theme]);
   const chooseTheme = (nextTheme: 'dark' | 'light') => {
-    try { localStorage.setItem('scout-theme-choice', 'true'); } catch { /* storage may be unavailable */ }
+    try { window.localStorage.setItem('scout-theme-choice', 'true'); } catch { /* storage may be unavailable */ }
     setTheme(nextTheme);
   };
   useEffect(() => {
-    try { localStorage.setItem('scout-compact-view', String(compactView)); } catch { /* storage may be unavailable */ }
+    try { window.localStorage.setItem('scout-compact-view', String(compactView)); } catch { /* storage may be unavailable */ }
   }, [compactView]);
 
   useEffect(() => {
@@ -1014,9 +1028,6 @@ function App() {
       return { state: 'not-enabled' as const, localStatus: null };
     }
     const localStatus = getLocalAccountVaultSyncStatus({ ownerId: cloudUser.id });
-    if (!localStatus.enabled || localStatus.revision < 1) {
-      return { state: 'not-enabled' as const, localStatus };
-    }
     const remoteBackup = await getAccountVaultBackup();
     return {
       state: getAccountVaultSyncState(localStatus, remoteBackup),
@@ -1034,7 +1045,7 @@ function App() {
     }
     if (snapshot.state === 'remote-ahead') {
       setAccountVaultSyncStatus('available');
-      setAccountVaultSyncMessage('A newer encrypted account backup exists from another device. This device was not overwritten and automatic syncing is paused to protect your local records. Export your current local vault before restoring the newer backup on a clean browser profile. Vault histories are not merged automatically.');
+      setAccountVaultSyncMessage('An encrypted account vault already exists or has a newer revision on another device. This device cannot create a second account vault or overwrite that backup. Export any separate local records before restoring the existing account vault on a clean browser profile; vault histories are not merged automatically.');
       return;
     }
     if (snapshot.state === 'missing') {
@@ -1531,7 +1542,7 @@ function App() {
       return rank(a.item) - rank(b.item) || (a.item.deadline || '9999-12-31').localeCompare(b.item.deadline || '9999-12-31');
     }), [profile]);
   const queryGroups = useMemo(() => buildManualSearchQueries(), []);
-  const navGroups: { title: string; items: { tab: string; label: string; description: string; icon: GlyphName; count?: boolean }[] }[] = [
+  const navGroups: { title: string; items: { tab: string; label: string; description: string; icon: NavGlyphName; count?: boolean }[] }[] = [
     { title: 'WORKSPACE', items: [
       { tab: 'Overview', label: 'Home', description: 'Your scholarship dashboard', icon: 'home' },
     ]},
@@ -1648,6 +1659,7 @@ function App() {
         <button
           type="button"
           className="mobile-nav-toggle"
+          ref={mobileNavToggleRef}
           aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={mobileNavOpen}
           aria-controls="primary-navigation"
@@ -1661,7 +1673,7 @@ function App() {
       <nav id="primary-navigation" className="primary-nav" data-open={mobileNavOpen ? 'true' : 'false'} aria-label="Main navigation">
         {navGroups.map(group => <div className="nav-group" key={group.title} role="group" aria-label={group.title}>
           <div className="nav-group-title">{group.title}</div>
-          {group.items.map(item => <button type="button" key={item.tab} className={'nav-item ' + (activeNavTab === item.tab ? 'active' : '')} onClick={() => { setTab(item.tab); setMobileNavOpen(false); }} aria-current={activeNavTab === item.tab ? 'page' : undefined} aria-label={item.label} title={item.label}>
+          {group.items.map(item => <button type="button" key={item.tab} className={'nav-item ' + (activeNavTab === item.tab ? 'active' : '')} onClick={() => { setTab(item.tab); setMobileNavOpen(false); window.requestAnimationFrame(() => document.getElementById('main-content')?.focus()); }} aria-current={activeNavTab === item.tab ? 'page' : undefined} aria-label={item.label} title={item.label}>
             <span className="nav-icon"><NavGlyph name={item.icon} /></span>
             <span className="nav-copy"><b>{item.label}</b><small>{item.description}</small></span>
             {'count' in item && item.count && <span className="nav-count">{items.length}</span>}
@@ -1698,7 +1710,7 @@ function App() {
           {label:'Eligible',value:[...assessments.values()].filter(x=>x.status==='Eligible').length,sub:'All saved rules passed',icon:'check-circle'},
           {label:'Need information',value:[...assessments.values()].filter(x=>x.status==='Needs information').length,sub:'At least one rule needs review',icon:'info'},
           {label:'Deadline milestones in 7 days',value:deadlinesDueSoon,sub:overdueDeadlines ? `${overdueDeadlines} past due · date-only estimates` : 'Date-only estimates; confirm sponsor cutoff',icon:'calendar-clock'}
-        ].map(x=><div className="stat" key={x.label}><div className="stat-top"><span>{x.label}</span><b><NavGlyph name={x.icon as GlyphName}/></b></div><strong>{x.value}</strong><small>{x.sub}</small></div>)}</div>
+        ].map(x=><div className="stat" key={x.label}><div className="stat-top"><span>{x.label}</span><b><NavGlyph name={x.icon as NavGlyphName}/></b></div><strong>{x.value}</strong><small>{x.sub}</small></div>)}</div>
         <div className="panel application-pipeline-summary">
           <div className="panel-heading"><div><h3>Application progress</h3><p className="muted">Application status is separate from eligibility.</p></div><button className="text-button" onClick={()=>setTab('Scholarships')}>Manage tracker →</button></div>
           <div className="application-pipeline-grid">
@@ -1963,7 +1975,7 @@ function App() {
           </select>
         </div>
         {duplicateSuggestions.length > 0 && <div className="panel duplicate-review"><div className="panel-heading"><div><h3>Duplicate suggestions to review</h3><p className="muted">Possible duplicates. Review each pair; Scout never merges or deletes records.</p></div><span className="source-tag">{duplicateSuggestions.length} pairs</span></div><div className="duplicate-list">{duplicateSuggestions.slice(0,5).map((pair)=><div className="duplicate-row" key={`${pair.firstId}-${pair.secondId}`}><div className="duplicate-names"><span className="source-tag">{pair.matchLabel}</span><b>{pair.firstName}</b><span>and</span><b>{pair.secondName}</b><small>{pair.sponsor} · Deadline year {pair.deadlineYear} · {pair.titleSimilarity}% title similarity</small><small>{pair.reasons.join(' · ')}</small></div><div className="duplicate-actions"><button className="text-button" onClick={()=>setSelected(items[pair.firstIndex])}>Review first</button><button className="text-button" onClick={()=>setSelected(items[pair.secondIndex])}>Review second</button></div></div>)}</div>{duplicateSuggestions.length > 5 && <small className="deadline-footnote">Showing the five strongest suggestions. The remaining {duplicateSuggestions.length - 5} pairs are also retained for review.</small>}</div>}
-        <div className="table-card"><div className="table-title"><b>Tracked opportunities</b><span>{filtered.length} shown · eligibility and application status are separate</span></div>{filtered.length===0 && items.length===0 ? <Empty onAdd={()=>openAdd()}/> : hasFilteredEmptyState ? <FilteredEmpty onClear={clearTrackerFilters}/> : <div className="table-wrap"><table><thead><tr><th>OPPORTUNITY</th><th>AWARD AMOUNT / BASIS</th><th>DEADLINE</th><th>URGENCY</th><th>APPLICATION</th><th>PRIORITY</th><th>ELIGIBILITY</th><th>SOURCE REVIEW</th><th scope="col">DETAILS</th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td data-label="Opportunity"><button type="button" className="tracker-open" aria-label={'Review ' + item.name} onClick={()=>setSelected(item)}>{item.name}</button><small>{item.provider}</small>{item.tags?.length ? <small>{item.tags.join(' · ')}</small> : null}</td><td data-label="Award amount / basis"><b>{item.award || 'Amount not recorded'}</b>{item.awardBasis ? <small>{item.awardBasis}</small> : null}{item.awardCurrencyBasis ? <small>{item.awardCurrencyBasis}</small> : null}</td><td data-label="Deadline">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : milestone.key === "opening" ? formatDate(item.openDate) : "Date not confirmed")}</small>)}</td><td data-label="Urgency">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: <DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></small>)}</td><td data-label="Application"><ApplicationStatusPill status={item.applicationStatus || 'Not started'}/></td><td data-label="Priority"><PriorityPill priority={item.priority || 'Medium'}/></td><td data-label="Eligibility"><StatusPill status={summarizeEligibilityAssessment(assessments.get(item.id)).status as Status}/></td><td data-label="Source review"><SourceStatusPill item={item}/></td><td data-label="Details"><button type="button" className="secondary tracker-details" aria-label={"Open details for " + item.name} onClick={() => setSelected(item)}>›</button></td></tr>)}</tbody></table></div>}</div>
+        <div className="table-card"><div className="table-title"><b>Tracked opportunities</b><span>{filtered.length} shown · eligibility and application status are separate</span></div>{filtered.length===0 && items.length===0 ? <Empty onAdd={()=>openAdd()}/> : hasFilteredEmptyState ? <FilteredEmpty onClear={clearTrackerFilters}/> : <div className="table-wrap"><table><thead><tr><th>OPPORTUNITY</th><th>AWARD AMOUNT / BASIS</th><th>DEADLINE</th><th>URGENCY</th><th>APPLICATION</th><th>PRIORITY</th><th>ELIGIBILITY</th><th>SOURCE REVIEW</th><th scope="col">DETAILS</th></tr></thead><tbody>{filtered.map(item=><tr key={item.id}><td data-label="Opportunity"><button type="button" className="tracker-open" aria-label={'Review ' + item.name} onClick={()=>setSelected(item)}>{item.name}</button><small>{item.provider}</small>{item.tags?.length ? <small>{item.tags.join(' · ')}</small> : null}</td><td data-label="Award amount / basis"><b>{item.award || 'Amount not recorded'}</b>{item.awardBasis ? <small>{item.awardBasis}</small> : null}{item.awardCurrencyBasis ? <small>{item.awardCurrencyBasis}</small> : null}</td><td data-label="Deadline">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: {milestone.deadlineText || (milestone.deadline ? formatDate(milestone.deadline) : milestone.key === "opening" ? formatDate(item.openDate) : "Date not confirmed")}</small>)}</td><td data-label="Urgency">{getDeadlineMilestones(item).map((milestone)=><small key={milestone.key}>{milestone.label}: <DeadlineUrgencyPill deadline={milestone.deadline} timeZone={milestone.timeZone} openDate={item.openDate} openDateTimezone={item.openDateTimezone} deadlineTime={milestone.deadlineTime}/></small>)}</td><td data-label="Application"><ApplicationStatusPill status={item.applicationStatus || 'Not started'}/></td><td data-label="Priority"><PriorityPill priority={item.priority || 'Medium'}/></td><td data-label="Eligibility"><StatusPill status={summarizeEligibilityAssessment(assessments.get(item.id)).status as Status}/></td><td data-label="Source review"><SourceStatusPill item={item}/></td><td data-label="Details"><TrackerDetailsButton item={item} onOpen={setSelected} /></td></tr>)}</tbody></table></div>}</div>
         <p className="footnote">“Eligible” means all saved rules passed and the source review is complete. It is not an award guarantee; sponsors may have other requirements.</p>
       </div>}
 
@@ -1978,6 +1990,55 @@ function App() {
       {tab === 'Eligibility filters' && <div className="page narrow">
         <div className="page-heading"><div><div className="eyebrow">PERSONAL MATCHING PROFILE</div><h1>Your profile</h1><p>These details guide scholarship discovery and eligibility checks. Update anything that is missing or outdated.</p></div></div>
         <div className="filter-intro"><b>How the filters work</b><p>Location, citizenship, school year, GPA, and class rank are hard eligibility comparisons when a sponsor specifies them. Activities, service, work, and interests help find strong matches. Financial need and other sensitive factors are not inferred; unknown conditions are flagged.</p></div>
+        <section className="panel profile-import-panel" aria-labelledby="profile-import-heading">
+          <div className="panel-heading"><div><h3 id="profile-import-heading">Fill your profile from a document</h3><p className="muted">Upload a text-based resume or transcript. Scholarship Scout reads it on this device and suggests profile details.</p></div><span className="source-tag">ON-DEVICE</span></div>
+          <label className="field profile-import-picker"><span>Choose a resume or transcript file</span><input type="file" accept=".txt,.md,.csv,.html,.htm,text/plain,text/markdown,text/csv,text/html" onChange={async (event) => {
+            const input = event.currentTarget;
+            const file = input.files?.[0];
+            setProfileImportPreview(null);
+            setProfileImportError('');
+            if (!file) return;
+            const resetInput = () => { input.value = ''; };
+            if (file.size > 5 * 1024 * 1024) {
+              setProfileImportError('Choose a file smaller than 5 MB.');
+              resetInput();
+              return;
+            }
+            const extension = file.name.split('.').pop()?.toLowerCase();
+            if (!['txt', 'md', 'csv', 'html', 'htm'].includes(extension || '')) {
+              setProfileImportError('This file type is not supported yet. Use a text, Markdown, CSV, or HTML export.');
+              resetInput();
+              return;
+            }
+            try {
+              let source = await file.text();
+              if (extension === 'html' || extension === 'htm') {
+                const document = new DOMParser().parseFromString(source, 'text/html');
+                source = document.body.textContent || '';
+              }
+              const extracted = extractProfileDetails(source);
+              if (!Object.keys(extracted).length) {
+                setProfileImportError('No supported profile details were found. Try a text-based export with labeled fields such as GPA, school, graduation year, ACT, or activities.');
+                resetInput();
+                return;
+              }
+              setProfileImportFileName(file.name);
+              setProfileImportPreview(extracted);
+              resetInput();
+            } catch {
+              setProfileImportError('The file could not be read. Try exporting it as plain text and upload it again.');
+              resetInput();
+            }
+          }}/></label>
+          <p className="profile-search-hint">Your document is processed locally and is not uploaded to Scholarship Scout’s servers. PDF and Word document parsing are not enabled yet; export those documents as text first. Scanned images require OCR and are not read.</p>
+          {profileImportError ? <p className="field-error" role="alert">{profileImportError}</p> : null}
+          {profileImportPreview ? <div className="profile-import-review" aria-live="polite">
+            <b>Review extracted details from {profileImportFileName}</b>
+            <p>{Object.keys(profileImportPreview).length} details found. Existing profile values will be kept; only empty fields will be filled.</p>
+            <ul>{Object.entries(profileImportPreview).map(([key, value]) => <li key={key}><b>{key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}:</b> {value}</li>)}</ul>
+            <div className="action-row"><button type="button" onClick={() => { saveProfile(mergeExtractedProfileDetails(profileDraft, profileImportPreview) as Profile); setProfileImportPreview(null); setProfileImportError(''); }}>Apply details to my profile</button><button type="button" className="text-button" onClick={() => setProfileImportPreview(null)}>Discard</button></div>
+          </div> : null}
+        </section>
         <div className="panel profile-readiness-panel">
           <div className="panel-heading"><div><h3>Profile readiness</h3><p className="muted">Complete the core details first. The rest are optional ways to improve discovery.</p></div><span className="source-tag">{profileReadiness.core.completedCount}/{profileReadiness.core.totalCount} core details</span></div>
           <div className="profile-readiness-meter"><strong>{profileReadiness.core.percent}%</strong><progress max={100} value={profileReadiness.core.percent} aria-label="Core profile completeness"/></div>
@@ -2224,103 +2285,4 @@ function App() {
   </div>;
 }
 
-function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tracked:boolean;onTrack:()=>void}) {
-  const sourcePageUrl = getScholarshipSourcePageUrl(item.source_url);
-  const rules = item.extracted_rules as {
-    eligibility_requirements?:Array<{requirement?:string;mandatory?:boolean;evidence?:string;needs_human_confirmation?:boolean}>;
-    uncertainties?:string[]; short_source_summary?:string; application_fee?:boolean|null;
-    application_documents?:string[]; application_steps?:string[];
-  }|undefined;
-  return <article className="cloud-result-card" role="listitem">
-    <div className="candidate-top"><span className="status status-needs-information">{item.verification_state === 'human_verified' ? 'Sponsor-reviewed record' : item.verification_state === 'needs_human_review' ? 'Needs sponsor review' : 'Unverified lead'}</span><span>{(item.discovery_categories || [item.discovery_category]).map((category)=>category.replace(/_/g,' ')).join(' · ')}</span></div>
-    <h3>{item.title}</h3><p className="candidate-provider">{item.provider || 'Sponsor not confirmed'} · {item.source_domain || (()=>{try{return new URL(item.source_url).hostname.replace(/^www[.]/,'')}catch{return 'Source domain unavailable'}})()}</p>
-    <div className="cloud-result-meta" aria-label="Award and deadline clues from search snippets">
-      <span><b>Award</b> {item.award_text || 'Not found in snippet'}</span>
-      <span><b>Deadline</b> {item.deadline_text || 'Not found in snippet'}</span>
-    </div>
-    {(item.award_text || item.deadline_text) && <small className="candidate-source">Snippet details only. Confirm on the sponsor page.</small>}
-    <p className="candidate-description">{rules?.short_source_summary || item.excerpt || 'Open the source page and review the official sponsor rules.'}</p>
-    {item.relevance_score !== undefined && (() => {
-      const score = Math.max(0, Math.min(100, Math.round(item.relevance_score)));
-      const level = score >= 70 ? 'Strong' : score >= 40 ? 'Moderate' : 'Limited';
-      return <section className="research-relevance" aria-label={`Profile match: ${score} out of 100, ${level}`}>
-        <div className="research-relevance-head"><b>Profile match</b><strong>{score}/100 · {level}</strong></div>
-        <div className="research-relevance-track" role="meter" aria-label="Profile match score" aria-valuemin={0} aria-valuemax={100} aria-valuenow={score} aria-valuetext={`${score} out of 100, ${level} profile match`}>
-          <span style={{ width: `${score}%` }} />
-        </div>
-        <small>Calculated on this device from available profile details and search evidence. 0–39 limited · 40–69 moderate · 70–100 strong. Not an eligibility decision.</small>
-        {item.relevance_reasons?.length ? <details><summary>Why this matched</summary><small>{item.relevance_reasons.join(' · ')}</small></details> : null}
-      </section>;
-    })()}
-
-    {getScholarshipSourcePageUrl(item.source_evidence_url || '') && <p><a className="source-link" href={getScholarshipSourcePageUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noopener noreferrer">Open supporting rules / evidence ↗</a></p>}
-    {rules?.eligibility_requirements?.length ? <div className="extracted-rules"><b>Extracted sponsor rules — provisional</b>{rules.eligibility_requirements.map((rule,index)=><div key={index}><span>{rule.mandatory?'Required':'Selection / preference'}{rule.needs_human_confirmation?' · Confirm with sponsor':''}</span><p>{rule.requirement}</p>{rule.evidence&&<small>Evidence: {rule.evidence}</small>}</div>)}</div>:null}
-    {rules?.uncertainties?.length ? <div className="uncertainty-list"><b>Still unclear</b><ul>{rules.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
-    {rules?.application_documents?.length ? <div className="extracted-rules"><b>Application documents</b><ul>{rules.application_documents.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
-    {rules?.application_steps?.length ? <div className="extracted-rules"><b>Application steps</b><ol>{rules.application_steps.map((item,index)=><li key={index}>{item}</li>)}</ol></div>:null}
-    {rules?.application_fee === true ? <div className="risk-flag">⚠ The sponsor-page extraction indicates an application fee. Verify directly with the sponsor and do not pay to apply.</div>:null}
-    <div className="candidate-actions">{sourcePageUrl && <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer">Open scholarship page ↗</a>}<button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
-    {!sourcePageUrl && <small className="candidate-source">A direct scholarship page URL was not returned. The sponsor homepage is intentionally not shown as the scholarship page.</small>}
-    <small className="candidate-source">Cloud records are not automatically refreshed. Re-check the current official sponsor page before relying on any detail.</small>
-  </article>;
-}
-
-function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessment:EligibilityAssessment;added:boolean;onAdd:()=>void}) {
-  const summary = summarizeEligibilityAssessment(assessment);
-  const sourcePageUrl = getScholarshipSourcePageUrl(item.sourceUrl);
-  return <div className="candidate-card">
-    <div className="candidate-top"><StatusPill status={summary.status as Status}/><SourceStatusPill item={item}/></div>
-    <div className="candidate-deadline">{item.deadlineText && item.deadlineText !== item.deadline ? item.deadlineText : (item.deadline ? formatDate(item.deadline) : item.deadlineNotPublished ? 'No deadline published by sponsor' : 'Deadline not confirmed')} {item.deadlineTimezone ? `· ${item.deadlineTimezone}` : ''}</div>
-    <h3>{item.name}</h3><p className="candidate-provider">{item.provider}</p><div className="candidate-award">{item.award || 'Award details not published'}</div>
-    <p className="candidate-description">{item.notes}</p>
-    <div className="candidate-match"><b>Profile check</b><span>{summary.passed.length} pass · {summary.unknown.length} unknown · {summary.failed.length} fail</span></div>
-    <small className="candidate-source">{summary.caveat}</small>
-    <div className="candidate-actions">{sourcePageUrl && <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
-    {!sourcePageUrl && <small className="candidate-source">A direct scholarship page URL has not been saved for this record.</small>}
-    <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
-  </div>;
-}
-const STATUS_CLASS_MAP: Record<string, string> = {
-  'Eligible': 'eligible',
-  'Rules match — source unverified': 'rules-match-unverified',
-  'Needs information': 'needs-information',
-  'Ineligible': 'ineligible',
-  'Expired': 'expired',
-};
-function StatusPill({status}:{status:Status}) {
-  return <span className={'status status-' + (STATUS_CLASS_MAP[status] || 'unknown')}>{status}</span>;
-}
-function ApplicationStatusPill({status}:{status:ApplicationStatus}) { return <span className={'application-status-pill application-status-'+status.toLowerCase().replace(/ /g,'-')}>{status}</span>; }
-function PriorityPill({priority}:{priority:TrackerPriority}) { return <span className={'priority-pill priority-'+priority.toLowerCase()}>{priority}</span>; }
-function SourceStatusPill({item}:{item:Scholarship}) {
-  const freshness = getOfficialSourceFreshness(item);
-  const label = freshness === 'fresh' ? 'Fresh' : freshness === 'stale' ? 'Stale' : 'Unverified';
-  const tone = freshness === 'fresh' ? 'verified' : 'needs-review';
-  return <span className={'source-status source-status-'+tone} aria-label={'Official source freshness: '+label}>{label}</span>;
-}
-function DeadlineUrgencyPill({deadline,timeZone,openDate,openDateTimezone,deadlineTime}:{deadline?:string;timeZone?:string;openDate?:string;openDateTimezone?:string;deadlineTime?:string}) {
-  const urgency = getDeadlineUrgency(deadline, new Date(), timeZone, openDate, openDateTimezone, deadlineTime);
-  const explanation = openDate
-    ? "Opening date is evaluated as a date-only sponsor window" + (openDateTimezone ? " in " + openDateTimezone : "") + "; the deadline is not treated as overdue before the opportunity opens."
-    : timeZone
-      ? "Date-only estimate using the sponsor-stated time zone (" + timeZone + "); no cutoff time is inferred."
-      : "Date-only estimate; no sponsor time zone or cutoff time is inferred.";
-  return <span className={`deadline-urgency deadline-urgency-${urgency.status}`} title={explanation}>{urgency.label}</span>;
-}
-function EvidenceCompletenessList({item}:{item:Scholarship}) {
-  const review = getEvidenceCompleteness(item);
-  return <div className="evidence-completeness"><div className="panel-heading"><div><b>Sponsor evidence completeness</b><small>{review.completedCount} of {review.totalCount} source checks complete. This is not a personal eligibility result.</small></div><span className={review.complete ? 'source-status source-status-verified' : 'source-status source-status-needs-review'}>{review.complete ? 'Complete' : 'Needs review'}</span></div><ul>{review.checks.map((check)=><li key={check.label}><span className={check.complete ? 'evidence-check-done' : 'evidence-check-missing'}>{check.complete ? '✓' : '•'}</span>{check.label}</li>)}</ul></div>;
-}
-function EligibilityMatchSummary({assessment}:{assessment:EligibilityAssessment}) {
-  const summary = summarizeEligibilityAssessment(assessment);
-  const groups = [
-    { title: 'Matches recorded rules', items: summary.passed, tone: 'pass' },
-    { title: 'Does not meet', items: summary.failed, tone: 'fail' },
-    { title: 'Still needs confirmation', items: summary.unknown, tone: 'unknown' },
-    { title: 'Preferred qualifications (informational)', items: summary.preferred, tone: 'unknown' },
-  ].filter((group) => group.items.length > 0);
-  return <div className="match-summary"><div className="match-summary-heading"><b>{summary.headline}</b><span>{summary.passed.length} mandatory passed · {summary.failed.length} mandatory not met · {summary.unknown.length} mandatory unknown · {summary.preferred.length} preferred informational</span></div>{groups.length ? groups.map((group)=><section className={`match-summary-group match-summary-${group.tone}`} key={group.title}><h4>{group.title}</h4><ul>{group.items.map((item)=><li key={item.label}><b>{item.label}</b>{item.importance === 'preferred' && <small>{item.outcome === 'pass' ? 'Preferred match' : item.outcome === 'fail' ? 'Preferred not met — not disqualifying' : 'Preferred — confirmation pending'}</small>}<span>{item.detail || 'No additional detail recorded.'}</span>{item.evidence?.state === 'linked' ? <div className="criterion-evidence"><small>Source excerpt: {item.evidence.excerpt}</small>{sanitizePublicHttpsUrl(item.evidence.sourceUrl) && <a className="source-link" href={sanitizePublicHttpsUrl(item.evidence.sourceUrl) || undefined} target="_blank" rel="noreferrer">Open criterion source ↗</a>}</div> : item.criterionKey ? <small className="criterion-evidence-missing">Criterion evidence is not linked yet; confirm this rule on the sponsor's official page.</small> : null}</li>)}</ul></section>) : <p className="muted">Add structured sponsor criteria to compare this scholarship.</p>}<small>{summary.caveat} Sponsor decisions and requirements not recorded in Scout may still apply.</small></div>;
-}
-function Empty({onAdd}:{onAdd:()=>void}) { return <div className="empty"><div>▤</div><b>No scholarships in this view</b><p>Add an opportunity from discovery or enter its sponsor criteria.</p><button className="secondary" onClick={onAdd}>＋ Add scholarship</button></div>; }
-function FilteredEmpty({onClear}:{onClear:()=>void}) { return <div className="empty" role="status"><div>⌕</div><b>No scholarships match these filters</b><p>Saved opportunities are available, but your search or selected filters hide them.</p><button type="button" className="secondary" onClick={onClear}>Clear filters</button></div>; }
 export default App;

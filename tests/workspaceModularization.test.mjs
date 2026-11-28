@@ -59,3 +59,52 @@ test("the app and profile page share one full-featured field-control implementat
   assert.match(fields, /step=\{step\}/);
   assert.match(fields, /<select required=\{required\}/);
 });
+
+test("App reuses shared scholarship cards and status presentation components", async () => {
+  const app = await read("../src/App.tsx");
+  const cards = await read("../src/components/ScholarshipCards.tsx");
+  const pills = await read("../src/components/StatusPills.tsx");
+
+  assert.match(app, /import \{[^}]*CloudResultCard[^}]*CandidateCard[^}]*Empty[^}]*FilteredEmpty[^}]*\} from '\.\/components\/ScholarshipCards\.js'/s);
+  assert.match(app, /import \{[^}]*StatusPill[^}]*ApplicationStatusPill[^}]*PriorityPill[^}]*SourceStatusPill[^}]*DeadlineUrgencyPill[^}]*EvidenceCompletenessList[^}]*EligibilityMatchSummary[^}]*\} from '\.\/components\/StatusPills\.js'/s);
+  for (const name of ["CloudResultCard", "CandidateCard", "Empty", "FilteredEmpty"]) {
+    assert.match(cards, new RegExp("export function " + name + "\\b"));
+    assert.doesNotMatch(app, new RegExp("function " + name + "\\s*\\("));
+  }
+  for (const name of ["StatusPill", "ApplicationStatusPill", "PriorityPill", "SourceStatusPill", "DeadlineUrgencyPill", "EvidenceCompletenessList", "EligibilityMatchSummary"]) {
+    assert.match(pills, new RegExp("export function " + name + "\\b"));
+    assert.doesNotMatch(app, new RegExp("function " + name + "\\s*\\("));
+  }
+});
+
+test("navigation glyph rendering is isolated from the application composition root", async () => {
+  const app = await read("../src/App.tsx");
+  const glyph = await read("../src/components/NavGlyph.tsx");
+  assert.match(app, /import \{ NavGlyph, type NavGlyphName \} from '\.\/components\/NavGlyph\.js'/);
+  assert.doesNotMatch(app, /function NavGlyph\s*\(/);
+  assert.match(glyph, /export function NavGlyph/);
+  assert.match(glyph, /aria-hidden="true"/);
+});
+
+test("application stylesheet is an ordered manifest of focused style modules", async () => {
+  const manifest = await read("../src/App.css");
+  const imports = [...manifest.matchAll(/@import\s+['"]([^'"]+)['"]\s*;/g)].map((match) => match[1]);
+  assert.deepEqual(imports, [
+    "./styles/app/foundation.css",
+    "./styles/app/components.css",
+    "./styles/app/responsive.css",
+    "./styles/app/theme.css",
+    "./styles/app/accessibility.css",
+    "./styles/app/editorial.css",
+    "./styles/app/branding.css",
+    "./styles/app/navigation.css",
+    "./styles/app/design-system.css",
+    "./styles/app/workspace-navigation.css",
+    "./styles/app/tracker-editor.css",
+  ]);
+  for (const path of imports) {
+    const source = await read("../src/" + path.replace(/^\.\//, ""));
+    assert.ok(source.trim().length > 100, path + " should contain its own style rules");
+  }
+  assert.doesNotMatch(manifest, /(^|\n)(?!\s*@import|\s*\/\*|\s*\*\/)[^\s/][^\n]*\{/);
+});

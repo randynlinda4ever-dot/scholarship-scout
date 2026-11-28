@@ -9,7 +9,7 @@ import {
 const categories = [...ALLOWED_CATEGORIES];
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const request = (body, headers = {}) => new Request("https://edge.test/discover", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": "192.0.2.1", ...headers }, body: JSON.stringify(body) });
-const baseBody = { profile: { state: "Texas", graduationYear: "2027" }, categories: ["local"] };
+const baseBody = { state: "Texas", graduationYear: "2027", categories: ["local"] };
 const deps = (overrides = {}) => ({ getEnv: (key) => key === "SEARXNG_GATEWAY_URL" ? "https://gateway.example" : "x".repeat(64), now: () => new Date("2026-11-13T12:00:00.000Z"), randomUUID: (() => { let n = 0; return () => `uuid-${++n}`; })(), fetchImpl: async () => response({ results: [] }), ...overrides });
 
 test("the public category allowlist contains exactly fourteen categories", () => assert.equal(categories.length, 14));
@@ -305,19 +305,17 @@ test("bounded searches never exceed four active upstream requests", async () => 
   assert.ok(peak <= 4);
   assert.equal(peak, 4);
 });
-test("discovery rejects profile fields outside the public state and graduation-year projection", async () => {
+test("discovery rejects student profile and identifying fields at the request boundary", async () => {
   const sent = [];
   const handler = createScholarshipDiscoveryHandler(deps({
     fetchImpl: async (url) => { sent.push(url); return response({ results: [] }); },
   }));
   const body = {
     ...baseBody,
-    profile: {
-      ...baseBody.profile,
-      school: "PRIVATE-SCHOOL-SENTINEL",
-      gpa: "PRIVATE-GPA-SENTINEL",
-      email: "PRIVATE-EMAIL-SENTINEL",
-    },
+    school: "PRIVATE-SCHOOL-SENTINEL",
+    gpa: "PRIVATE-GPA-SENTINEL",
+    email: "PRIVATE-EMAIL-SENTINEL",
+    resume: "PRIVATE-RESUME-SENTINEL",
   };
 
   const result = await handler(request(body, { "cf-connecting-ip": "192.0.2.210" }));
@@ -344,7 +342,7 @@ test("discovery rejects unexpected top-level properties before starting a public
 test("handler includes all fourteen selected categories within the bounded request budget", async () => {
   const sent = [];
   const handler = createScholarshipDiscoveryHandler(deps({ fetchImpl: async (url) => { sent.push(new URL(url).searchParams.get("q")); return response({ results: [] }); } }));
-  const result = await handler(request({ profile: baseBody.profile, categories }));
+  const result = await handler(request({ state: baseBody.state, graduationYear: baseBody.graduationYear, categories }));
   assert.equal(result.status, 200);
   assert.ok(sent.length >= categories.length && sent.length <= 24);
   const categoryQueries = { local: "local and county scholarships", school_resources: "high school counselor scholarship lists", regional: "regional student scholarship programs", state: "statewide scholarship programs", academic: "academic merit scholarships", humanities: "humanities, history", leadership: "student leadership", community_service: "volunteer service", language: "world language learning", employment: "employer sponsored scholarships", arts: "visual art, design", incoming_college: "incoming college student scholarships", national: "national scholarships open", general: "general student scholarships" };
@@ -367,9 +365,14 @@ test("gateway bearer secret is trimmed before constructing the Authorization hea
 
 test("handler validates method, content type, state, year, and category", async () => {  const makeHandler = () => createScholarshipDiscoveryHandler(deps());
   assert.equal((await makeHandler()(new Request("https://edge.test", { method: "GET" }))).status, 405);  assert.equal((await makeHandler()(new Request("https://edge.test", { method: "POST", headers: { "cf-connecting-ip": "192.0.2.9" }, body: "{}" }))).status, 415);
-  assert.equal((await makeHandler()(request({ ...baseBody, profile: { state: "Texas123", graduationYear: "2027" } }))).status, 400);
-  assert.equal((await makeHandler()(request({ ...baseBody, profile: { state: "Texas", graduationYear: "2040" } }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, state: "Texas123" }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, graduationYear: "2040" }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, state: 17 }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, graduationYear: 2027 }))).status, 400);
   assert.equal((await makeHandler()(request({ ...baseBody, categories: ["invalid"] }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, categories: ["local", "local"] }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, unexpected: "private" }))).status, 400);
+  assert.equal((await makeHandler()(request({ ...baseBody, profile: { state: "Texas", graduationYear: "2027" } }))).status, 400);
 });
 test("handler enforces the 8192-byte body limit", async () => {
   const handler = createScholarshipDiscoveryHandler(deps());
@@ -548,21 +551,22 @@ test("Upstash limiter fails closed for missing config, missing trusted address, 
 test("discovery validates real US states and a moving graduation-year window", async () => {
   const handler = createScholarshipDiscoveryHandler(deps());
   let requestIndex = 50;
-  const submit = (profile) => handler(request(
-    { ...baseBody, profile },
+  const submit = (filters) => handler(request(
+    { ...baseBody, ...filters },
     { "cf-connecting-ip": `192.0.2.${requestIndex++}` },
   ));
   for (const state of [".", "---", "'", "Narnia"]) {
-    const result = await submit({ ...baseBody.profile, state });
+    const result = await submit({ state });
     assert.equal(result.status, 400, state);
   }
-  assert.equal((await submit({ ...baseBody.profile, graduationYear: "2025" })).status, 400);
-  assert.equal((await submit({ ...baseBody.profile, graduationYear: "2036" })).status, 400);
-  for (const graduationYear of ["2027.5", "2027junk", " 2027 ", "202"]) {
-    const result = await submit({ ...baseBody.profile, graduationYear });
+  assert.equal((await submit({ graduationYear: "2025" })).status, 400);
+  assert.equal((await submit({ graduationYear: "2036" })).status, 400);
+  for (const graduationYear of ["2027.5", "2027junk", "202"]) {
+    const result = await submit({ graduationYear });
     assert.equal(result.status, 400, graduationYear);
   }
-  assert.equal((await submit({ ...baseBody.profile, state: "TX" })).status, 200);
+  assert.equal((await submit({ graduationYear: " 2027 " })).status, 200);
+  assert.equal((await submit({ state: "TX" })).status, 200);
 });
 
 test("filters state scholarship directory and ranked-list landing pages", () => {

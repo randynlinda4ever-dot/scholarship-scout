@@ -6,6 +6,8 @@ These documents describe the verified implementation and distinguish current beh
 - [Cross-device encrypted vault](account-vault-sync.md) — opt-in passkey/PRF recovery, ciphertext-only account backup, sync conflict handling, restore rules, and deletion semantics.
 - [Roadmap audit — November 27, 2026](roadmap-audit-2026-11-27.md) — evidence-based review of the previous roadmap, current gaps, stale assumptions, and recommended execution order.
 - [Roadmap audit — November 28, 2026](roadmap-audit-2026-11-28.md) — current production baseline, deployed Edge Function source parity, database security state, and prioritized follow-up work.
+- [UI/UX overhaul audit — November 28, 2026](ui-ux-overhaul-audit-2026-11-28.md) — current route inventory, static usability/accessibility findings, preserved module status, and safe incremental refactor priorities.
+- [Student tools roadmap — November 28, 2026](student-tools-roadmap-2026-11-28.md) — existing tool inventory, student-needs and competitor research, resume-builder decision, privacy boundaries, and follow-up priorities.
 - [Search visibility and public scholarship guides](search-visibility.md) — crawlable scholarship landing pages, canonical routes, sitemap/robots configuration, privacy boundaries, and indexing verification.
 - [Runtime audit — November 27, 2026](runtime-audit-2026-11-27.md) — GitHub release state, Supabase v19 source parity, gateway validation, database advisors, and release gates.
 - [Rate-limit decision — November 27, 2026](rate-limit-decision-2026-11-27.md) — current no-Redis design, verified gateway ceiling, explicit limitations, and future scale-up triggers.

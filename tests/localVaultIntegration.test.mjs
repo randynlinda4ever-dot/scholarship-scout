@@ -55,8 +55,12 @@ test("the vault uses authenticated encryption and the browser's exclusive single
 
 test("vault migration preserves unrelated origin storage and captures Supabase PKCE verifier", async () => {
   const vault = await read("src/lib/localVault.js");
-  assert.match(vault, /key\.startsWith\("scout-"\)/);
-  assert.match(vault, /SUPABASE_AUTH_STORAGE_KEY/);
-  assert.match(vault, /SUPABASE_AUTH_CODE_VERIFIER_KEY/);
-  assert.match(vault, /!isScoutRecord && !isCurrentSupabaseSession/);
+  const policy = await read("src/lib/vaultRecordPolicy.js");
+  assert.match(vault, /return !isPrivateVaultRecordKey\(key\)/);
+  assert.match(vault, /migrateLegacyAuthStorage/);
+  assert.match(vault, /migrateLegacyVaultRecords/);
+  assert.match(policy, /PRIVATE_VAULT_RECORD_KEYS/);
+  assert.match(policy, /AUTH_STORAGE_KEY_MIGRATION/);
+  assert.match(policy, /UI_PREFERENCE_RECORD_KEYS/);
+  assert.doesNotMatch(policy, /scout-tracker/);
 });

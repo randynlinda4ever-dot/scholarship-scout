@@ -17,7 +17,7 @@
 }
 .resource-card:hover { border-color: var(--accent); background: var(--surface-raised); transform: translateY(-2px); }
 .resource-card:focus-visible, .resource-page button:focus-visible, .resource-page a:focus-visible,
-.resource-page input:focus-visible, .resource-page textarea:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+.resource-page input:focus-visible, .resource-page textarea:focus-visible, .resource-page select:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
 .resource-card-top, .resource-document-topline, .resource-card-bottom, .resource-section-heading,
 .resource-calendar-phase-heading, .resource-college-card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .resource-card-top>span { color: var(--accent-strong); font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -158,4 +158,30 @@
   .resource-page .resource-callout span { color: #444; }
   .resource-page .resource-document { page-break-inside: auto; }
   .resource-page .resource-card, .resource-page .resource-index-note, .resource-page .resource-index-heading { display: none !important; }
+}
+
+
+/* Student activities and resume workspace */
+.resource-resume-editor, .resource-resume-preview { display: grid; gap: 14px; }
+.resource-resume-list { display: grid; gap: 12px; }
+.resource-resume-entry { display: grid; gap: 13px; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); }
+.resource-resume-entry-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-soft); font-size: 12px; }
+.resource-resume-entry .resource-form-grid select { width: 100%; min-height: 41px; padding: 10px 11px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+.resource-resume-preview { padding-top: 17px; border-top: 1px solid var(--line); }
+.resource-resume-preview-sections { display: grid; gap: 17px; }
+.resource-resume-preview-section { display: grid; gap: 9px; }
+.resource-resume-preview-section h3 { margin: 0; padding-bottom: 6px; border-bottom: 1px solid var(--line); color: var(--accent-strong); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.resource-resume-preview-entry { display: grid; gap: 4px; break-inside: avoid; }
+.resource-resume-preview-topline { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; color: var(--text); font-size: 13px; }
+.resource-resume-preview-topline b { min-width: 0; overflow-wrap: anywhere; }
+.resource-resume-preview-topline span { flex: 0 0 auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.resource-resume-organization { margin: 0; color: var(--text-soft); font-size: 12px; font-style: italic; }
+.resource-resume-preview-entry p:not(.resource-resume-organization) { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+@media print {
+  .resource-resume-preview { margin-top: 2mm; padding-top: 0; border-top: 0; }
+  .resource-resume-preview-section h3 { color: #111; border-color: #bbb; }
+  .resource-resume-preview-topline, .resource-resume-organization,
+  .resource-resume-preview-entry p:not(.resource-resume-organization) { color: #222; }
+  .resource-resume-preview-topline span { color: #444; }
+  .resource-resume-entry, .resource-resume-preview-entry { break-inside: avoid; }
 }

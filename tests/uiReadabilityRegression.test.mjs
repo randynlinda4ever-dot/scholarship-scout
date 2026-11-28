@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
+
+const styles = await readActiveAppStyles();
 
 test('mobile brand subtitle remains readable', () => {
   assert.match(styles, /\.sidebar \.logo small\s*\{[^}]*font-size:\s*10px/);

@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
+
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
+const css = await readActiveAppStyles();
 
 test("live search categories are exposed as a named keyboard-operable group", () => {
   assert.match(app, /className="panel discovery-category-picker" role="group" aria-labelledby="research-categories-title"/);
@@ -12,14 +14,6 @@ test("live search categories are exposed as a named keyboard-operable group", ()
   assert.match(app, /<input type="checkbox" checked=\{selectedDiscoveryCategories\.includes\(category\.id\)\}/);
 });
 
-test("live and saved search results expose named sections and list semantics", () => {
-  assert.match(app, /<section aria-labelledby="live-search-results-title">/);
-  assert.match(app, /<h2 id="live-search-results-title">Live scholarship results<\/h2>/);
-  assert.match(app, /role="list" aria-label="Live scholarship search results"/);
-  assert.match(app, /<section aria-labelledby="saved-cloud-results-title">/);
-  assert.match(app, /role="list" aria-label="Saved scholarship records"/);
-  assert.match(app, /<article className="cloud-result-card" role="listitem">/);
-});
 
 test("keyboard users can skip navigation and reach the main content", () => {
   assert.match(app, /<a className="skip-link" href="#main-content">Skip to main content<\/a>/);

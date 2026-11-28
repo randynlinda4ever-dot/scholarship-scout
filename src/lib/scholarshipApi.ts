@@ -2,7 +2,7 @@ import { getSupabaseClient } from "./supabaseClient";
 import { getMagicLinkRedirectUrl } from "./authRedirect.js";
 import { buildCloudScholarshipRow, findExistingCloudScholarshipMatch, mapCloudScholarship } from "./cloudMapping";
 import { rankAndDeduplicateLiveResults } from "./discoveryPipeline.js";
-import { pickLiveDiscoveryProfile } from "./liveDiscoveryProfile.js";
+import { buildLiveDiscoveryPayload } from "./liveDiscoveryProfile.js";
 import { createCloudScholarshipId } from "./cloudRecordId.js";
 import { getDiscoveryClientId } from "./discoveryClientIdentity.js";
 
@@ -170,7 +170,7 @@ export async function createAccountVaultBackup({
     .single();
   if (error || !data) {
     throw new Error(error?.code === "23505"
-      ? "An account vault backup already exists. Refresh the backup status before trying again."
+      ? "A single encrypted account vault already exists for this account. This device cannot create another; refresh backup status and restore the existing vault instead."
       : "The encrypted account vault backup could not be created.");
   }
   return data as AccountVaultBackup;
@@ -351,10 +351,10 @@ export async function runLiveScholarshipDiscovery(
   categories: string[],
 ): Promise<LiveDiscoveryRun> {
   const client = await requireClient();
-  const safeProfile = pickLiveDiscoveryProfile(profile);
+  const payload = buildLiveDiscoveryPayload(profile, categories);
   const clientId = getDiscoveryClientId();
   const { data, error } = await client.functions.invoke("scholarship-discover", {
-    body: { profile: safeProfile, categories },
+    body: payload,
     ...(clientId ? { headers: { "x-scout-client-id": clientId } } : {}),
   });
   if (error) {
