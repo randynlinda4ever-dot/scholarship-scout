@@ -105,7 +105,7 @@ test("the full notice discloses actual local, search, cloud, age, and service li
     "malicious software",
     "permanent account-deletion workflow",
     "privacy-request form in settings",
-    "selected U.S. state, expected graduation year, and selected scholarship category IDs",
+    "your selected U.S. state, expected graduation year, and selected scholarship category IDs",
     "Google",
     "account provider",
     "email sign-in link",
@@ -144,7 +144,7 @@ test("privacy notice accurately discloses U.S.-only live search and local post-s
   assert.match(terms, /Automated live discovery currently supports U\.S\. state targeting only/);
   assert.match(terms, /selected U\.S\. state, expected graduation year, and selected scholarship category IDs/);
   assert.match(terms, /browser may compare result titles and excerpts against locally stored county, school name, education level, planned major, interests, academic coursework and honors, activities, service experience, employment, languages, certifications, and custom ranking keywords/);
-  assert.match(terms, /are not sent as part of the search request/);
+  assert.match(terms, /Those matching values are processed only on this device and are not sent as part of the search request/);
   assert.match(terms, /non-exportable encryption key/);
   assert.match(terms, /The sign-in screen also offers Google sign-in/);
 });
