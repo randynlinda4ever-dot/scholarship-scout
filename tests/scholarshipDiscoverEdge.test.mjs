@@ -82,6 +82,18 @@ test("cache expires entries and evicts the least recently used key", () => {
   assert.equal(cache.size, 0);
 });
 
+test("default discovery cache retains successful public search results for two minutes", () => {
+  let time = 0;
+  const cache = createDiscoveryResultCache({ now: () => time });
+  cache.set("public-filter-key", { results: [{ title: "Scholarship lead" }] });
+  time = 30_000;
+  assert.equal(cache.get("public-filter-key").value.results.length, 1);
+  time = 119_999;
+  assert.equal(cache.get("public-filter-key").value.results.length, 1);
+  time = 120_000;
+  assert.equal(cache.get("public-filter-key"), null);
+});
+
 test("handler serves a fresh cache hit without another provider request and reports saved calls", async () => {
   let fetchCount = 0;
   const handler = createScholarshipDiscoveryHandler(deps({ fetchImpl: async () => {
