@@ -8,9 +8,9 @@ test("scholarship editor collects a URL and excerpt for every active structured 
   assert.match(app, /criteriaEvidence\?: Record<string, \{ excerpt\?: string; sourceUrl\?: string \}>/);
   assert.match(app, /const setCriterionEvidence =/);
   assert.match(app, /const activeCriterionEntries = Object\.entries\(draft\.criteria\)/);
-  assert.match(app, /Public sponsor evidence for each criterion/);
+  assert.match(app, /Requirement evidence and verification/);
   assert.match(app, /same recognized official sponsor domain/);
-  assert.match(app, /Each structured rule needs its own short excerpt and exact HTTPS page URL/);
+  assert.match(app, /Each rule needs its own excerpt and exact HTTPS page URL/);
   assert.match(app, /Exact official page URL for this rule/);
   assert.match(app, /setCriterionEvidence\(key,\{sourceUrl:v\}\)/);
   assert.match(app, /setCriterionEvidence\(key,\{excerpt:e\.target\.value\}\)/);

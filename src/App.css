@@ -995,7 +995,7 @@ td small { font-size: 11px; }
 .shell:not([data-theme="light"]) .deadline-urgency-overdue { border-color: #80546a; background: #422b40; color: #efc0d5; }
 
 
-/* Scholarship Scout — Midnight Violet design system */
+/* Scholarship Scout ΓÇö Midnight Violet design system */
 :root {
   color-scheme: dark;
   --bg: #080e1f;
@@ -1355,3 +1355,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     font-size: 11px;
   }
 }
+
+
+/* My Scholarships editor: explicit field groups and a two-step destructive action. */
+.tracker-editor-fields { align-items: start; }
+.tracker-editor-section { grid-column: 1 / -1; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.tracker-editor-section + .tracker-editor-section { margin-top: 2px; }
+.tracker-editor-section-heading { margin: 0 0 14px; }
+.tracker-editor-section-heading h3 { margin: 0 0 5px; font-size: 14px; }
+.tracker-editor-section-heading p, .tracker-editor-subgroup p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.tracker-editor-section .form-grid { align-items: start; }
+.tracker-editor-subgroup { margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.tracker-editor-subgroup > b { display: block; margin-bottom: 5px; font-size: 12px; }
+.tracker-editor-section .criterion-evidence-entry { margin-top: 12px; }
+.tracker-remove-confirmation { grid-column: 1 / -1; padding: 14px; border: 1px solid var(--danger); border-radius: 10px; background: var(--surface-raised); }
+.tracker-remove-confirmation h3 { margin: 0 0 7px; font-size: 14px; }
+.tracker-remove-confirmation p { margin: 0; color: var(--text-soft); font-size: 12px; line-height: 1.5; }
+.tracker-remove-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 13px; }
+
+@media (max-width: 700px) {
+  .tracker-editor-section { padding: 12px; }
+  .tracker-editor-section .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .tracker-remove-actions { justify-content: stretch; }
+  .tracker-remove-actions button { flex: 1 1 100%; }
+}
+
