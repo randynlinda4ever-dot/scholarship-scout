@@ -58,6 +58,10 @@ export function extractProfileDetails(sourceText) {
       if (scale && isValidFieldValue('gpaType', scale[1])) result.gpaType = scale[1];
     }
   }
+  if (result.gpa && result.gpaType && Number(result.gpa) > Number(result.gpaType)) {
+    delete result.gpa;
+    delete result.gpaType;
+  }
   return result;
 }
 
