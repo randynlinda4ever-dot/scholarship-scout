@@ -1,13 +1,12 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
 const app = await read('src/App.tsx');
 const bootstrap = await read('src/bootstrap.ts');
 const brandMark = await read('src/components/BrandMark.tsx');
 const navGlyph = await read('src/components/NavGlyph.tsx');
-const appStyles = await read('src/App.css');
+const appStyles = await readActiveAppStyles();
+const themeTokens = await read('public/brand-theme.css');
 const brandStyles = await read('src/brand-system.css');
 const guideStyles = await read('public/scholarship-guides/guide.css');
 const index = await read('index.html');
