@@ -16,7 +16,7 @@ const monitor = await read("src/lib/reliabilityMonitor.js");
 const clientIdentity = await read("src/lib/discoveryClientIdentity.js");
 
 test("public discovery sends only broad state and graduation-year filters", () => {
-  assert.match(api, /pickLiveDiscoveryProfile\(profile\)/);
+  assert.match(api, /buildLiveDiscoveryPayload\(profile, categories\)/);
   assert.match(liveProfile, /return \{[\s\S]*?state:[\s\S]*?graduationYear:/);
   const projectedFields = liveProfile.match(/return \{([\s\S]*?)\n  \};/)?.[1] ?? "";
   assert.match(projectedFields, /state:/);

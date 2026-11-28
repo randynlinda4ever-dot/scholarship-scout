@@ -561,10 +561,11 @@ test("discovery validates real US states and a moving graduation-year window", a
   }
   assert.equal((await submit({ graduationYear: "2025" })).status, 400);
   assert.equal((await submit({ graduationYear: "2036" })).status, 400);
-  for (const graduationYear of ["2027.5", "2027junk", " 2027 ", "202"]) {
+  for (const graduationYear of ["2027.5", "2027junk", "202"]) {
     const result = await submit({ graduationYear });
     assert.equal(result.status, 400, graduationYear);
   }
+  assert.equal((await submit({ graduationYear: " 2027 " })).status, 200);
   assert.equal((await submit({ state: "TX" })).status, 200);
 });
 

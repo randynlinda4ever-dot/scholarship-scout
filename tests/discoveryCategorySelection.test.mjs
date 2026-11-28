@@ -36,10 +36,8 @@ test("a full-category request searches every selected category within the shared
     method: "POST",
     headers: { "content-type": "application/json", "cf-connecting-ip": "192.0.2.2" },
     body: JSON.stringify({
-      profile: {
-        state: "Texas",
-        graduationYear: "2027",
-      },
+      state: "Texas",
+      graduationYear: "2027",
       categories: ALLOWED_CATEGORIES,
     }),
   });

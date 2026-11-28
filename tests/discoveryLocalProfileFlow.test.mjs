@@ -19,7 +19,8 @@ test("the discovery loading message distinguishes local profile matching from tr
 });
 
 test("the live discovery API still projects only state and graduation year to the public request", () => {
-  assert.match(apiSource, /const safeProfile = pickLiveDiscoveryProfile\(profile\)/);
-  assert.match(apiSource, /body:\s*\{\s*profile:\s*safeProfile,\s*categories\s*\}/);
+  assert.match(apiSource, /buildLiveDiscoveryPayload\(profile, selectedDiscoveryCategories\)/);
+  assert.match(apiSource, /body:\s*payload/);
+  assert.doesNotMatch(apiSource, /body:\s*\{\s*profile\s*:/);
   assert.match(apiSource, /rankAndDeduplicateLiveResults\(data\.results,\s*profile\)/);
 });
