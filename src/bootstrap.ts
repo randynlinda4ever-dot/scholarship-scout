@@ -25,7 +25,104 @@ function hasCurrentAcceptance(): boolean {
 }
 
 import { renderLocalVaultGate } from "./lib/localVaultGate.js";
-import { lockLocalVault } from "./lib/localVault.js";
+import { hasEncryptedVault, cacheAccountVaultBackupLocally, lockLocalVault } from "./lib/localVault.js";
+
+type AuthenticatedAccount = { id: string; email?: string; is_anonymous?: boolean };
+const GUEST_SESSION_KEY = "scholarship-scout-guest-session";
+type AccountGateRoot = ReturnType<typeof import("react-dom/client").createRoot>;
+let accountGateRoot: AccountGateRoot | null = null;
+let vaultGateStarting = false;
+
+function showStartupError(reason: unknown): void {
+  workspaceStarting = false;
+  vaultGateStarting = false;
+  const error = document.createElement("p");
+  error.setAttribute("role", "alert");
+  error.textContent = reason instanceof Error
+    ? reason.message
+    : "Scholarship Scout could not open your encrypted workspace.";
+  root.replaceChildren(error);
+}
+
+async function startWorkspaceWithVault({
+  ownerId,
+  guestMode,
+  accountVaultBackup = null,
+  allowAccountRestore = false,
+}: {
+  ownerId: string | null;
+  guestMode: boolean;
+  accountVaultBackup?: { credential_id: string; prf_salt: string; encrypted_envelope: Record<string, unknown>; revision: number; updated_at: string } | null;
+  allowAccountRestore?: boolean;
+}): Promise<void> {
+  if (vaultGateStarting) return;
+  vaultGateStarting = true;
+  accountGateRoot?.unmount();
+  accountGateRoot = null;
+  root.replaceChildren();
+  try {
+    await renderLocalVaultGate(root, async () => {
+      try {
+        await import("./main");
+      } catch (error) {
+        await lockLocalVault();
+        throw error;
+      }
+    }, {
+      ownerId,
+      allowDeviceUnlock: !guestMode,
+      guestMode,
+      accountVaultBackup,
+      allowAccountRestore,
+    });
+  } catch (reason) {
+    showStartupError(reason);
+  }
+}
+
+async function startAuthenticatedWorkspace(account: AuthenticatedAccount): Promise<void> {
+  if (account.is_anonymous) return;
+  try { window.sessionStorage.removeItem(GUEST_SESSION_KEY); } catch { /* best effort */ }
+  try {
+    const localExists = await hasEncryptedVault();
+    let accountVaultBackup: { credential_id: string; prf_salt: string; encrypted_envelope: Record<string, unknown>; revision: number; updated_at: string } | null = null;
+    let allowAccountRestore = false;
+    try {
+      const { getAccountVaultBackup } = await import('./lib/scholarshipApi');
+      accountVaultBackup = await getAccountVaultBackup();
+    } catch (error) {
+      // Never block a device that already has its own encrypted local vault
+      // just because cloud backup metadata is temporarily unavailable.
+      if (!localExists) throw error;
+    }
+    if (accountVaultBackup) {
+      try {
+        await cacheAccountVaultBackupLocally(accountVaultBackup.encrypted_envelope, {
+          ownerId: account.id,
+          cloudRevision: accountVaultBackup.revision,
+        });
+        allowAccountRestore = true;
+      } catch {
+        // Existing local records take precedence. A cached matching backup can
+        // be retried, but different local data is never overwritten.
+      }
+    }
+    await startWorkspaceWithVault({
+      ownerId: account.id,
+      guestMode: false,
+      accountVaultBackup,
+      allowAccountRestore,
+    });
+  } catch (reason) {
+    showStartupError(reason);
+  }
+}
+
+async function startGuestWorkspace(): Promise<void> {
+  try { window.sessionStorage.setItem(GUEST_SESSION_KEY, "true"); }
+  catch { showStartupError(new Error("Guest mode requires browser session storage. Enable it or use account sign-in.")); return; }
+  await startWorkspaceWithVault({ ownerId: null, guestMode: true });
+}
 
 async function startWorkspace(): Promise<void> {
   if (workspaceStarting) return;
@@ -35,22 +132,30 @@ async function startWorkspace(): Promise<void> {
   document.documentElement.style.removeProperty("color-scheme");
   document.title = "Scholarship Scout";
   try {
-    await renderLocalVaultGate(root, async () => {
-      try {
-        await import("./main");
-      } catch (error) {
-        await lockLocalVault();
-        throw error;
-      }
-    });
-  } catch (reason) {
+    if (window.sessionStorage.getItem(GUEST_SESSION_KEY) === "true") {
+      workspaceStarting = false;
+      await startGuestWorkspace();
+      return;
+    }
+    const [{ createRoot }, { createElement }, { AccountStartGate }] = await Promise.all([
+      import("react-dom/client"),
+      import("react"),
+      import("./features/home/AccountStartGate"),
+    ]);
+    accountGateRoot = createRoot(root);
+    accountGateRoot.render(
+      createElement(AccountStartGate, {
+        onAuthenticated: (account: AuthenticatedAccount) => {
+          void startAuthenticatedWorkspace(account);
+        },
+        onContinueGuest: () => {
+          void startGuestWorkspace();
+        },
+      }),
+    );
     workspaceStarting = false;
-    const error = document.createElement("p");
-    error.setAttribute("role", "alert");
-    error.textContent = reason instanceof Error
-      ? reason.message
-      : "Scholarship Scout could not open its encrypted local vault.";
-    root.replaceChildren(error);
+  } catch (reason) {
+    showStartupError(reason);
   }
 }
 

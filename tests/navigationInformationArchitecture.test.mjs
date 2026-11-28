@@ -11,7 +11,7 @@ test('primary navigation exposes six distinct destinations', () => {
   assert.notEqual(navStart, -1);
   assert.notEqual(navEnd, -1);
   assert.equal((navigation.match(/tab: '/g) || []).length, 6);
-  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Resources', 'Settings']) {
+  for (const label of ['Home', 'Find scholarships', 'My scholarships', 'My profile', 'Resources', 'Settings']) {
     assert.ok(navigation.includes(`label: '${label}'`), `missing primary destination: ${label}`);
   }
   assert.doesNotMatch(navigation, /Live web search|Application checklist/);

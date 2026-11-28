@@ -17,8 +17,8 @@ test("student workspace reads and writes through the encrypted storage adapter",
 test("Supabase authentication sessions use the awaitable encrypted storage adapter", async () => {
   const client = await read("src/lib/supabaseClient.ts");
   const types = await read("src/lib/localVault.d.ts");
-  assert.match(client, /import \{ vaultStorage \} from "\.\/localVault\.js"/);
-  assert.match(client, /storage:\s*vaultStorage/);
+  assert.match(client, /import \{ secureAuthStorage \} from "\.\/secureAuthStorage\.js"/);
+  assert.match(client, /storage:\s*secureAuthStorage/);
   assert.match(client, /persistSession:\s*true/);
   assert.match(client, /autoRefreshToken:\s*true/);
   assert.match(types, /setItem\(key: string, value: string\): Promise<void>/);

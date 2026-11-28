@@ -4,20 +4,20 @@
 
 This document records the code and live service state inspected during the current implementation pass. It distinguishes committed source from deployed behavior. It is not a promise that every planned capability is already live.
 
-> **Current architecture baseline — November 28, 2026:** GitHub `main` commit `4ad05b60356b10aeb9338ca384a2081f595e1f13` is the canonical application source and matches the READY Vercel production deployment. The active app lazy-loads `src/App.tsx` after `LegalAcceptanceGate`; the modular page/components/styles remain preserved but are not wired into the runtime. Supabase discovery was last reported ACTIVE at version 19 with the in-memory per-isolate limiter. The gateway's authenticated process-wide upstream ceiling is 30 requests per minute; Upstash is not required. Verify backend source and runtime parity separately from frontend deployment. See [the runtime audit](runtime-audit-2026-11-27.md) and [deployment controls](deployment.md).
+> **Current architecture baseline — November 28, 2026:** GitHub `main` commit `3e0d93da9ac029d790f72a49d885da1df981f2be` is the canonical application source and matches READY Vercel production deployment `dpl_6E1mtxBZ9hdPEv77imyFkNTST5uh`. The active app lazy-loads `src/App.tsx` after `LegalAcceptanceGate`. Supabase `scholarship-discover` is ACTIVE at version 20 and all four deployed files matched reviewed `main`; `account-delete` v2 remains a separately tracked source mismatch. The gateway's authenticated process-wide upstream ceiling is 30 requests per minute; Upstash is not required. See [the November 28 roadmap audit](roadmap-audit-2026-11-28.md) and [deployment controls](deployment.md).
 
 ## Frontend
 
 - Framework: React 18 with TypeScript.
 - Bundler: Vite 8.3.8 with @vitejs/plugin-react 6.3.0.
-- Runtime requirement: Node.js 22.12 or newer.
+- Runtime requirement: Node.js 26.13.x, pinned by `.nvmrc` and constrained by `package.json`.
 - App entry and primary UI: src/App.tsx, src/App.css, and src/index.css.
 - Core logic is separated into modules in src/lib: profile validation/readiness, discovery, eligibility summaries, source evidence, cloud mapping/API, tracker management, application workspace/progress, backup/crypto, browser storage, and local reliability monitoring.
 - Unit tests use Node's built-in test runner through npm test.
 
 ## Data ownership and flow
 
-Student-specific information stays in the browser by default:
+Student-specific information stays in the browser by default. Permanent accounts may explicitly opt into an encrypted account backup; guests and anonymous Auth users cannot use this feature:
 
 - Profile and academic details.
 - Local scholarship tracker and application statuses.
@@ -27,9 +27,9 @@ Student-specific information stays in the browser by default:
 - Personal tags, priorities, and notes.
 - Appearance settings and the small local reliability history.
 
-The browser stores these records as AES-256-GCM ciphertext in IndexedDB. After passphrase unlock, the app uses a synchronous in-memory Storage-compatible adapter and queues encrypted writes. A Web Locks exclusive lock permits one unlocked tab per origin; inactivity locks after 15 minutes. The legal-acceptance receipt and generic reliability counters remain in localStorage. While unlocked, same-origin JavaScript can access decrypted records in memory, so the vault protects data at rest but is not end-to-end encryption. New backup downloads use a separate user-controlled encrypted backup flow.
+The browser stores these records as AES-256-GCM ciphertext in IndexedDB. After passphrase unlock, the app uses a synchronous in-memory Storage-compatible adapter and queues encrypted writes. An optional cross-device backup re-wraps the same content key with a WebAuthn PRF-derived key and uploads only the encrypted envelope; account auth tokens/PKCE values are kept in a separate device-key-encrypted IndexedDB store and are not synchronized. A Web Locks exclusive lock permits one unlocked tab per origin; inactivity locks after 15 minutes. The legal-acceptance receipt and generic reliability counters remain in localStorage. While unlocked, same-origin JavaScript can access decrypted records in memory, so the vault protects data at rest but is not end-to-end encryption. New backup downloads use a separate user-controlled encrypted backup flow.
 
-Supabase is used for optional magic-link authentication and user-scoped cloud scholarship sponsor records. Public live discovery does not require or create a Supabase Auth session. An authenticated Supabase user is required for cloud scholarship CRUD; the client reads and writes public.scholarships only. Student profile and eligibility tables exist in the database but are not currently used by the app.
+Supabase is used for optional magic-link/Google authentication, user-scoped cloud scholarship sponsor records, and the opt-in account_vault_backups ciphertext row for permanent users. Public live discovery does not require or create a Supabase Auth session. Student profile and eligibility tables exist in the database but are not currently used by the app.
 
 Live discovery flow:
 
@@ -44,10 +44,12 @@ No essay content, contact details, school, grades, class rank, test scores, acti
 ## System diagram
 
     Browser / React app
-      |-- IndexedDB: encrypted profile, tracker, tasks, essays, settings, Supabase session
+      |-- IndexedDB: encrypted profile, tracker, tasks, essays, and settings
+      |-- Separate IndexedDB store: device-key-encrypted Supabase Auth session and PKCE verifier
       |-- in-memory vault adapter: unlocked records; one tab at a time
       |-- localStorage: legal acceptance receipt + generic reliability counters
       |-- public.scholarships: owner-scoped sponsor metadata only
+      |-- public.account_vault_backups: optional owner-scoped ciphertext + passkey recovery metadata only
       |
       +--> scholarship-discover (public invocation; verify_jwt=false for this function only)
              |-- state + graduation year + selected category IDs only
@@ -56,7 +58,7 @@ No essay content, contact details, school, grades, class rank, test scores, acti
 
 ## Current deployed/source difference
 
-Supabase currently reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=false`. Its returned deployed entrypoint instantiates `createPublicRateLimiter()`, the per-isolate in-memory limiter. The corrected GitHub release wrapper preserves that same limiter behavior and retains the browser `x-scout-client-id` CORS header; it does not require Upstash. The existing gateway has a process-wide 30-request-per-minute ceiling. The returned deployed file set is still not byte-identical to the release candidate, so source parity requires a separate reviewed deployment. An earlier function failure used an obsolete Quick Tunnel hostname; the current named-tunnel endpoint was subsequently authenticated and returned HTTP 200 with 15 results from the laptop. The browser payload remains limited to state, graduation year, and selected category IDs. See [the current runtime audit](runtime-audit-2026-11-27.md) for the remaining provenance details.
+Supabase reports `scholarship-discover` ACTIVE at version 20 with `verify_jwt=false`. The November 28 source audit compared all four deployed files with GitHub `main` after line-ending normalization and found them identical. The function uses the per-isolate in-memory IP limiter and fixed HTTPS gateway; the gateway has a process-wide 30-request-per-minute ceiling. The browser payload remains limited to state, graduation year, and selected category IDs. `account-delete` remains ACTIVE at v2 with `verify_jwt=true`, but its deployed entrypoint does not match the current repository source; preserve this as a separate backend release gate. See [the November 28 roadmap audit](roadmap-audit-2026-11-28.md).
 
 The scholarship-verify file in the repository is a disabled placeholder with a kill switch. No scholarship-verify Edge Function is deployed.
 

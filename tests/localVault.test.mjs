@@ -6,12 +6,22 @@ globalThis.crypto ??= webcrypto;
 
 const {
   createLocalVault,
+  createLocalAccountVaultKeyWrap,
+  getAccountVaultSyncEnvelope,
+  getLocalAccountVaultSyncStatus,
+  restoreLocalVaultWithAccountKey,
+  setLocalAccountVaultRevision,
   destroyLocalVault,
   flushLocalVault,
+  forgetLocalVaultDeviceUnlock,
+  hasDeviceUnlock,
   hasEncryptedVault,
   hasPendingLocalVaultWrites,
+  isLocalVaultUnlocked,
+  enableLocalVaultDeviceUnlock,
   lockLocalVault,
   unlockLocalVault,
+  unlockLocalVaultWithDeviceKey,
   vaultStorage,
 } = await import("../src/lib/localVault.js");
 
@@ -30,11 +40,16 @@ function createMemoryStorage(initial = {}) {
 
 function createMemoryBackend() {
   let value = null;
+  let deviceKey = null;
   return {
     async get() { return value ? structuredClone(value) : null; },
     async set(next) { value = structuredClone(next); },
-    async delete() { value = null; },
+    async delete() { value = null; deviceKey = null; },
+    async getDeviceKey() { return deviceKey; },
+    async setDeviceKey(next) { deviceKey = next; },
+    async deleteDeviceKey() { deviceKey = null; },
     inspect() { return value ? structuredClone(value) : null; },
+    inspectDeviceKey() { return deviceKey; },
   };
 }
 
@@ -58,6 +73,10 @@ const LEGAL_KEY = "scholarship-scout.legal-acceptance";
 const RELIABILITY_KEY = "scout-local-reliability";
 const SESSION_KEY = "sb-wjrwvempgjvoxlioodse-auth-token";
 const PKCE_KEY = SESSION_KEY + "-code-verifier";
+
+test.afterEach(async () => {
+  if (isLocalVaultUnlocked()) await lockLocalVault();
+});
 
 test("vault storage is inert before the first successful unlock", () => {
   assert.equal(vaultStorage.length, 0);
@@ -119,6 +138,83 @@ test("migration encrypts Scholarship Scout records and Supabase session/PKCE val
   for (const privateValue of ["Private School", "session-secret", "pkce-verifier-secret", PASS]) {
     assert.equal(envelopeText.includes(privateValue), false);
   }
+  await lockLocalVault();
+});
+
+test("a remembered browser unlocks the encrypted local vault without another passphrase", async () => {
+  const storage = createMemoryStorage({
+    "scout-profile": JSON.stringify({ state: "Texas", graduationYear: 2027 }),
+    "scout-scholarships": JSON.stringify([{ id: "saved", title: "Local scholarship" }]),
+  });
+  const backend = createMemoryBackend();
+  const lockManager = createMemoryLockManager();
+
+  await createLocalVault(PASS, { storage, backend, lockManager });
+  await enableLocalVaultDeviceUnlock();
+  assert.equal(await hasDeviceUnlock({ backend }), true);
+  assert.equal(backend.inspectDeviceKey()?.extractable, false);
+  assert.ok(backend.inspect()?.deviceKeyWrap);
+
+  vaultStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "cloud-session" }));
+  await flushLocalVault();
+  await lockLocalVault();
+
+  assert.equal(vaultStorage.getItem("scout-profile"), null);
+  const result = await unlockLocalVaultWithDeviceKey({ storage, backend, lockManager });
+  assert.equal(result.recordCount, 3);
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), {
+    state: "Texas",
+    graduationYear: 2027,
+  });
+  assert.equal(JSON.parse(vaultStorage.getItem(SESSION_KEY)).access_token, "cloud-session");
+  await lockLocalVault();
+});
+
+test("a user can disable remembered-device unlock and return to passphrase-only access", async () => {
+  const storage = createMemoryStorage({
+    "scout-profile": JSON.stringify({ state: "Texas" }),
+  });
+  const backend = createMemoryBackend();
+  const lockManager = createMemoryLockManager();
+
+  await createLocalVault(PASS, { storage, backend, lockManager });
+  await enableLocalVaultDeviceUnlock();
+  await lockLocalVault();
+  await unlockLocalVaultWithDeviceKey({ storage, backend, lockManager });
+  await forgetLocalVaultDeviceUnlock({ backend });
+
+  assert.equal(await hasDeviceUnlock({ backend }), false);
+  assert.equal(backend.inspect()?.deviceUnlock, undefined);
+  assert.equal(backend.inspectDeviceKey(), null);
+  await lockLocalVault();
+
+  await assert.rejects(
+    unlockLocalVaultWithDeviceKey({ storage, backend, lockManager }),
+    /remembered device unlock is not available/i,
+  );
+  await unlockLocalVault(PASS, { storage, backend, lockManager });
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), { state: "Texas" });
+  await lockLocalVault();
+});
+
+test("an existing passphrase-only vault can opt into remembered-device unlock after one manual unlock", async () => {
+  const storage = createMemoryStorage({
+    "scout-profile": JSON.stringify({ state: "Texas" }),
+  });
+  const backend = createMemoryBackend();
+  const lockManager = createMemoryLockManager();
+
+  await createLocalVault(PASS, { storage, backend, lockManager });
+  assert.equal(await hasDeviceUnlock({ backend }), false);
+  await lockLocalVault();
+
+  await unlockLocalVault(PASS, { storage, backend, lockManager });
+  await enableLocalVaultDeviceUnlock();
+  assert.equal(await hasDeviceUnlock({ backend }), true);
+  await lockLocalVault();
+
+  await unlockLocalVaultWithDeviceKey({ storage, backend, lockManager });
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), { state: "Texas" });
   await lockLocalVault();
 });
 
@@ -255,4 +351,134 @@ test("the browser lock is required and a storage failure leaves original data in
   await assert.rejects(createLocalVault("short", { storage, backend, lockManager: createMemoryLockManager() }));
   await assert.rejects(createLocalVault(PASS, { storage, backend, lockManager: createMemoryLockManager() }));
   assert.notEqual(storage.getItem("scout-profile"), null);
+});
+
+
+test("account-linked encrypted vaults restore on another device and enable same-device automatic unlock", async () => {
+  const ownerId = "account-user-1";
+  const sourceStorage = createMemoryStorage({
+    "scout-profile": JSON.stringify({ state: "Texas", graduationYear: 2027 }),
+    "scout-tracker": JSON.stringify([{ id: "award-1", name: "Local draft" }]),
+  });
+  const sourceBackend = createMemoryBackend();
+  const lockManager = createMemoryLockManager();
+  const wrappingKey = await webcrypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+
+  await createLocalVault(PASS, { storage: sourceStorage, backend: sourceBackend, lockManager, ownerId });
+  await createLocalAccountVaultKeyWrap(wrappingKey, { ownerId });
+  await flushLocalVault();
+
+  const snapshot = await getAccountVaultSyncEnvelope({ ownerId });
+  assert.equal(snapshot.envelope.ownerId, ownerId);
+  assert.ok(snapshot.envelope.accountKeyWrap);
+  assert.ok(snapshot.envelope.keyWrap);
+  assert.equal("deviceKeyWrap" in snapshot.envelope, false);
+  assert.equal(snapshot.envelope.localDirty, false);
+  assert.equal(typeof snapshot.generation, "number");
+  assert.equal(getLocalAccountVaultSyncStatus({ ownerId }).enabled, true);
+
+  await lockLocalVault();
+
+  const destinationStorage = createMemoryStorage();
+  const destinationBackend = createMemoryBackend();
+  await restoreLocalVaultWithAccountKey(snapshot.envelope, wrappingKey, {
+    ownerId,
+    cloudRevision: 1,
+    storage: destinationStorage,
+    backend: destinationBackend,
+    lockManager,
+  });
+
+  assert.equal(getLocalAccountVaultSyncStatus({ ownerId }).enabled, true);
+  assert.equal(getLocalAccountVaultSyncStatus({ ownerId }).revision, 1);
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), {
+    state: "Texas",
+    graduationYear: 2027,
+  });
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-tracker")), [
+    { id: "award-1", name: "Local draft" },
+  ]);
+  assert.equal(await hasDeviceUnlock({ backend: destinationBackend, ownerId }), true);
+
+  await lockLocalVault();
+  await unlockLocalVaultWithDeviceKey({
+    storage: destinationStorage,
+    backend: destinationBackend,
+    lockManager,
+    ownerId,
+  });
+  assert.deepEqual(JSON.parse(vaultStorage.getItem("scout-profile")), {
+    state: "Texas",
+    graduationYear: 2027,
+  });
+});
+
+test("vault syncing detects edits made while an account backup revision is in flight", async () => {
+  const ownerId = "account-user-generation";
+  const storage = createMemoryStorage({ "scout-profile": JSON.stringify({ state: "Texas" }) });
+  const backend = createMemoryBackend();
+  const lockManager = createMemoryLockManager();
+  const wrappingKey = await webcrypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+  await createLocalVault(PASS, { storage, backend, lockManager, ownerId });
+  await createLocalAccountVaultKeyWrap(wrappingKey, { ownerId });
+  await flushLocalVault();
+
+  const uploadSnapshot = await getAccountVaultSyncEnvelope({ ownerId });
+  vaultStorage.setItem("scout-profile", JSON.stringify({ state: "Texas", school: "Updated after snapshot" }));
+  await flushLocalVault();
+
+  await setLocalAccountVaultRevision(1, {
+    ownerId,
+    expectedGeneration: uploadSnapshot.generation,
+  });
+  let status = getLocalAccountVaultSyncStatus({ ownerId });
+  assert.equal(status.revision, 1);
+  assert.equal(status.dirty, true, "new edits must remain queued for another sync");
+
+  const nextSnapshot = await getAccountVaultSyncEnvelope({ ownerId });
+  assert.notEqual(nextSnapshot.envelope.ciphertext, uploadSnapshot.envelope.ciphertext);
+  await setLocalAccountVaultRevision(2, {
+    ownerId,
+    expectedGeneration: nextSnapshot.generation,
+  });
+  status = getLocalAccountVaultSyncStatus({ ownerId });
+  assert.equal(status.revision, 2);
+  assert.equal(status.dirty, false);
+});
+
+test("account vault sync status always satisfies its declared shape when locked or owned by another account", async () => {
+  const locked = getLocalAccountVaultSyncStatus({ ownerId: "account-user-1" });
+  assert.deepEqual(locked, {
+    enabled: false,
+    revision: 0,
+    dirty: false,
+    generation: 0,
+  });
+
+  await createLocalVault(PASS, {
+    storage: createMemoryStorage(),
+    backend: createMemoryBackend(),
+    lockManager: createMemoryLockManager(),
+    ownerId: "account-user-2",
+  });
+  assert.deepEqual(getLocalAccountVaultSyncStatus({ ownerId: "account-user-1" }), {
+    enabled: false,
+    revision: 0,
+    dirty: false,
+    generation: 0,
+  });
+  assert.deepEqual(getLocalAccountVaultSyncStatus({ ownerId: "account-user-2" }), {
+    enabled: false,
+    revision: 0,
+    dirty: false,
+    generation: 0,
+  });
 });

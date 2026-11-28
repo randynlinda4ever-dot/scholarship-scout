@@ -36,12 +36,16 @@ test('manual search and automated discovery communicate separate privacy boundar
   assert.match(cloudSearch, /Verify eligibility, award details, and deadlines on each official sponsor page/);
 });
 
-test('cloud account management remains in Settings while live discovery exposes saved records', () => {
+test('sign-in lives on Start/Home while Settings manages the connected account', async () => {
   const settings = section("{tab === 'Settings'", "{tab === 'Discovery'");
   const cloudSearch = section("{tab === 'Cloud Search'", "{tab === 'Scholarships'");
-  assert.match(settings, /id="cloud-email"/);
+  const home = await readFile(new URL('../src/features/home/StartHomePage.tsx', import.meta.url), 'utf8');
+  assert.match(home, /Continue with Google/);
+  assert.match(home, /Continue without an account/);
+  assert.match(settings, /Connected account/);
+  assert.match(settings, /Cross-device encrypted vault/);
   assert.match(cloudSearch, /Saved cloud records/);
-  assert.doesNotMatch(cloudSearch, /id="cloud-email"|Check session status|cloud-auth-form/);
+  assert.doesNotMatch(settings, /id="cloud-email"|settings-auth-form/);
 });
 
 test('application preparation keeps submission and decision status in the tracker', () => {

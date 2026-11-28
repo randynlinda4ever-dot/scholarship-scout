@@ -6,7 +6,7 @@ const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const styles = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
 
 test('primary navigation groups the five main workspace destinations', () => {
-  for (const label of ['Overview', 'Find scholarships', 'My scholarships', 'My profile', 'Settings']) {
+  for (const label of ['Home', 'Find scholarships', 'My scholarships', 'My profile', 'Settings']) {
     assert.ok(app.includes(`label: '${label}'`), `missing primary destination: ${label}`);
   }
   assert.doesNotMatch(app.slice(app.indexOf('const navGroups:'), app.indexOf('const activeNavTab')), /Live web search|Application checklist/);

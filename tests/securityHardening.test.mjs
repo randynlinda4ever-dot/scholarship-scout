@@ -34,7 +34,7 @@ test('Supabase sessions persist and refresh automatically in the browser', () =>
   assert.match(client, /detectSessionInUrl:\s*true/);
   assert.match(app, /client\.auth\.onAuthStateChange/);
   assert.match(app, /const hasAuthCallback = hasPendingAuthCallback\(\);/);
-  assert.match(app, /if \(tab !== 'Settings' && tab !== 'Cloud Search' && !hasAuthCallback\) return;/);
+  assert.match(app, /if \(!active \|\| authEventObserved\) return/);
   assert.match(app, /getSupabaseClient\(\)\.then\(\(client\) =>/);
 });
 

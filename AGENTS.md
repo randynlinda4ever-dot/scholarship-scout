@@ -19,13 +19,13 @@ Fetch the latest `origin/main`, inspect the current branch and working tree, and
 
 ## Core privacy and security rules
 
-- Keep student profiles, grades, activities, essays, recommendation notes, tasks, and eligibility assessments in browser storage by default.
+- Keep student profiles, grades, activities, essays, recommendation notes, tasks, and eligibility assessments in the encrypted local vault by default. Cross-device copies are permitted only through the explicit, opt-in, client-encrypted account-vault flow; never add plaintext cloud profile/application storage.
 - The live discovery payload may contain only state, expected graduation year, and selected category IDs. Do not add personal student data to search requests.
 - Never put a Supabase service-role key, secret API key, gateway bearer token, or other server secret in frontend code, checked-in files, or a `VITE_*` variable.
 - The Supabase publishable key is browser-safe; it is not a substitute for a server secret.
 - Keep Supabase RLS enabled and preserve owner checks based on `auth.uid()`.
 - Supabase anonymous users are Auth users with unique identities and the `authenticated` database role. Do not grant the database `anon` role broad table access.
-- Anonymous sessions are browser-bound until account linking is implemented. Do not claim cross-device recovery.
+- Guest and anonymous sessions are browser-bound and are not eligible for account-vault sync. Permanent signed-in accounts may opt into the separate encrypted backup using WebAuthn PRF/passkey recovery or the existing vault passphrase; do not imply that sign-in alone enables sync.
 - Search results are unverified leads. Do not invent sponsor details, deadlines, awards, or eligibility rules.
 - Keep passed, failed, and unknown eligibility outcomes distinct. Missing information must not be treated as an automatic failure.
 - Never auto-submit a scholarship application, send a sponsor email, or upload essays or student documents.
@@ -45,7 +45,7 @@ Fetch the latest `origin/main`, inspect the current branch and working tree, and
 
 ## Development checks
 
-Use Node.js 22.12+ (CI uses 22.23.5):
+Use Node.js 26.13.x as pinned by .nvmrc and constrained by package.json (>=26 and <27):
 
 ```bash
 npm ci

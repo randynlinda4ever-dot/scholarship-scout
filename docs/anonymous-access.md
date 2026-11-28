@@ -26,7 +26,7 @@ An earlier request failed against the obsolete Quick Tunnel hostname `plugin-loa
 
 An authenticated Supabase account is required only to read or save cloud scholarship records. The frontend checks for a real current user before those database operations; it does not create an anonymous account just to search.
 
-The existing database row-level security policies scope each cloud row to the active user's `auth.uid()`. Public discovery does not query or write scholarship tables. Student profile fields, essays, grades, activities, recommendation notes, and application workspace data stay in browser local storage.
+The existing database row-level security policies scope each cloud row to the active user's auth.uid(). Public discovery does not query or write scholarship tables. Student profile fields, essays, grades, activities, recommendation notes, and application workspace data stay in the encrypted local vault by default. A separate cross-device backup is available only to a permanent signed-in account after explicit opt-in; guest and anonymous Auth sessions are excluded by RLS.
 
 Anonymous sign-ins are optional and should be enabled only if anonymous cloud scholarship saves are an intentional supported workflow. They are not needed for public live search.
 
