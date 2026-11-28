@@ -371,6 +371,20 @@ test("the private vault rejects authentication sessions and display preferences"
     () => vaultStorage.setItem("scout-theme", "light"),
     /allowlisted private student records/i,
   );
+  assert.throws(
+    () => vaultStorage.setItem("scout-unrecognized-record", "must-not-enter-vault"),
+    /allowlisted private student records/i,
+  );
+  assert.throws(
+    () => vaultStorage.removeItem("scout-theme"),
+    /allowlisted private student records/i,
+  );
+  assert.throws(
+    () => vaultStorage.removeItem("scout-unrecognized-record"),
+    /allowlisted private student records/i,
+  );
+  vaultStorage.removeItem("scout-profile");
+  assert.equal(vaultStorage.getItem("scout-profile"), null);
   await authStorage.setItem("scholarship-scout-auth", JSON.stringify({ access_token: "separate-store" }));
   assert.equal(vaultStorage.getItem(SESSION_KEY), null);
   assert.equal(vaultStorage.getItem("scout-theme"), null);
