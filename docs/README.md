@@ -2,6 +2,8 @@
 
 These documents describe the verified implementation and distinguish current behavior from proposed work.
 
+- [Product and engineering roadmap](roadmap.md) — authoritative priorities for student value, release integrity, Resources, discovery, bug fixes, and optimization.
+- [Roadmap audit — November 27, 2026](roadmap-audit-2026-11-27.md) — evidence-based review of the previous roadmap, current gaps, stale assumptions, and recommended execution order.
 - [Search visibility and public scholarship guides](search-visibility.md) — crawlable scholarship landing pages, canonical routes, sitemap/robots configuration, privacy boundaries, and indexing verification.
 - [Runtime audit — November 27, 2026](runtime-audit-2026-11-27.md) — current AgentGrid revision, Supabase v19 source parity, named gateway validation, database advisors, and release gates.
 - [Rate-limit decision — November 27, 2026](rate-limit-decision-2026-11-27.md) — current no-Redis design, verified gateway ceiling, explicit limitations, and future scale-up triggers.
@@ -24,5 +26,4 @@ These documents describe the verified implementation and distinguish current beh
 - [Testing](testing.md) — unit, integration, E2E, accessibility, and performance verification.
 - [Deployment](deployment.md) — release controls, environment assumptions, and rollback.
 - [QA report](qa-report.md) — verified findings, focused test evidence, and remaining blockers.
-- [Roadmap](roadmap.md) — prioritized implementation work.
-- [Improvement plan](improvement-plan.md) — earlier phased project plan and its progress checklist.
+- [Improvement plan](improvement-plan.md) — historical phased upgrade plan; consult the new roadmap for current priorities.
