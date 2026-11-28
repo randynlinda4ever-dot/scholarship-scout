@@ -39,7 +39,7 @@
   .table-wrap td { display: block; min-width: 0; padding: 7px 3px; border: 0; overflow-wrap: anywhere; font-size: 11px; }
   .table-wrap td:first-child { grid-column: 1 / -1; min-width: 0; }
   .table-wrap td[data-label]::before { display: block; margin-bottom: 4px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; content: attr(data-label); }
-  .table-wrap td:last-child { display: none; }
+  .table-wrap td:last-child { grid-column: 1 / -1; justify-self: end; }
   .tracker-open { font-size: 12px; }
   .table-title { align-items: flex-start; flex-direction: column; gap: 4px; }
   .tracker-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
