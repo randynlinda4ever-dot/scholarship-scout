@@ -99,7 +99,7 @@ const CATEGORY_VARIATIONS = {
   general: [
     "general student scholarships with broad eligibility requirements",
     "student grants, education awards, and scholarships without narrow subject restrictions",
-    "general scholarship directories, official sponsor pages, and current application requirements",
+    "broad-eligibility student scholarships, official sponsor application pages, and current application requirements",
   ],
 };
 export function isSafeHttpsUrl(value) {
@@ -130,10 +130,28 @@ export function canonicalizeUrl(value) {
   if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
   return url.href;
 }
-function isScholarshipDirectoryLandingUrl(value) {
+function isScholarshipDirectoryLandingUrl(value, title = "") {
   try {
     const pathSegments = new URL(value).pathname.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment).toLowerCase());
-    return pathSegments.some((segment) => ["scholarship-directory", "scholarships-directory", "scholarship-search", "scholarship-list", "scholarship-listings"].includes(segment));
+    const explicitDirectoryPath = pathSegments.some((segment) => [
+      "scholarship-directory", "scholarships-directory", "scholarship-search",
+      "scholarship-list", "scholarship-listings", "scholarship-database",
+    ].includes(segment));
+    if (explicitDirectoryPath) return true;
+
+    const genericTitleTerms = new Set([
+      "scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards",
+      "student", "students", "high", "school", "senior", "seniors", "class", "college", "undergraduate", "graduate",
+      "for", "and", "the", "of", "to", "in", "at", "all", "browse", "find", "available", "search", "directory", "listing", "listings",
+    ]);
+    const normalizedTitle = normalizeTitle(title);
+    const hasOpportunityTerm = /\b(?:scholarships?|fellowships?|grants?|awards?)\b/.test(normalizedTitle);
+    const hasSpecificTitleTerm = normalizedTitle.split(" ").some((term) => term.length > 2 && !genericTitleTerms.has(term) && !/^\d+$/.test(term));
+    const broadAudiencePath = pathSegments.some((segment) => [
+      "high-school", "high-school-senior", "high-school-seniors", "college-student", "college-students",
+      "undergraduate", "undergraduates", "graduate-student", "graduate-students", "students",
+    ].includes(segment));
+    return hasOpportunityTerm && !hasSpecificTitleTerm && broadAudiencePath;
   } catch { return true; }
 }
 
@@ -303,13 +321,13 @@ function countQualityCategoryResults(outcomes, category, state = "", graduationY
     if (!outcome.ok || outcome.job.category !== category) continue;
     for (const item of outcome.results) {
       const title = clean(item?.title, 220);
-      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url)) continue;
+      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url, item.title)) continue;
       try {
         const url = canonicalizeUrl(item.url);
         const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
         const quality = scoreCandidateQuality({
           title,
-          excerpt: item?.content,
+          excerpt: item?.content ?? item?.snippet ?? item?.description,
           domain,
           state,
           year: graduationYear,
@@ -330,7 +348,7 @@ export function calculateReciprocalRankFusion(rankings, { rankConstant = RRF_RAN
     for (let index = 0; index < ranking.length; index += 1) {
       const item = ranking[index];
       const title = clean(item?.title, 220);
-      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url)) continue;
+      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url, item.title)) continue;
       let url;
       try { url = canonicalizeUrl(item.url); } catch { continue; }
       const key = `${url}|${normalizeTitle(title)}`;
@@ -494,14 +512,27 @@ function getTitleMatchedSnippet(title, excerpt) {
   const titleTerms = new Set(normalizeTitle(title).split(" ").filter((term) => term.length > 2 && !GENERIC_SCHOLARSHIP_TITLE_TERMS.has(term)));
   if (!titleTerms.size) return "";
   const sentences = String(excerpt ?? "").match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+  const minimumMatches = Math.min(2, titleTerms.size);
+  const matchesTitle = (sentence) => {
+    const terms = new Set(normalizeTitle(sentence).split(" "));
+    return [...titleTerms].filter((term) => terms.has(term)).length >= minimumMatches;
+  };
+  const hasCompetingNamedEntity = (sentence) => {
+    const phrases = String(sentence).match(/\b(?:[A-Z][a-z]+(?:\s+|$)){2,}/g) ?? [];
+    return phrases.some((phrase) => phrase.split(/\s+/).filter((word) => {
+      const term = normalizeTitle(word);
+      return term.length > 2 && !GENERIC_SCHOLARSHIP_TITLE_TERMS.has(term) && !titleTerms.has(term);
+    }).length >= 2);
+  };
   const matched = [];
   for (let index = 0; index < sentences.length; index += 1) {
-    const terms = new Set(normalizeTitle(sentences[index]).split(" "));
-    const matchesTitle = [...titleTerms].filter((term) => terms.has(term)).length >= Math.min(2, titleTerms.size);
-    if (!matchesTitle) continue;
+    if (!matchesTitle(sentences[index])) continue;
     matched.push(sentences[index]);
     const next = sentences[index + 1];
-    if (next && /deadline|apply by|submit by|due by|due date|applications? (?:are )?due|applications? close|closes? on|closing date/i.test(next)) matched.push(next);
+    const isGenericDeadlineContinuation = next &&
+      /deadline|apply by|submit by|due by|due date|applications? (?:are )?due|applications? close|closes? on|closing date|must be submitted by/i.test(next) &&
+      !hasCompetingNamedEntity(next);
+    if (isGenericDeadlineContinuation && !matchesTitle(next)) matched.push(next);
   }
   return [...new Set(matched)].join(" ");
 }
@@ -521,7 +552,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
     for (let resultIndex = 0; resultIndex < outcome.results.length; resultIndex += 1) {
       const item = outcome.results[resultIndex];
       rawResultCount += 1;
-      if (!isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url)) continue;
+      if (!isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url, item.title)) continue;
 
       const title = clean(item.title, 220);
       if (!title) continue;

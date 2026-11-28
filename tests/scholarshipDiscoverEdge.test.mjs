@@ -531,6 +531,56 @@ test("discovery validates real US states and a moving graduation-year window", a
   assert.equal((await submit({ ...baseBody.profile, state: "TX" })).status, 200);
 });
 
+test("filters broad scholarship category pages even when their URL omits directory keywords", () => {
+  const outcome = {
+    ok: true,
+    job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+    results: [{
+      title: "High School Senior Scholarships",
+      url: "https://scholarships.example/financial-aid/college-scholarships/high-school-senior",
+      content: "Browse scholarships for high school seniors and compare available awards.",
+    }],
+  };
+  const { results } = normalizeAndRankResults([outcome], "2026-11-28T12:00:00.000Z", "Texas", 2027);
+  assert.equal(results.length, 0);
+});
+
+test("adaptive quality checks use snippet and description fallbacks when content is absent", async () => {
+  const jobs = buildSearchJobs("Texas", 2027, ["local"]);
+  let calls = 0;
+  const outcomes = await runAdaptiveSearches("https://gateway.example", "token", jobs, {
+    minimumQualityResults: 5,
+    fetchImpl: async () => {
+      calls++;
+      return response({ results: Array.from({ length: 5 }, (_, index) => ({
+        title: `Texas Student Scholarship ${index}`,
+        url: `https://fund-${index}.example/award`,
+        snippet: "Eligible Texas students in the class of 2027 may apply for this scholarship.",
+      })) });
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(outcomes.length, 1);
+});
+
+test("does not attach a neighboring scholarship's deadline to the current result", () => {
+  const outcome = {
+    ok: true,
+    job: { category: "general", query: "synthetic", page: 1, variation: 1 },
+    results: [{
+      title: "Niche Student Scholarship",
+      url: "https://niche.example/scholarship",
+      content: "Niche Student Scholarship offers a $5,000 award. The Texas History Essay Contest deadline is December 1, 2026.",
+    }],
+  };
+  const { results } = normalizeAndRankResults([outcome], "2026-11-28T12:00:00.000Z", "Texas", 2027, { randomUUID: () => "niche" });
+  assert.equal(results.length, 1);
+  assert.match(results[0].award_text, /\$5,000/);
+  assert.equal(results[0].deadline, null);
+  assert.equal(results[0].deadline_text, null);
+  assert.doesNotMatch(results[0].evidence_excerpt, /Texas History Essay Contest/);
+});
+
 test("progressive search stops launching new stages when the overall budget is exhausted", async () => {
   const jobs = buildSearchJobs("Texas", 2027, ["local", "arts"]);
   let now = 0;

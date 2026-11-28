@@ -63,6 +63,61 @@ function resultCompleteness(item) {
     asStringArray(item.discovery_categories).length * 40;
 }
 
+const GENERIC_EVIDENCE_TITLE_TERMS = new Set(["scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards", "student", "students", "high", "school", "senior", "seniors", "class", "college", "undergraduate", "graduate"]);
+
+function titleMatchedEvidence(title, value) {
+  const titleTerms = new Set(normalizedTitle(title).split(" ").filter((term) => term.length > 2 && !GENERIC_EVIDENCE_TITLE_TERMS.has(term)));
+  if (!titleTerms.size) return "";
+  const sentences = String(value ?? "").match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
+  const minimumMatches = Math.min(2, titleTerms.size);
+  const matchesTitle = (sentence) => {
+    const terms = new Set(normalizedTitle(sentence).split(" "));
+    return [...titleTerms].filter((term) => terms.has(term)).length >= minimumMatches;
+  };
+  const hasCompetingNamedEntity = (sentence) => {
+    const phrases = String(sentence).match(/\b(?:[A-Z][a-z]+(?:\s+|$)){2,}/g) || [];
+    return phrases.some((phrase) => phrase.split(/\s+/).filter((word) => {
+      const term = normalizedTitle(word);
+      return term.length > 2 && !GENERIC_EVIDENCE_TITLE_TERMS.has(term) && !titleTerms.has(term);
+    }).length >= 2);
+  };
+  const matched = [];
+  for (let index = 0; index < sentences.length; index += 1) {
+    if (!matchesTitle(sentences[index])) continue;
+    matched.push(sentences[index]);
+    const next = sentences[index + 1];
+    const isGenericDeadlineContinuation = next &&
+      /deadline|apply by|submit by|due by|due date|applications? (?:are )?due|applications? close|closes? on|closing date|must be submitted by/i.test(next) &&
+      !hasCompetingNamedEntity(next);
+    if (isGenericDeadlineContinuation && !matchesTitle(next)) matched.push(next);
+  }
+  return [...new Set(matched)].join(" ");
+}
+
+function parseStrictSearchDate(value) {
+  const raw = String(value ?? "").trim();
+  let year;
+  let month;
+  let day;
+  const iso = raw.match(/^(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/);
+  if (iso) {
+    year = Number(iso[1]);
+    month = Number(iso[2]);
+    day = Number(iso[3]);
+  } else {
+    const named = raw.match(/^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2}),?\s+(20\d{2})$/i);
+    if (!named) return null;
+    const monthIndex = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(named[1].slice(0, 3).toLowerCase());
+    if (monthIndex < 0) return null;
+    year = Number(named[3]);
+    month = monthIndex + 1;
+    day = Number(named[2]);
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function extractSearchSignals(value) {
   const text = cleanText(value, 3600);
   const sentences = text.match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
@@ -76,8 +131,7 @@ function extractSearchSignals(value) {
     /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b|\b20\d{2}-\d{2}-\d{2}\b/i.test(sentence)
   ) || null;
   const dateText = deadlineText?.match(/\b20\d{2}-\d{2}-\d{2}\b|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2}\b/i)?.[0];
-  const parsedDate = dateText ? new Date(dateText) : null;
-  const deadline = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString().slice(0, 10) : null;
+  const deadline = dateText ? parseStrictSearchDate(dateText) : null;
   return { awardText: awardText ? cleanText(awardText, 280) : null, deadline, deadlineText: deadline ? cleanText(deadlineText, 280) : null };
 }
 
@@ -200,14 +254,16 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
     // from a search result (or a neighboring deduplicated result) into the UI.
     const consensusScoreValue = Number(raw.search_consensus_score);
     const consensusCountValue = Number(raw.search_consensus_count);
-    const excerpt = cleanText(raw.excerpt, 1800);
-    const evidenceExcerpt = cleanText(raw.evidence_excerpt, 3600) || excerpt;
+    const rawExcerpt = cleanText(raw.excerpt, 1800);
+    const rawEvidenceExcerpt = cleanText(raw.evidence_excerpt, 3600) || rawExcerpt;
+    const evidenceExcerpt = titleMatchedEvidence(title, rawEvidenceExcerpt);
+    const excerpt = rawExcerpt;
+    // Re-derive structured clues only from sentences that independently match
+    // this scholarship title; never trust adjacent snippets or supplied fields.
     const signals = extractSearchSignals(`${title}. ${evidenceExcerpt}`);
-    const awardText = cleanText(raw.award_text, 280);
-    const safeAwardText = awardText && evidenceExcerpt.includes(awardText) ? awardText : signals.awardText;
-    const deadlineText = cleanText(raw.deadline_text, 280);
-    const safeDeadlineText = deadlineText && evidenceExcerpt.includes(deadlineText) ? deadlineText : signals.deadlineText;
-    const safeDeadline = safeDeadlineText && signals.deadline ? signals.deadline : null;
+    const safeAwardText = signals.awardText;
+    const safeDeadlineText = signals.deadlineText;
+    const safeDeadline = signals.deadline;
     const normalized = {
       id: cleanText(raw.id, 100) || sourceUrl,
       title,
@@ -249,22 +305,19 @@ export function rankAndDeduplicateLiveResults(results, profile = {}) {
       ? normalized
       : previous;
     const fallback = preferred === normalized ? previous : normalized;
+    const mergedEvidence = titleMatchedEvidence(title, [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600));
+    const mergedExcerpt = cleanText(preferred.excerpt, 1800) || cleanText(fallback.excerpt, 1800);
+    const mergedSignals = extractSearchSignals(`${title}. ${mergedEvidence}`);
     unique.set(key, {
       ...fallback,
       ...preferred,
-      excerpt: cleanText(preferred.excerpt, 1800) || cleanText(fallback.excerpt, 1800),
-      evidence_excerpt: [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600),
-      ...(() => {
-        const evidence = [previous.evidence_excerpt, normalized.evidence_excerpt].filter(Boolean).join(" ").slice(0, 3600);
-        const signals = extractSearchSignals(`${title}. ${evidence}`);
-        return {
-          award_text: signals.awardText,
-          award_evidence_text: signals.awardText,
-          award_evidence_url: signals.awardText ? sourceUrl : null,
-          deadline: signals.deadline,
-          deadline_text: signals.deadlineText,
-        };
-      })(),
+      excerpt: mergedExcerpt,
+      evidence_excerpt: mergedEvidence,
+      award_text: mergedSignals.awardText,
+      award_evidence_text: mergedSignals.awardText,
+      award_evidence_url: mergedSignals.awardText ? sourceUrl : null,
+      deadline: mergedSignals.deadline,
+      deadline_text: mergedSignals.deadlineText,
       discovery_category: preferred.discovery_category || fallback.discovery_category,
       discovery_categories: [...new Set([
         ...asStringArray(previous.discovery_categories),
