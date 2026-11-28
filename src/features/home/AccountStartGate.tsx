@@ -81,8 +81,8 @@ export function AccountStartGate({ onAuthenticated, onContinueGuest }: AccountSt
 
     void getSupabaseClient().then(async (client) => {
       if (!active) return;
-      setAuthReady(true);
       if (!client) {
+        setAuthReady(true);
         setMessage("Account sign-in is not configured in this deployment.");
         return;
       }
@@ -90,6 +90,7 @@ export function AccountStartGate({ onAuthenticated, onContinueGuest }: AccountSt
       const { data: { subscription: authSubscription } } = client.auth.onAuthStateChange((event, session) => {
         if (!active) return;
         authEventObserved = true;
+        setAuthReady(true);
         const user = session?.user ?? null;
         complete(user ? {
           id: user.id,
@@ -102,6 +103,7 @@ export function AccountStartGate({ onAuthenticated, onContinueGuest }: AccountSt
 
       const { data, error } = await client.auth.getSession();
       if (!active || authEventObserved) return;
+      setAuthReady(true);
       if (error) {
         setMessage("Your account session could not be checked. Sign in again to continue.");
         return;
@@ -184,6 +186,15 @@ export function AccountStartGate({ onAuthenticated, onContinueGuest }: AccountSt
       setBusy(false);
     }
   };
+
+  if (!authReady) {
+    return (
+      <main className="account-session-loading" role="status" aria-live="polite" aria-busy="true">
+        <span className="account-session-loading-mark" aria-hidden="true">S</span>
+        <p>Checking your account…</p>
+      </main>
+    );
+  }
 
   return (
     <StartHomePage
