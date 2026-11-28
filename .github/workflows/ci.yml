@@ -41,27 +41,6 @@ jobs:
           node-version: "26.13.1"
           cache: npm
 
-      - name: Generate exact test dependency lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
-      - name: Upload generated lockfile for review
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: scholarship-scout-lockfile-${{ github.sha }}
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Emit generated lockfile for exact repository commit
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync } from "node:fs";
-          const encoded = readFileSync("package-lock.json").toString("base64");
-          for (let offset = 0, index = 0; offset < encoded.length; offset += 3000, index += 1) {
-            console.log(`LOCKFILE_CHUNK_${String(index).padStart(3, "0")}=${encoded.slice(offset, offset + 3000)}`);
-          }
-          NODE
-
       - name: Install locked dependencies
         run: npm ci
 
