@@ -440,3 +440,160 @@ test("App initializes its private workspace but holds access behind the account-
     else globalThis.sessionStorage = previousSessionStorage;
   }
 });
+
+
+class StartupGateElement {
+  constructor(tagName) {
+    this.tagName = String(tagName).toUpperCase();
+    this.children = [];
+    this.attributes = new Map();
+    this.listeners = new Map();
+    this.style = { removeProperty() {} };
+    this.hidden = false;
+    this.checked = false;
+    this.disabled = false;
+    this.value = "";
+    this.textContent = "";
+    this.scrollTop = 0;
+    this.clientHeight = 320;
+    this.scrollHeight = 1200;
+  }
+  append(...nodes) {
+    for (const node of nodes) {
+      if (node && typeof node === "object") {
+        node.parentNode = this;
+        this.children.push(node);
+      }
+    }
+  }
+  appendChild(node) { this.append(node); return node; }
+  replaceChildren(...nodes) {
+    this.children = [];
+    this.append(...nodes);
+  }
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  getAttribute(name) { return this.attributes.get(name) ?? null; }
+  removeAttribute(name) { this.attributes.delete(name); }
+  addEventListener(type, listener) {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push(listener);
+    this.listeners.set(type, listeners);
+  }
+  async dispatch(type) {
+    for (const listener of this.listeners.get(type) ?? []) {
+      await listener({ target: this, currentTarget: this, preventDefault() {}, stopPropagation() {} });
+    }
+  }
+  focus() {}
+}
+
+function findStartupElement(root, predicate) {
+  if (!root) return null;
+  if (predicate(root)) return root;
+  for (const child of root.children ?? []) {
+    const found = findStartupElement(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+
+test("startup preflight requires reading, age eligibility, and guardian approval before entry", async () => {
+  const previousDocument = globalThis.document;
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousSessionStorage = globalThis.sessionStorage;
+  const store = new Map();
+  let rejectWrites = true;
+  const storage = {
+    getItem(key) { return store.has(key) ? store.get(key) : null; },
+    setItem(key, value) {
+      if (rejectWrites) throw new Error("synthetic storage unavailable");
+      store.set(key, String(value));
+    },
+    removeItem(key) { store.delete(key); },
+    clear() { store.clear(); },
+  };
+  const root = new StartupGateElement("div");
+  const body = new StartupGateElement("body");
+  const documentElement = new StartupGateElement("html");
+  globalThis.localStorage = storage;
+  globalThis.sessionStorage = storage;
+  globalThis.document = {
+    title: "",
+    body,
+    documentElement,
+    getElementById(id) { return id === "root" ? root : null; },
+    createElement(tagName) { return new StartupGateElement(tagName); },
+  };
+  globalThis.window = {
+    localStorage: storage,
+    sessionStorage: storage,
+    location: { pathname: "/", search: "", hash: "", origin: "https://example.test" },
+  };
+
+  try {
+    await import("../src/bootstrap.ts?startup-preflight-coverage-test");
+
+    const dialog = findStartupElement(root, (node) => node.getAttribute("role") === "dialog");
+    const documentRegion = findStartupElement(root, (node) => node.id === "legal-preflight-document");
+    const ageSelect = findStartupElement(root, (node) => node.name === "legal-age-group");
+    const status = findStartupElement(root, (node) => node.className === "legal-preflight-status");
+    const guardianLabel = findStartupElement(root, (node) => node.className === "legal-preflight-guardian");
+    const guardianCheckbox = guardianLabel.children[0];
+    const acceptanceLabel = findStartupElement(root, (node) => node.className === "legal-preflight-check");
+    const acceptanceCheckbox = acceptanceLabel.children[0];
+    const acceptButton = findStartupElement(root, (node) => node.className === "legal-preflight-accept");
+    const error = findStartupElement(root, (node) => node.className === "legal-preflight-error");
+
+    assert.ok(dialog);
+    assert.equal(dialog.getAttribute("aria-modal"), "true");
+    assert.ok(documentRegion);
+    assert.ok(ageSelect);
+    assert.equal(acceptButton.disabled, true);
+    assert.match(status.textContent, /Scroll to the end/);
+
+    ageSelect.value = "minor";
+    await ageSelect.dispatch("change");
+    assert.equal(guardianLabel.hidden, false);
+    acceptanceCheckbox.checked = true;
+    await acceptanceCheckbox.dispatch("change");
+    assert.equal(acceptButton.disabled, true, "agreement cannot bypass the scroll requirement");
+
+    documentRegion.scrollTop = documentRegion.scrollHeight - documentRegion.clientHeight;
+    await documentRegion.dispatch("scroll");
+    assert.match(status.textContent, /reached the end/);
+    assert.equal(acceptButton.disabled, true, "a minor requires parent or guardian authorization");
+
+    guardianCheckbox.checked = true;
+    await guardianCheckbox.dispatch("change");
+    assert.equal(acceptButton.disabled, false);
+
+    ageSelect.value = "under13";
+    await ageSelect.dispatch("change");
+    assert.equal(guardianLabel.hidden, true);
+    assert.equal(acceptanceCheckbox.checked, false);
+    assert.equal(acceptButton.disabled, true);
+    assert.match(status.textContent, /not available to users under 13/);
+
+    ageSelect.value = "adult";
+    await ageSelect.dispatch("change");
+    acceptanceCheckbox.checked = true;
+    await acceptanceCheckbox.dispatch("change");
+    assert.equal(acceptButton.disabled, false);
+
+    await acceptButton.dispatch("click");
+    assert.equal(error.hidden, false, "failed durable acceptance must keep the gate in place");
+    assert.equal(root.children.length, 2, "the account workspace must not mount after a storage failure");
+    assert.equal(store.size, 0, "the synthetic storage failure must not persist an acceptance receipt");
+    assert.equal(findStartupElement(root, (node) => node.className === "legal-preflight-accept"), acceptButton);
+  } finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+    if (previousLocalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousLocalStorage;
+    if (previousSessionStorage === undefined) delete globalThis.sessionStorage;
+    else globalThis.sessionStorage = previousSessionStorage;
+  }
+});
