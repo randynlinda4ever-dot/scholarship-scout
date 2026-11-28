@@ -130,6 +130,13 @@ export function canonicalizeUrl(value) {
   if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
   return url.href;
 }
+function isScholarshipDirectoryLandingUrl(value) {
+  try {
+    const pathSegments = new URL(value).pathname.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment).toLowerCase());
+    return pathSegments.some((segment) => ["scholarship-directory", "scholarships-directory", "scholarship-search", "scholarship-list", "scholarship-listings"].includes(segment));
+  } catch { return true; }
+}
+
 export function normalizeTitle(value) {
   return clean(value, 220).normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
@@ -296,7 +303,7 @@ function countQualityCategoryResults(outcomes, category, state = "", graduationY
     if (!outcome.ok || outcome.job.category !== category) continue;
     for (const item of outcome.results) {
       const title = clean(item?.title, 220);
-      if (!title || !isSafeHttpsUrl(item?.url)) continue;
+      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url)) continue;
       try {
         const url = canonicalizeUrl(item.url);
         const domain = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
@@ -323,7 +330,7 @@ export function calculateReciprocalRankFusion(rankings, { rankConstant = RRF_RAN
     for (let index = 0; index < ranking.length; index += 1) {
       const item = ranking[index];
       const title = clean(item?.title, 220);
-      if (!title || !isSafeHttpsUrl(item?.url)) continue;
+      if (!title || !isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url)) continue;
       let url;
       try { url = canonicalizeUrl(item.url); } catch { continue; }
       const key = `${url}|${normalizeTitle(title)}`;
@@ -482,6 +489,22 @@ export function extractScholarshipSearchSignals(value) {
   };
 }
 
+const GENERIC_SCHOLARSHIP_TITLE_TERMS = new Set(["scholarship", "scholarships", "fellowship", "fellowships", "grant", "grants", "award", "awards", "student", "students", "high", "school", "senior", "seniors", "class", "college", "undergraduate", "graduate"]);
+function getTitleMatchedSnippet(title, excerpt) {
+  const titleTerms = new Set(normalizeTitle(title).split(" ").filter((term) => term.length > 2 && !GENERIC_SCHOLARSHIP_TITLE_TERMS.has(term)));
+  if (!titleTerms.size) return "";
+  const sentences = String(excerpt ?? "").match(/[^.!?]+[.!?]?/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [];
+  const matched = [];
+  for (let index = 0; index < sentences.length; index += 1) {
+    const terms = new Set(normalizeTitle(sentences[index]).split(" "));
+    const matchesTitle = [...titleTerms].filter((term) => terms.has(term)).length >= Math.min(2, titleTerms.size);
+    if (!matchesTitle) continue;
+    matched.push(sentences[index]);
+    const next = sentences[index + 1];
+    if (next && /deadline|apply by|submit by|due by|due date|applications? (?:are )?due|applications? close|closes? on|closing date/i.test(next)) matched.push(next);
+  }
+  return [...new Set(matched)].join(" ");
+}
 export function normalizeAndRankResults(outcomes, discoveredAt, state, graduationYear, { randomUUID = () => crypto.randomUUID() } = {}) {
   const unique = new Map();
   const rankingsByPath = new Map();
@@ -498,7 +521,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
     for (let resultIndex = 0; resultIndex < outcome.results.length; resultIndex += 1) {
       const item = outcome.results[resultIndex];
       rawResultCount += 1;
-      if (!isSafeHttpsUrl(item?.url)) continue;
+      if (!isSafeHttpsUrl(item?.url) || isScholarshipDirectoryLandingUrl(item.url)) continue;
 
       const title = clean(item.title, 220);
       if (!title) continue;
@@ -542,7 +565,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
         ...fallback,
         ...preferred,
         excerpt: preferred.excerpt || fallback.excerpt || "",
-        evidence_excerpt: [preferred.excerpt, fallback.excerpt].filter(Boolean).join(" ").slice(0, 3600),
+        evidence_excerpt: preferred.excerpt || fallback.excerpt || "",
         discovery_category: String(preferred.discovery_category || fallback.discovery_category),
         discovery_categories: [...new Set([...(previous.discovery_categories || []), category])],
         discovery_queries: [...new Set([...(previous.discovery_queries || []), outcome.job.query])],
@@ -575,9 +598,10 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
     const consensus = fusedByKey.get(key);
     const consensusScore = consensus?.consensusScore ?? 0;
     const consensusCount = consensus?.appearances ?? 0;
-    const match = calculateRelevance(item.title, item.excerpt || "", item.source_domain, state, graduationYear);
-    const evidenceExcerpt = [item.title, item.evidence_excerpt || item.excerpt].filter(Boolean).join(". ").slice(0, 3800);
-    const searchSignals = extractScholarshipSearchSignals(evidenceExcerpt);
+    const titleMatchedSnippet = getTitleMatchedSnippet(item.title, item.excerpt);
+    const match = calculateRelevance(item.title, titleMatchedSnippet, item.source_domain, state, graduationYear);
+    const evidenceExcerpt = [item.title, titleMatchedSnippet].filter(Boolean).join(". ").slice(0, 2000);
+    const searchSignals = extractScholarshipSearchSignals(titleMatchedSnippet);
     if (searchSignals.awardText) { match.score += 1; match.reasons.push("Search snippet includes an award amount"); }
     if (searchSignals.deadline) { match.score += 1; match.reasons.push("Search snippet includes a dated deadline"); }
     const reasons = [...match.reasons];
@@ -604,7 +628,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
       discovery_queries: item.discovery_queries,
       discovery_pages: item.discovery_pages,
       source_domain: item.source_domain,
-      excerpt: item.excerpt,
+      excerpt: titleMatchedSnippet,
       evidence_excerpt: evidenceExcerpt,
       published_at: item.published_at,
       search_engine: "searxng",
@@ -622,7 +646,7 @@ export function normalizeAndRankResults(outcomes, discoveredAt, state, graduatio
       discovered_at: discoveredAt,
       source_checked_at: null,
       extracted_rules: {
-        short_source_summary: item.excerpt,
+        short_source_summary: titleMatchedSnippet,
         search_signal_source: "search_snippet",
         uncertainties: [
           ...(!searchSignals.awardText ? ["Award amount was not found in the search snippet."] : ["Award wording is a search-snippet clue; confirm it on the sponsor page."]),
