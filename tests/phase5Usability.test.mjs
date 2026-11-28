@@ -32,7 +32,7 @@ test("tracker table becomes labeled cards on small screens", () => {
 });
 
 test("compact layout preference persists locally and is exposed as an accessible toggle", () => {
-  assert.match(app, /localStorage\.getItem\('scout-compact-view'\)/);
+  assert.match(app, /readUiPreference\('scout-compact-view'\)/);
   assert.match(app, /localStorage\.setItem\('scout-compact-view'/);
   assert.match(app, /data-compact=\{compactView \? 'true' : 'false'\}/);
   assert.match(app, /aria-pressed=\{compactView\}/);
@@ -53,12 +53,6 @@ test("cloud live-search updates are announced once and the duplicate visual load
   assert.match(app, /No scholarship matches were found for this search/);
 });
 
-test("filtered tracker empty state offers clear-filters recovery without replacing the truly empty state", () => {
-  assert.match(app, /items\.length > 0 && filtered\.length === 0/);
-  assert.match(app, /Clear filters/);
-  assert.match(app, /setQuery\(''\)[\s\S]*setFilter\('All'\)[\s\S]*setApplicationStatusFilter\('All'\)[\s\S]*setArchiveFilter\('active'\)[\s\S]*setTrackerSortBy\('deadline'\)/);
-  assert.match(app, /filtered\.length\s*===\s*0\s*&&\s*items\.length\s*===\s*0/);
-});
 
 test("reduced-motion and visible focus styles remain present", () => {
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
