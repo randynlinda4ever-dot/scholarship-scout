@@ -203,4 +203,7 @@ test("resource UI persists worksheets locally and follows browser Back/Forward n
   assert.match(page, /MAX_RESUME_ENTRIES/);
   assert.match(page, /Add experience/);
   assert.match(page, /Remove experience/);
+  assert.match(page, /className="resource-callout resource-no-print"/);
+  assert.match(page, /className="resource-private-note resource-no-print"/);
+  assert.match(page, /className="resource-empty-state resource-no-print"/);
 });

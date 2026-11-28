@@ -294,7 +294,7 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
       </section>}
 
       {active === "resume" && <section className="resource-document resource-printable" aria-label="Student activities and resume builder">
-        <div className="resource-callout">
+        <div className="resource-callout resource-no-print">
           <b>Keep a clear record of what you do and contribute.</b>
           <span>Record roles, service, leadership, activities, awards, and projects as you go. Use specific responsibilities and results rather than broad claims.</span>
         </div>
@@ -345,9 +345,9 @@ export function ResourcesPage({ workspace, scholarships, onWorkspaceChange, onOp
                 })}
               </section>;
             })}
-          </div> : <div className="resource-empty-state"><h3>Your printable content will appear here.</h3><p>Add experience entries, then review the preview before using Print / Save PDF.</p></div>}
+          </div> : <div className="resource-empty-state resource-no-print"><h3>Your printable content will appear here.</h3><p>Add experience entries, then review the preview before using Print / Save PDF.</p></div>}
         </div>
-        <p className="resource-private-note">Your entries are stored in this browser’s encrypted vault and included in your encrypted backup. They are not added to your scholarship profile or sent to scholarship discovery or analytics. Add contact details only to the copy you choose to share.</p>
+        <p className="resource-private-note resource-no-print">Your entries are stored in this browser’s encrypted vault and included in your encrypted backup. They are not added to your scholarship profile or sent to scholarship discovery or analytics. Add contact details only to the copy you choose to share.</p>
       </section>}
 
       {active === "calendar" && <section className="resource-document resource-printable" aria-label="Junior to senior scholarship preparation calendar">
