@@ -397,3 +397,46 @@ test("Empty and FilteredEmpty preserve distinct no-record and no-match states", 
   assert.match(filtered,/No scholarships match these filters/);
   assert.match(filtered,/role="status"/);
 });
+
+
+test("App initializes its private workspace but holds access behind the account-loading gate", async () => {
+  const previousWindow = globalThis.window;
+  const previousLocalStorage = globalThis.localStorage;
+  const previousSessionStorage = globalThis.sessionStorage;
+  const store = new Map();
+  const storage = {
+    getItem(key) { return store.has(key) ? store.get(key) : null; },
+    setItem(key, value) { store.set(key, String(value)); },
+    removeItem(key) { store.delete(key); },
+    clear() { store.clear(); },
+  };
+  globalThis.localStorage = storage;
+  globalThis.sessionStorage = storage;
+  globalThis.window = {
+    localStorage: storage,
+    sessionStorage: storage,
+    location: { pathname: "/", search: "", hash: "", origin: "https://example.test" },
+    history: { pushState() {}, replaceState() {} },
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() { return true; },
+    scrollY: 0,
+    confirm() { return false; },
+  };
+  try {
+    const { default: App } = await import("../src/App.tsx?app-account-gate-test");
+    const html = renderToStaticMarkup(React.createElement(App));
+    assert.match(html, /account-session-loading/);
+    assert.match(html, /aria-busy="true"/);
+    assert.match(html, /Checking your account/);
+    assert.doesNotMatch(html, /app-sidebar|app-main|Your scholarship workspace/);
+    assert.equal(store.has("scout-profile"), false, "initial SSR must not write a student profile");
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+    if (previousLocalStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousLocalStorage;
+    if (previousSessionStorage === undefined) delete globalThis.sessionStorage;
+    else globalThis.sessionStorage = previousSessionStorage;
+  }
+});
