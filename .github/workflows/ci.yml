@@ -45,7 +45,7 @@ jobs:
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
       - name: Upload generated lockfile for review
-        uses: actions/upload-artifact@ea165af8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: scholarship-scout-lockfile-${{ github.sha }}
           path: package-lock.json
