@@ -80,7 +80,7 @@ test("App reuses shared scholarship cards and status presentation components", a
 test("navigation glyph rendering is isolated from the application composition root", async () => {
   const app = await read("../src/App.tsx");
   const glyph = await read("../src/components/NavGlyph.tsx");
-  assert.match(app, /import \{ NavGlyph \} from '\.\/components\/NavGlyph\.js'/);
+  assert.match(app, /import \{ NavGlyph, type NavGlyphName \} from '\.\/components\/NavGlyph\.js'/);
   assert.doesNotMatch(app, /function NavGlyph\s*\(/);
   assert.match(glyph, /export function NavGlyph/);
   assert.match(glyph, /aria-hidden="true"/);
