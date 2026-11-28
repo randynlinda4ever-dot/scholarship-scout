@@ -16,9 +16,9 @@ The result is a six-tool Resources toolkit: five existing tools plus one net-new
 
 ### Documented guidance
 
-- The [Federal Student Aid aid-offer comparison guidance](https://studentaid.gov/complete-aid-process/comparing-aid-offers) explains comparing total cost and types of aid. Net price should subtract grants and scholarships, not student loans or work-study. This supports a transparent calculator with clearly separated cost and aid categories rather than one ambiguous "aid" total. 
-- [USAGov's college-cost guidance](https://www.usa.gov/college-costs) points students to cost-estimation and comparison resources, including official net-price tools.
-- [ACT's college-application guidance](https://www.act.org/content/act/en/students-and-parents/college-planning-resources/applying-to-college.html) covers research, required materials, essays, recommendations, and timing. This aligns with the application's existing application-preparation workflow.
+- The [Federal Student Aid aid-offer comparison guidance](https://studentaid.gov/articles/evaluating-financial-aid-offers/) explains comparing total cost and types of aid. Net price should subtract grants and scholarships, not student loans or work-study. This supports a transparent calculator with clearly separated cost and aid categories rather than one ambiguous "aid" total. 
+- [USAGov's college-cost guidance](https://www.usa.gov/estimate-college-cost) points students to cost-estimation and comparison resources, including official net-price tools.
+- [ACT's college-application guidance](https://www.act.org/content/act/en/students-and-parents/college-planning-resources/applying-to-college/planning-for-college.html) covers research, required materials, essays, recommendations, and timing. This aligns with the application's existing application-preparation workflow.
 - The [Austin ISD McCallum High School College & Career Center resume guidance](https://mccallum.austinschools.org/department/college-career-center/resumes) identifies education, activities, leadership, community service, work, honors/awards, and skills/certifications as useful information students may organize for jobs, scholarships, college applications, and recommendation preparation.
 - The [Xello High School & Beyond Plan curriculum PDF](https://xello.mcoutput.com/1365882/Texas%20TEKS%20Career%20Development%20and%20Xello.pdf) describes a student resume builder and a timeline for work and volunteer experiences. The useful pattern is keeping experiences updated over time so students do not have to reconstruct them later.
 
@@ -130,9 +130,9 @@ No selected or implemented tool uses generative AI, machine learning, a model pr
 
 ## Sources
 
-- Federal Student Aid: [Comparing aid offers](https://studentaid.gov/complete-aid-process/comparing-aid-offers)
-- USAGov: [College costs](https://www.usa.gov/college-costs)
-- ACT: [Applying to college](https://www.act.org/content/act/en/students-and-parents/college-planning-resources/applying-to-college.html)
+- Federal Student Aid: [Comparing aid offers](https://studentaid.gov/articles/evaluating-financial-aid-offers/)
+- USAGov: [College costs](https://www.usa.gov/estimate-college-cost)
+- ACT: [Applying to college](https://www.act.org/content/act/en/students-and-parents/college-planning-resources/applying-to-college/planning-for-college.html)
 - Austin ISD McCallum High School: [Resume guidance](https://mccallum.austinschools.org/department/college-career-center/resumes)
 - Xello: [High School & Beyond Plan curriculum](https://xello.mcoutput.com/1365882/Texas%20TEKS%20Career%20Development%20and%20Xello.pdf)
 - Student discussions: [r/scholarships tracker organization](https://www.reddit.com/r/scholarships/comments/1p5fi86/how_do_you_guys_organize_all_your_scholarship/), [r/ApplyingToCollege application organization](https://www.reddit.com/r/ApplyingToCollege/comments/1qqyiud/best_ways_to_organize_your_college_applications/), and [application preparation retrospective](https://www.reddit.com/r/ApplyingToCollege/comments/1r12d99/i_wish_i_knew_about_college_apps_that_nobody_told/).
