@@ -186,7 +186,7 @@ test("all public guide pages use fixed page categories and the same first-party 
     const html = await readFile(new URL("../public/" + path, import.meta.url), "utf8");
     assert.match(html, new RegExp('<body data-analytics-page-type="' + pageType + '">'));
   assert.match(html, /<script defer src="\/analytics-consent\.js"><\/script>/);
-    assert.match(html, /href="\\/analytics-consent\\.css"/);
+    assert.match(html, /href="\/analytics-consent\.css"/);
   }
 });
 
@@ -196,7 +196,7 @@ test("the Privacy Notice discloses third-party analytics and excludes student da
   assert.match(terms, /Optional Google Analytics measurement is off by default/);
   assert.match(terms, /Any optional analytics choice for a person under 18/);
   assert.match(terms, /account identifiers, page URLs, page titles, or referrers/);
-  assert.match(acceptance, /2026-11-28\\.9/);
+  assert.match(acceptance, /2026-11-28\.9/);
 });
 
 test("page-view events accept only predefined page categories", () => {
