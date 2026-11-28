@@ -143,11 +143,15 @@ test("guest workspace supports real navigation, profile edits, tracker validatio
     const userEvent = (await import("@testing-library/user-event")).default;
 
     window.sessionStorage.setItem("scholarship-scout-guest-session", "true");
-    const { default: App } = await import("../src/App.tsx?react-dom-integration");
+    const previousAdapterFlag = globalThis.__SCOUT_TEST_SUPABASE_UNCONFIGURED__;
+    globalThis.__SCOUT_TEST_SUPABASE_UNCONFIGURED__ = true;
+    try {
+      const { default: App } = await import("../src/App.tsx?react-dom-integration");
     try {
       const user = userEvent.setup({ document });
       render(React.createElement(App), { container: root });
       const ui = within(root);
+      await waitFor(() => assert.ok(ui.getByRole("navigation", { name: "Main navigation" })));
       const nav = ui.getByRole("navigation", { name: "Main navigation" });
 
       await waitFor(() => assert.ok(ui.getByRole("heading", { name: "Make your next opportunity count." })));
@@ -231,6 +235,8 @@ test("guest workspace supports real navigation, profile edits, tracker validatio
       );
     } finally {
       cleanup();
+      if (previousAdapterFlag === undefined) delete globalThis.__SCOUT_TEST_SUPABASE_UNCONFIGURED__;
+      else globalThis.__SCOUT_TEST_SUPABASE_UNCONFIGURED__ = previousAdapterFlag;
     }
   });
 });
