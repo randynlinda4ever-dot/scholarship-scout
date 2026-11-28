@@ -1,8 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readActiveAppStyles } from './helpers/activeAppStyles.mjs';
+
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
-const appCss = await readFile(new URL('../src/App.css', import.meta.url), 'utf8');
+const appCss = await readActiveAppStyles();
 const brand = await readFile(new URL('../src/brand-system.css', import.meta.url), 'utf8');
 const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
 test('desktop navigation labels remain visible beside their icons', () => { assert.match(app, /className="nav-copy"/); assert.match(appCss, /\.nav-copy \{ display: grid/); assert.match(brand, /\.sidebar \.nav-copy b/); });
