@@ -37,7 +37,7 @@ test("live discovery allows only generic reusable categories", () => {
     assert.ok(functionSource.includes('"' + required + '"') || functionSource.includes(required + ":"), "missing generic category: " + required);
   }
   assert.match(functionSource, /graduationYear/);
-  assert.match(functionSource, /MAX_CATEGORIES\s*=\s*4/);
+  assert.doesNotMatch(functionSource, /MAX_CATEGORIES|slice\(0,\s*4\)/);
   assert.match(functionSource, /Array\.isArray/);
   assert.match(functionSource, /isSafeHttpsUrl/);
 });

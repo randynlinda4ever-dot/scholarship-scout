@@ -16,13 +16,14 @@ test('search action row avoids repeating the page title', () => {
 
 test('public access and privacy explanation appears only once', () => {
   assert.match(cloudSearch, /Public search works without signing in or creating an account/);
-  assert.doesNotMatch(cloudSearch, /Public search — no account required/);
+  assert.doesNotMatch(cloudSearch, /Public search �?" no account required/);
   assert.doesNotMatch(cloudSearch, /Search requests are rate-limited and contain only state/);
 });
 
-test('category instructions do not explain the obvious rerun workflow', () => {
-  assert.match(cloudSearch, /Choose up to four categories for each search/);
-  assert.doesNotMatch(cloudSearch, /You can run another search with a different selection/);
+test('all supported search categories can be selected without an arbitrary four-category cap', () => {
+  assert.match(cloudSearch, /Choose any combination of the available search categories/);
+  assert.match(cloudSearch, /\{selectedDiscoveryCategories\.length\}\/\{DISCOVERY_CATEGORY_OPTIONS\.length\} selected/);
+  assert.doesNotMatch(cloudSearch, /selectedDiscoveryCategories\.length\s*>=\s*4|current\.length\s*<\s*4/);
 });
 
 test('connected account panel does not duplicate persistent Settings navigation', () => {

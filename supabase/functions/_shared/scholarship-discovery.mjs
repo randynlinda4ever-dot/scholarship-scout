@@ -1,4 +1,3 @@
-const MAX_CATEGORIES = 4;
 const MAX_SEARCH_PAGE = 2;
 const MAX_RESULTS = 40;
 const SEARCH_CONCURRENCY = 4;
@@ -137,8 +136,7 @@ export function normalizeTitle(value) {
 export function buildSearchJobs(state, graduationYear, categories) {
   const jobs = [];
   const selectedCategories = [...new Set(Array.isArray(categories) ? categories : [])]
-    .filter((category) => ALLOWED_CATEGORIES.includes(category))
-    .slice(0, MAX_CATEGORIES);
+    .filter((category) => ALLOWED_CATEGORIES.includes(category));
   for (const category of selectedCategories) {
     const variations = CATEGORY_VARIATIONS[category] || [];
     for (let variationIndex = 0; variationIndex < variations.length; variationIndex += 1) {
@@ -149,7 +147,7 @@ export function buildSearchJobs(state, graduationYear, categories) {
       }
     }
   }
-  return jobs.slice(0, MAX_SEARCH_REQUESTS);
+  return jobs;
 }
 export function scoreCandidateQuality({ title = "", excerpt = "", domain = "", state = "", year = "" } = {}) {
   const titleText = clean(title, 220).toLowerCase();
@@ -655,7 +653,7 @@ export function createScholarshipDiscoveryHandler(deps = {}) {
     if (!state) return json({ error: "Choose a valid US state or territory for scholarship search." }, 400);
     if (!Number.isInteger(graduationYear) || graduationYear < currentYear || graduationYear > currentYear + 9) return json({ error: "Enter a valid high-school graduation year." }, 400);
     const rawCategories = Array.isArray(body?.categories) ? body.categories : [];
-    const categories = [...new Set(rawCategories.filter((value) => typeof value === "string" && ALLOWED_CATEGORIES.includes(value)))].slice(0, MAX_CATEGORIES);
+    const categories = [...new Set(rawCategories.filter((value) => typeof value === "string" && ALLOWED_CATEGORIES.includes(value)))];
     if (categories.length === 0) return json({ error: "Choose at least one scholarship search category." }, 400);
 
     const cacheKey = `${gatewayBase.href}|${state.toLowerCase()}|${graduationYear}|${[...categories].sort().join(",")}`;

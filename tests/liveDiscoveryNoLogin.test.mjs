@@ -47,7 +47,8 @@ test("the deployed discovery function is public but applies request throttling",
 });
 
 test("public discovery bounds JSON payload size and keeps gateway credentials server-side", () => {
-  assert.ok(edge.includes("MAX_CATEGORIES"));
+  assert.ok(edge.includes("MAX_SEARCH_REQUESTS"));
+  assert.ok(edge.includes("ALLOWED_CATEGORIES"));
   assert.ok(edge.includes("MAX_BODY_BYTES"));
   assert.ok(edge.includes("SEARXNG_GATEWAY_TOKEN"));
   assert.ok(edge.includes('Bearer ${gatewayToken}'));
