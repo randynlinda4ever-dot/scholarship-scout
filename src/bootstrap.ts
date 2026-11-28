@@ -86,6 +86,8 @@ function renderLegalGate(): void {
     .legal-preflight-kicker { margin: 10px 0 6px; color: #C3B9FF; font-size: 11px; font-weight: 800; letter-spacing: .13em; }
     .legal-preflight h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.15; }
     .legal-preflight-intro { max-width: 760px; margin: 8px 0 4px; color: #C9C7D8; font-size: 13px; line-height: 1.5; }
+    .legal-preflight-guides { margin: 8px 0 0; font-size: 12px; line-height: 1.5; }
+    .legal-preflight-guides a { color: #C3B9FF; font-weight: 700; text-underline-offset: 3px; }
     .legal-preflight-version { margin: 8px 0 0; color: #A8A5BC; font-size: 12px; }
     .legal-preflight-document { min-height: 0; flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 8px 26px 20px; font-size: 13px; line-height: 1.6; }
     .legal-preflight-document section { max-width: 78ch; margin-inline: auto; padding-top: 15px; }
@@ -179,6 +181,11 @@ function renderLegalGate(): void {
   );
   intro.id = "legal-preflight-intro";
   header.append(intro);
+  const publicGuides = element("p", "legal-preflight-guides");
+  const publicGuidesLink = element("a", undefined, "Browse free scholarship guides");
+  publicGuidesLink.href = "/scholarship-guides/";
+  publicGuides.append(publicGuidesLink);
+  header.append(publicGuides);
   header.append(element(
     "p",
     "legal-preflight-version",
