@@ -70,7 +70,7 @@ const palettes = {
   },
   light: {
     bg: '#F3F0E9', surface: '#FFFFFF', raised: '#FCFAF5', soft: '#F4EFE5',
-    text: '#2B241E', textSoft: '#55483C', muted: '#766B5D',
+    text: '#2B241E', textSoft: '#55483C', muted: '#6B6053',
     accent: '#925334', strong: '#7C442A', warning: '#875C27', ink: '#FFFFFF',
   },
 };
