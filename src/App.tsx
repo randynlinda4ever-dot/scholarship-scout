@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { vaultStorage, lockLocalVault, flushLocalVault, destroyLocalVault, hasPendingLocalVaultWrites, enableLocalVaultDeviceUnlock, forgetLocalVaultDeviceUnlock, createLocalAccountVaultKeyWrap, getAccountVaultSyncEnvelope, getLocalAccountVaultSyncStatus, setLocalAccountVaultRevision, forgetLocalAccountVaultSync } from './lib/localVault.js';
 import { clearReliabilityEvents, installReliabilityMonitoring, readReliabilityEvents, RELIABILITY_CHANGE_EVENT } from './lib/reliabilityMonitor.js';
 import { assessEligibility, type EligibilityCriteria, type EligibilityAssessment } from './eligibility.js';
-import { deriveSourceStatus, getEvidenceCompleteness, getEvidenceExcerptAttributions, getOfficialSourceFreshness, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
+import { deriveSourceStatus, getEvidenceCompleteness, getEvidenceExcerptAttributions, getOfficialSourceFreshness, getScholarshipSourcePageUrl, getSourceAttribution, isInactiveCriterionValue, normalizeAndDeduplicateScholarships, normalizeScholarshipRecords, resolveSourceAuthority, sanitizePublicHttpsUrl } from './lib/evidence.js';
 import { appendSourceEvidenceHistory, invalidateSourceReviewIfChanged } from './lib/sourceReview.js';
 import { getSupabaseClient, stopSupabaseAutoRefreshForVaultLock, supabaseConfigured } from './lib/supabaseClient';
 import { buildScoutBackup, validateScoutBackup } from './lib/backup.js';
@@ -29,6 +29,7 @@ import { hasPendingAuthCallback, hasPendingAuthCallbackError } from './lib/authR
 import { PRIVACY_REQUEST_TYPES, PRIVACY_REQUESTER_TYPES, buildPrivacyRequestMailto } from './lib/privacyRequests.js';
 import { BrandMark } from './components/BrandMark';
 import { workspacePathToTab, workspaceTabToPath } from './lib/workspaceRoutes.js';
+import { getWorkspaceScrollPosition, saveWorkspaceScrollPosition } from './lib/workspaceScroll.js';
 import { createResourceWorkspace, normalizeResourceWorkspace } from './lib/resourceWorkspace.js';
 import { ResourcesPage } from './features/resources/ResourcesPage';
 import { StartHomePage } from './features/home/StartHomePage';
@@ -203,12 +204,38 @@ const googleSearch = (query: string) => `https://www.google.com/search?q=${encod
 const createWorkspaceItemId = () => `workspace-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 function App() {
-  const [tab, setTab] = useState(() => workspacePathToTab(window.location.pathname));
+  const [tab, setTabState] = useState(() => workspacePathToTab(window.location.pathname));
+  const activeTabRef = useRef(tab);
+  const setTab = (nextTab: typeof tab) => {
+    const previousTab = activeTabRef.current;
+    if (previousTab !== nextTab) {
+      saveWorkspaceScrollPosition(workspaceTabToPath(previousTab), window.scrollY);
+    }
+    activeTabRef.current = nextTab;
+    setTabState(nextTab);
+  };
   useEffect(() => {
     const targetPath = workspaceTabToPath(tab);
     if (window.location.pathname !== targetPath) {
       window.history.pushState({ scholarshipScoutTab: tab }, "", targetPath);
     }
+  }, [tab]);
+  useEffect(() => {
+    const path = workspaceTabToPath(tab);
+    const restoreFrame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, getWorkspaceScrollPosition(path));
+    });
+    const persistScroll = () => saveWorkspaceScrollPosition(path, window.scrollY);
+    const persistWhenHidden = () => {
+      if (document.visibilityState === "hidden") persistScroll();
+    };
+    window.addEventListener("pagehide", persistScroll);
+    document.addEventListener("visibilitychange", persistWhenHidden);
+    return () => {
+      window.cancelAnimationFrame(restoreFrame);
+      window.removeEventListener("pagehide", persistScroll);
+      document.removeEventListener("visibilitychange", persistWhenHidden);
+    };
   }, [tab]);
   useEffect(() => {
     const syncTabFromPath = () => setTab(workspacePathToTab(window.location.pathname));
@@ -224,7 +251,6 @@ function App() {
   }, [desktopSidebarCollapsed]);
   useEffect(() => {
     setMobileNavOpen(false);
-    window.scrollTo(0, 0);
   }, [tab]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
@@ -2231,6 +2257,7 @@ function App() {
 }
 
 function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tracked:boolean;onTrack:()=>void}) {
+  const sourcePageUrl = getScholarshipSourcePageUrl(item.source_url);
   const rules = item.extracted_rules as {
     eligibility_requirements?:Array<{requirement?:string;mandatory?:boolean;evidence?:string;needs_human_confirmation?:boolean}>;
     uncertainties?:string[]; short_source_summary?:string; application_fee?:boolean|null;
@@ -2258,19 +2285,21 @@ function CloudResultCard({item,tracked,onTrack}:{item:LiveScholarship;tracked:bo
       </section>;
     })()}
 
-    {sanitizePublicHttpsUrl(item.source_evidence_url || '') && <p><a className="source-link" href={sanitizePublicHttpsUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noreferrer">Open supporting rules / evidence ↗</a></p>}
+    {getScholarshipSourcePageUrl(item.source_evidence_url || '') && <p><a className="source-link" href={getScholarshipSourcePageUrl(item.source_evidence_url || '') || undefined} target="_blank" rel="noopener noreferrer">Open supporting rules / evidence ↗</a></p>}
     {rules?.eligibility_requirements?.length ? <div className="extracted-rules"><b>Extracted sponsor rules — provisional</b>{rules.eligibility_requirements.map((rule,index)=><div key={index}><span>{rule.mandatory?'Required':'Selection / preference'}{rule.needs_human_confirmation?' · Confirm with sponsor':''}</span><p>{rule.requirement}</p>{rule.evidence&&<small>Evidence: {rule.evidence}</small>}</div>)}</div>:null}
     {rules?.uncertainties?.length ? <div className="uncertainty-list"><b>Still unclear</b><ul>{rules.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
     {rules?.application_documents?.length ? <div className="extracted-rules"><b>Application documents</b><ul>{rules.application_documents.map((item,index)=><li key={index}>{item}</li>)}</ul></div>:null}
     {rules?.application_steps?.length ? <div className="extracted-rules"><b>Application steps</b><ol>{rules.application_steps.map((item,index)=><li key={index}>{item}</li>)}</ol></div>:null}
     {rules?.application_fee === true ? <div className="risk-flag">⚠ The sponsor-page extraction indicates an application fee. Verify directly with the sponsor and do not pay to apply.</div>:null}
-    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.source_url) && <a href={sanitizePublicHttpsUrl(item.source_url) || undefined} target="_blank" rel="noreferrer">Open source page ↗</a>}<button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
+    <div className="candidate-actions">{sourcePageUrl && <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer">Open scholarship page ↗</a>}<button className="primary" disabled={tracked} onClick={onTrack}>{tracked?'In tracker':'＋ Add to tracker'}</button></div>
+    {!sourcePageUrl && <small className="candidate-source">A direct scholarship page URL was not returned. The sponsor homepage is intentionally not shown as the scholarship page.</small>}
     <small className="candidate-source">Cloud records are not automatically refreshed. Re-check the current official sponsor page before relying on any detail.</small>
   </article>;
 }
 
 function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessment:EligibilityAssessment;added:boolean;onAdd:()=>void}) {
   const summary = summarizeEligibilityAssessment(assessment);
+  const sourcePageUrl = getScholarshipSourcePageUrl(item.sourceUrl);
   return <div className="candidate-card">
     <div className="candidate-top"><StatusPill status={summary.status as Status}/><SourceStatusPill item={item}/></div>
     <div className="candidate-deadline">{item.deadlineText && item.deadlineText !== item.deadline ? item.deadlineText : (item.deadline ? formatDate(item.deadline) : item.deadlineNotPublished ? 'No deadline published by sponsor' : 'Deadline not confirmed')} {item.deadlineTimezone ? `· ${item.deadlineTimezone}` : ''}</div>
@@ -2278,7 +2307,8 @@ function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessmen
     <p className="candidate-description">{item.notes}</p>
     <div className="candidate-match"><b>Profile check</b><span>{summary.passed.length} pass · {summary.unknown.length} unknown · {summary.failed.length} fail</span></div>
     <small className="candidate-source">{summary.caveat}</small>
-    <div className="candidate-actions">{sanitizePublicHttpsUrl(item.sourceUrl) && <a href={sanitizePublicHttpsUrl(item.sourceUrl) || undefined} target="_blank" rel="noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
+    <div className="candidate-actions">{sourcePageUrl && <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer">{getSourceAttribution(item.sourceUrl).linkLabel} ↗</a>}<button className={added?'secondary':'primary'} disabled={added} onClick={onAdd}>{added?'Added to tracker':'＋ Track & verify'}</button></div>
+    {!sourcePageUrl && <small className="candidate-source">A direct scholarship page URL has not been saved for this record.</small>}
     <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
   </div>;
 }

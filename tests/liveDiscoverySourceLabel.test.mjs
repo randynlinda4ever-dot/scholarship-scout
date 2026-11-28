@@ -31,7 +31,8 @@ test("unverified cloud discovery links are labeled as source pages, not sponsor 
 
   assert.ok(component.includes("Unverified lead"));
   assert.ok(component.includes("Sponsor not confirmed"));
-  assert.ok(component.includes(">Open source page ↗</a>"));
+  assert.ok(component.includes(">Open scholarship page ↗</a>"));
   assert.ok(!component.includes(">Sponsor page ↗</a>"));
-  assert.ok(component.includes("sanitizePublicHttpsUrl(item.source_url)"));
+  assert.ok(component.includes("getScholarshipSourcePageUrl(item.source_url)"));
+  assert.ok(component.includes("A direct scholarship page URL was not returned"));
 });

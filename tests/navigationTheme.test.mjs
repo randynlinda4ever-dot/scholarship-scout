@@ -14,8 +14,12 @@ test('primary navigation groups the five main workspace destinations', () => {
   assert.match(app, /aria-current=\{activeNavTab === item\.tab \? 'page' : undefined\}/);
 });
 
-test('switching workspace tabs returns the new page to the top', () => {
-  assert.match(app, /useEffect\(\(\) => \{\s*setMobileNavOpen\(false\);\s*window\.scrollTo\(0, 0\);\s*\}, \[tab\]\);/);
+test('switching workspace tabs restores each page to its previous scroll position', () => {
+  assert.match(app, /saveWorkspaceScrollPosition\(workspaceTabToPath\(previousTab\), window\.scrollY\)/);
+  assert.match(app, /getWorkspaceScrollPosition\(path\)/);
+  assert.match(app, /window\.requestAnimationFrame\(\(\) => \{/);
+  assert.match(app, /setMobileNavOpen\(false\);/);
+  assert.doesNotMatch(app, /setMobileNavOpen\(false\);\s*window\.scrollTo\(0, 0\);/);
 });
 
 test('home screen exposes clear quick links to the main tasks', () => {
