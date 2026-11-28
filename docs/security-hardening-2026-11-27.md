@@ -1,10 +1,10 @@
 # Security hardening update — November 27, 2026
 
-## Source of truth
+## Source and release status
 
-The canonical application is the AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`. Vercel is not used as the application source of truth. Changes described here are AgentGrid source changes unless explicitly marked as a live Supabase operation.
+GitHub `main` is the only canonical application source. This document preserves historical security implementation details and backend verification limits from November 27, 2026. Its historical revision references do not identify another active source or synchronization service. Vercel is the frontend host; Supabase is the backend runtime.
 
-## Completed in AgentGrid source
+## Completed application hardening
 
 ### Passphrase-protected local vault
 
@@ -33,7 +33,7 @@ The connected database session is `postgres`. PostgreSQL rejected both `ALTER DE
 
 ## Production discovery and public abuse protection
 
-The corrected AgentGrid Edge Function entrypoint uses `createPublicRateLimiter()` from `_shared/discovery-rate-limit.mjs`. It applies a two-per-minute per-IP limit per isolate and trusts only Cloudflare's `cf-connecting-ip` header. The authenticated single-process gateway supplies the shared 30-upstream-requests-per-minute ceiling across isolates. This no-Redis design fits the current single-gateway topology; it does not provide durable daily quotas or shared in-flight concurrency leases.
+The corrected reviewed GitHub Edge Function entrypoint uses `createPublicRateLimiter()` from `_shared/discovery-rate-limit.mjs`. It applies a two-per-minute per-IP limit per isolate and trusts only Cloudflare's `cf-connecting-ip` header. The authenticated single-process gateway supplies the shared 30-upstream-requests-per-minute ceiling across isolates. This no-Redis design fits the current single-gateway topology; it does not provide durable daily quotas or shared in-flight concurrency leases.
 
 The live Supabase function remains at version 19 using the in-memory per-isolate limiter. The connected Supabase tools do not expose Edge Function secret read/write or invoke operations. The owner confirms the required `SEARXNG_GATEWAY_URL` and `SEARXNG_GATEWAY_TOKEN` settings are configured; an authenticated direct check of the named gateway returned HTTP 200 with 15 results. The corrected source wrapper now uses the existing gateway-backed no-Redis design; a reviewed deployment, fresh Supabase-to-gateway POST, and rollback verification remain outstanding. See `docs/supabase-owner-security-runbook-2026-11-27.md`.
 
@@ -41,12 +41,12 @@ Turnstile is not yet wired to the public discovery request. Cloudflare's robots 
 
 ## Published hosting headers
 
-A live SecurityHeaders scan of `https://scholarship-scout.org` at 2026-11-27 05:51 UTC returned grade D. HSTS was present, but the scanner did not see CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, or Permissions-Policy as response headers. The live page still served the older legal notice, so AgentGrid source changes have not yet been published to that domain. The hosting layer must add and verify the response headers. The `frame-ancestors` directive can only be set in an HTTP CSP header; determine approved AgentGrid iframe parent origins before configuring it. Do not blindly set `X-Frame-Options: SAMEORIGIN` if cross-origin preview embedding is required.
+A live SecurityHeaders scan of `https://scholarship-scout.org` at 2026-11-27 05:51 UTC returned grade D. HSTS was present, but the scanner did not see CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, or Permissions-Policy as response headers. The live page still served the older legal notice, so historical implementation snapshot source changes have not yet been published to that domain. The hosting layer must add and verify the response headers. The `frame-ancestors` directive can only be set in an HTTP CSP header; determine approved preview iframe parent origins before configuring it. Do not blindly set `X-Frame-Options: SAMEORIGIN` if cross-origin preview embedding is required.
 
 ## Verification limits
 
-- Regression tests for vault encryption/migration, wrong passphrases, tampered ciphertext, Supabase session/PKCE storage, lock/unlock, single-tab locking, and failed persistence have been added or updated in AgentGrid source.
-- The AgentGrid MCP surface itself has no project shell/test-runner action. However, the connected local release checkout was used to run `npm ci`, the full `npm test` suite (730 passed, zero failed, zero skipped), `npm run build`, and `npm audit --audit-level=moderate` (zero vulnerabilities) after the corrected wrapper and regression tests were applied. The tested checkout contained the same application and Edge Function source as the validated AgentGrid revision.
+- Regression tests for vault encryption/migration, wrong passphrases, tampered ciphertext, Supabase session/PKCE storage, lock/unlock, single-tab locking, and failed persistence are maintained in the GitHub repository.
+- The historical implementation snapshot MCP surface itself has no project shell/test-runner action. However, the connected local release checkout was used to run `npm ci`, the full `npm test` suite (730 passed, zero failed, zero skipped), `npm run build`, and `npm audit --audit-level=moderate` (zero vulnerabilities) after the corrected wrapper and regression tests were applied. The tested checkout contained the reviewed application and Edge Function source from the GitHub repository.
 - A synthetic public discovery request was attempted through a browser automation run, but the run was cancelled and returned no HTTP result. No new production 200/429/503 behavior is claimed.
 - No Edge Function was deployed, no gateway secret was read or changed, and no Cloudflare/hosting response-header rule was changed. Upstash is not required by the selected architecture.
 

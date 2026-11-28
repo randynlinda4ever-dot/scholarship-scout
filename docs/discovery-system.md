@@ -14,7 +14,7 @@ The search request does not include the student profile object, school, district
 
 ## Canonical search implementation
 
-The AgentGrid source contains a shared discovery helper with:
+The reviewed GitHub source contains a shared discovery helper with:
 
 - Fourteen allowlisted discovery categories.
 - Three complementary query intents per selected category, with up to two bounded pages per intent and a 24-upstream-attempt cap that includes retries.
@@ -66,7 +66,7 @@ Before deploying the corrected wrapper:
 3. Review all deployed/candidate files, including `_shared/discovery-rate-limit.mjs`, and preserve the existing v19 rollback snapshot.
 4. Run focused Edge tests, the full application suite/build/audit, and a synthetic Supabase function POST using only state, graduation year, and category IDs.
 5. Confirm partial-result behavior, Edge Function 429/503 behavior, gateway 429 behavior, and that no private data or secrets appear in responses/logs.
-6. Record the GitHub commit, synchronized AgentGrid revision, deployed source hash, and prior-version rollback steps.
+6. Record the GitHub commit, historical GitHub commit, deployed source hash, and prior-version rollback steps.
 
 ## Browser result handling
 

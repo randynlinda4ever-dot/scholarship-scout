@@ -97,13 +97,13 @@ function renderLegalGate(): void {
     .legal-preflight-document ul { padding-left: 22px; }
     .legal-preflight-document li { overflow-wrap: anywhere; margin: 5px 0; }
     .legal-preflight-footer { border-top: 1px solid #302C4C; background: #0E1425; }
-    .legal-preflight-status { min-height: 18px; margin: 0 0 12px; color: #C3B9FF; font-size: 12px; }
-    .legal-preflight-age { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 0 0 8px; padding: 9px 11px; border: 1px solid #3A365C; border-radius: 10px; background: #151D33; }
-    .legal-preflight-age legend { grid-column: 1 / -1; padding: 0 4px; color: #C3B9FF; font-size: 12px; font-weight: 700; }
-    .legal-preflight-age label, .legal-preflight-guardian { display: flex; align-items: flex-start; gap: 10px; min-width: 0; color: #E7E4F1; font-size: 12px; line-height: 1.5; cursor: pointer; }
-    .legal-preflight-age label { align-items: center; min-height: 36px; padding: 6px 8px; border-radius: 8px; background: #1C2A48; }
-    .legal-preflight-age label span { overflow-wrap: anywhere; }
-    .legal-preflight-age input, .legal-preflight-guardian input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #A69AE8; }
+    .legal-preflight-status { min-height: 18px; margin: 0 0 8px; color: #C3B9FF; font-size: 12px; }
+    .legal-preflight-age-control { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; margin: 0 0 8px; color: #C9C7D8; font-size: 12px; font-weight: 700; }
+    .legal-preflight-age-select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #3A365C; border-radius: 9px; background: #151D33; color: #E7E4F1; font: inherit; font-weight: 600; }
+    .legal-preflight-age-select:focus-visible { outline: 2px solid #D8D0FF; outline-offset: 2px; }
+    .legal-preflight-guardian { display: flex; align-items: flex-start; gap: 10px; min-width: 0; color: #E7E4F1; font-size: 12px; line-height: 1.5; cursor: pointer; }
+    .legal-preflight-guardian input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #A69AE8; }
+    .legal-preflight-guardian[hidden] { display: none !important; }
     .legal-preflight-guardian { margin: 0 0 8px; padding: 9px; border: 1px solid #6C5D9A; border-radius: 9px; background: #211E3A; font-size: 11px; }
     .legal-preflight-check { display: flex; align-items: flex-start; gap: 10px; padding: 9px; border: 1px solid #3A365C; border-radius: 9px; background: #151D33; color: #E7E4F1; font-size: 12px; line-height: 1.5; cursor: pointer; }
     .legal-preflight-check input { flex: 0 0 auto; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #A69AE8; }
@@ -128,43 +128,35 @@ function renderLegalGate(): void {
     @media (max-width: 600px) {
       .legal-preflight { padding: 0; display: block; }
       .legal-preflight-panel { position: relative; width: 100%; height: 100vh; height: 100dvh; max-height: none; min-height: 100vh; min-height: 100dvh; border: 0; border-radius: 0; }
-      .legal-preflight-header, .legal-preflight-footer { padding: 9px 16px; }
+      .legal-preflight-header { padding: 8px 12px 7px; }
+      .legal-preflight-footer { padding: 8px 12px max(8px, env(safe-area-inset-bottom)); }
+      .legal-preflight-brand { gap: 8px; font-size: 12px; }
+      .legal-preflight-brand img { width: 28px; height: 28px; flex-basis: 28px; }
       .legal-preflight-footer {
-        position: absolute;
-        inset-inline: 0;
-        bottom: 0;
-        z-index: 2;
-        width: 100%;
-        max-height: min(58vh, 460px);
-        max-height: min(58dvh, 460px);
-        overflow-y: auto;
-        overscroll-behavior: contain;
+        position: relative;
+        z-index: 1;
+        flex: 0 0 auto;
+        max-height: none;
+        overflow: visible;
+        padding-bottom: max(9px, env(safe-area-inset-bottom));
       }
-      .legal-preflight-brand img { width: 32px; height: 32px; flex-basis: 32px; }
-      .legal-preflight-kicker { margin: 7px 0 5px; font-size: 10px; }
-      .legal-preflight h1 { font-size: 25px; }
-      .legal-preflight-intro { margin: 6px 0 3px; font-size: 12px; }
-      .legal-preflight-version { margin-top: 5px; font-size: 11px; }
-      .legal-preflight-document { min-height: 0; padding: 6px 16px calc(58dvh + 14px); font-size: 12px; }
+      .legal-preflight-kicker { display: none; }
+      .legal-preflight h1 { font-size: 22px; line-height: 1.15; }
+      .legal-preflight-intro { margin: 4px 0 0; font-size: 11px; line-height: 1.35; }
+      .legal-preflight-guides { display: none; }
+      .legal-preflight-version { margin-top: 3px; font-size: 10px; }
+      .legal-preflight-document { min-height: 0; padding: 6px 16px 14px; font-size: 12px; }
       .legal-preflight-document section { padding-top: 13px; }
       .legal-preflight-document h2 { font-size: 15px; }
       .legal-preflight-document p, .legal-preflight-document li { font-size: 12px; }
-      .legal-preflight-status { margin-bottom: 7px; font-size: 11px; }
-      .legal-preflight-age { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; padding: 8px 9px; }
-      .legal-preflight-age label { min-height: 34px; padding: 5px 6px; font-size: 11px; line-height: 1.35; }
-      .legal-preflight-age label:last-of-type { grid-column: 1 / -1; }
-      .legal-preflight-guardian { margin-bottom: 8px; padding: 9px; }
-      .legal-preflight-check { gap: 9px; padding: 8px; font-size: 12px; }
-      .legal-preflight-actions {
-        position: sticky;
-        bottom: 0;
-        z-index: 1;
-        margin-top: 8px;
-        padding: 10px 0 max(8px, env(safe-area-inset-bottom));
-        background: #0E1425;
-      }
+      .legal-preflight-status { min-height: 15px; margin-bottom: 5px; font-size: 10px; }
+      .legal-preflight-age-control { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; margin-bottom: 7px; }
+      .legal-preflight-age-select { min-height: 40px; padding: 7px 9px; }
+      .legal-preflight-guardian { gap: 8px; margin-bottom: 6px; padding: 7px; font-size: 10px; line-height: 1.35; }
+      .legal-preflight-check { gap: 8px; padding: 7px; font-size: 11px; line-height: 1.35; }
+      .legal-preflight-actions { margin-top: 6px; padding: 0; }
       .legal-preflight-actions button { width: 100%; }
-      .legal-preflight-footnote { margin-top: 6px; font-size: 11px; }
+      .legal-preflight-footnote { margin-top: 4px; font-size: 10px; line-height: 1.3; }
     }
     @media (prefers-reduced-motion: no-preference) {
       .legal-preflight-panel { animation: legal-preflight-enter .16s ease-out; }
@@ -195,7 +187,7 @@ function renderLegalGate(): void {
   const intro = element(
     "p",
     "legal-preflight-intro",
-    "Review the legal and data-use disclosure below. You must reach the end, confirm the statement, and accept before any part of the Scholarship Scout workspace is loaded.",
+    "Review the full notice, choose an age group, and confirm your agreement before entering the workspace.",
   );
   intro.id = "legal-preflight-intro";
   header.append(intro);
@@ -236,40 +228,40 @@ function renderLegalGate(): void {
   }
 
   const footer = element("footer", "legal-preflight-footer");
-  const status = element("p", "legal-preflight-status", "Scroll through the entire notice to enable acceptance.");
+  const status = element("p", "legal-preflight-status", "Scroll to the end to enable acceptance.");
   status.setAttribute("role", "status");
 
-  const ageGroupFieldset = element("fieldset", "legal-preflight-age");
-  const ageLegend = element("legend", undefined, "Who will use Scholarship Scout?");
-  ageGroupFieldset.append(ageLegend);
   let ageGroup: "adult" | "minor" | "under13" | "" = "";
   let updateButton: () => void = () => {};
-  const makeAgeChoice = (value: "adult" | "minor" | "under13", labelText: string) => {
-    const label = element("label");
-    const input = element("input");
-    input.type = "radio";
-    input.name = "legal-age-group";
-    input.value = value;
-    input.addEventListener("change", () => {
-      ageGroup = value;
-      guardianCheckbox.checked = false;
-      guardianLabel.hidden = value !== "minor";
-      if (value === "under13") checkbox.checked = false;
-      updateButton();
-    });
-    label.append(input, element("span", undefined, labelText));
-    ageGroupFieldset.append(label);
-  };
+  const ageGroupControl = element("label", "legal-preflight-age-control");
+  const ageGroupCaption = element("span", undefined, "Age group");
+  const ageGroupSelect = element("select", "legal-preflight-age-select");
+  ageGroupSelect.name = "legal-age-group";
+  const ageOptions = [
+    ["", "Choose an age group"],
+    ["adult", "I am 18 or older"],
+    ["minor", "I am 13 through 17"],
+    ["under13", "I am under 13"],
+  ] as const;
+  for (const [value, label] of ageOptions) {
+    const option = element("option", undefined, label);
+    option.value = value;
+    ageGroupSelect.append(option);
+  }
   const guardianLabel = element("label", "legal-preflight-guardian");
   guardianLabel.hidden = true;
   const guardianCheckbox = element("input");
   guardianCheckbox.type = "checkbox";
-  const guardianSpan = element("span", undefined, "Parent or guardian authorization: I am this user's parent or legal guardian. I reviewed this notice, understand how Scholarship Scout uses information, and authorize this 13–17 year old to use it.");
+  const guardianSpan = element("span", undefined, "Parent or guardian authorization: I am this user's parent or legal guardian. I reviewed this notice and authorize this 13–17-year-old to use Scholarship Scout.");
   guardianLabel.append(guardianCheckbox, guardianSpan);
-  guardianCheckbox.addEventListener("change", updateButton);
-  makeAgeChoice("adult", "I am 18 or older");
-  makeAgeChoice("minor", "I am 13 through 17");
-  makeAgeChoice("under13", "I am under 13");
+  ageGroupSelect.addEventListener("change", () => {
+    ageGroup = ageGroupSelect.value as "adult" | "minor" | "under13" | "";
+    guardianCheckbox.checked = false;
+    guardianLabel.hidden = ageGroup !== "minor";
+    if (ageGroup === "under13") checkbox.checked = false;
+    updateButton();
+  });
+  ageGroupControl.append(ageGroupCaption, ageGroupSelect);
 
   const acceptanceLabel = element("label", "legal-preflight-check");
   const checkbox = element("input");
@@ -278,7 +270,7 @@ function renderLegalGate(): void {
   const acceptanceText = element(
     "span",
     undefined,
-    "I have read and agree to these Terms of Service and acknowledge the Privacy Notice. I understand the Service's stated limits and my responsibilities when using it.",
+    "I have read and agree to the Terms of Service and acknowledge the Privacy Notice, including the Service's stated limits and my responsibilities.",
   );
   acceptanceLabel.append(checkbox, acceptanceText);
 
@@ -313,9 +305,9 @@ function renderLegalGate(): void {
   const footnote = element(
     "p",
     "legal-preflight-footnote",
-    "Age and guardian selections are stored locally. Scholarship Scout does not verify age or guardian identity.",
+    "Age and guardian selections stay on this device; age and guardian identity are not verified.",
   );
-  footer.append(status, ageGroupFieldset, guardianLabel, acceptanceLabel, error, footnote);
+  footer.append(status, ageGroupControl, guardianLabel, acceptanceLabel, error, footnote);
   if (demoNotice) footer.append(demoNotice);
   footer.append(actions);
   panel.append(header, documentRegion, footer);
@@ -344,8 +336,8 @@ function renderLegalGate(): void {
   };
 
   documentRegion.addEventListener("scroll", updateScrollState, { passive: true });
-  checkbox.addEventListener("change", updateButton);
-  guardianCheckbox.addEventListener("change", updateButton);
+  checkbox.addEventListener("change", () => updateButton());
+  guardianCheckbox.addEventListener("change", () => updateButton());
   if (documentRegion.scrollHeight <= documentRegion.clientHeight + 12) {
     readToEnd = true;
     status.textContent = "You have reached the end of the notice.";

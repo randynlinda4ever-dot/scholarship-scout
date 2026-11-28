@@ -157,41 +157,51 @@
   margin: 1px 0 0;
   accent-color: #A69AE8;
 }
-.legal-age-fieldset {
+.legal-age-control {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   min-width: 0;
-  margin: 0 0 10px;
-  padding: 11px 12px;
-  border: 1px solid #4B5B83;
-  border-radius: 11px;
-  background: #172542;
+  margin: 0 0 8px;
+  color: #D2CDE0;
+  font-size: 12px;
+  font-weight: 700;
 }
-.legal-age-fieldset legend { grid-column: 1 / -1; padding: 0 5px; color: #C8BDF4; font-size: 11px; font-weight: 750; }
-.legal-age-fieldset label, .legal-guardian-check {
+.legal-age-select {
+  min-width: 0;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #4B5B83;
+  border-radius: 9px;
+  background: #172542;
+  color: #F5F0F7;
+  font: inherit;
+  font-weight: 600;
+}
+.legal-age-select:focus-visible {
+  outline: 2px solid #FFC88F;
+  outline-offset: 2px;
+}
+.legal-guardian-check {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   min-width: 0;
+  margin: 0 0 8px;
   color: #F5F0F7;
   font-size: 12px;
   line-height: 1.5;
 }
-.legal-age-fieldset label {
-  align-items: center;
-  min-height: 36px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: #1C2A48;
-}
-.legal-age-fieldset input, .legal-guardian-check input {
+.legal-guardian-check input {
   flex: 0 0 20px;
   width: 20px;
   height: 20px;
   margin: 1px 0 0;
   accent-color: #A69AE8;
 }
+.legal-guardian-check[hidden] { display: none !important; }
 .legal-guardian-check {
   margin: 0 0 8px;
   padding: 10px;
@@ -202,7 +212,7 @@
 }
 .legal-guardian-check span { min-width: 0; }
 .legal-guardian-check b { display: block; margin-bottom: 3px; color: #D7CCFF; }
-.legal-age-fieldset label span, .legal-acceptance-check span { overflow-wrap: anywhere; }
+.legal-age-control span, .legal-acceptance-check span { overflow-wrap: anywhere; }
 .legal-gate-actions {
   display: flex;
   flex-wrap: wrap;
@@ -247,7 +257,6 @@
   .legal-gate-header h1 { font-size: 24px; }
   .legal-gate-version { margin-top: 6px; }
   .legal-gate-footer { padding-top: 8px; padding-bottom: 10px; }
-  .legal-age-fieldset { gap: 5px; padding-top: 7px; padding-bottom: 7px; }
   .legal-gate-actions { margin-top: 7px; }
   .legal-gate-footnote { margin-top: 6px; }
 }
@@ -263,41 +272,35 @@
     border-radius: 0;
   }
   .legal-gate-screen { min-width: 0; }
-  .legal-gate-header { padding: 14px 16px 10px; }
-  .legal-gate-brand { margin-bottom: 10px; }
-  .legal-gate-header h1 { font-size: 25px; }
-  .legal-gate-header>p:not(.legal-gate-kicker):not(.legal-gate-version) { font-size: 12px; }
-  .legal-document { min-height: 0; padding: 5px 16px calc(58dvh + 14px); font-size: 12px; }
+  .legal-gate-header { padding: 8px 12px 7px; }
+  .legal-gate-brand { gap: 8px; margin-bottom: 5px; font-size: 12px; }
+  .legal-gate-mark { flex-basis: 28px; width: 28px; height: 28px; font-size: 17px; }
+  .legal-gate-kicker { display: none; }
+  .legal-gate-header h1 { margin-bottom: 4px; font-size: 22px; line-height: 1.15; }
+  .legal-gate-header>p:not(.legal-gate-kicker):not(.legal-gate-version) { font-size: 11px; line-height: 1.35; }
+  .legal-gate-version { margin-top: 3px; font-size: 10px; }
+  .legal-document { min-height: 0; padding: 5px 16px 14px; font-size: 12px; }
   .legal-document-section { padding-top: 14px; }
   .legal-document-section h2 { font-size: 17px; }
   .legal-gate-footer {
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 2;
-    width: 100%;
-    max-height: min(58vh, 460px);
-    max-height: min(58dvh, 460px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 9px 16px max(12px, env(safe-area-inset-bottom));
-  }
-  .legal-gate-scroll-hint { margin-bottom: 7px; }
-  .legal-age-fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; padding: 8px 9px; }
-  .legal-age-fieldset label { min-height: 34px; padding: 5px 6px; font-size: 11px; line-height: 1.35; }
-  .legal-age-fieldset label:last-of-type { grid-column: 1 / -1; }
-  .legal-acceptance-check { gap: 10px; padding: 9px; font-size: 12px; }
-  .legal-guardian-check { margin-bottom: 8px; padding: 9px; font-size: 11px; }
-  .legal-gate-actions {
-    position: sticky;
-    bottom: 0;
+    position: relative;
     z-index: 1;
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+  .legal-gate-scroll-hint { margin-bottom: 5px; font-size: 10px; }
+  .legal-age-control { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; margin-bottom: 5px; }
+  .legal-age-select { min-height: 40px; padding: 7px 9px; }
+  .legal-acceptance-check { gap: 8px; padding: 7px; font-size: 11px; line-height: 1.35; }
+  .legal-guardian-check { gap: 8px; margin-bottom: 6px; padding: 7px; font-size: 10px; line-height: 1.35; }
+  .legal-gate-actions {
     flex-direction: column-reverse;
-    gap: 8px;
-    margin-top: 9px;
-    padding: 10px 0 max(8px, env(safe-area-inset-bottom));
-    background: #0F192E;
+    gap: 7px;
+    margin-top: 6px;
+    padding: 0;
   }
   .legal-gate-actions button { width: 100%; }
-  .legal-gate-footnote { margin-top: 7px; font-size: 11px; }
+  .legal-gate-footnote { margin-top: 4px; font-size: 10px; line-height: 1.3; }
 }

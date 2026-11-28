@@ -41,6 +41,6 @@ test("expired callback state is surfaced inside the Settings section", () => {
 
 test("sign-in uses the app frame origin so the session returns to the same browser storage", () => {
   assert.match(api, /getMagicLinkRedirectUrl\(\)/);
-  assert.doesNotMatch(api, /SCHOLARSHIP_SCOUT_AUTH_REDIRECT_URL|https:\/\/app\.agentgrid\.io\/artifacts/);
+  assert.doesNotMatch(api, /SCHOLARSHIP_SCOUT_AUTH_REDIRECT_URL/);
   assert.match(client, /detectSessionInUrl:\s*true/);
 });

@@ -1,16 +1,18 @@
 # Runtime audit — November 27, 2026
 
-## Source of truth
+## Source and runtime boundaries
 
-The canonical Scholarship Scout application is the AgentGrid artifact `Y9kTsZ0-vazOq3AnWspbAw`. The release-wrapper and regression-test code was last validated at AgentGrid revision `df84889396d5d5176051b9cd1f4595c2686b0167`; subsequent updates to this audit and the README are documentation-only. The earlier `5a17758a` runtime snapshot is historical. GitHub release base `6147370a94499a69ef47dd9fee0677e0cd3abec3` is preserved on the separate branch `release/reconciliation-2026-11-27`. AgentGrid is the canonical authoring source; GitHub is the collaboration/release mirror; Vercel is the frontend hosting/deployment target, not a source. See [the source reconciliation record](source-reconciliation-2026-11-27.md).
+GitHub `main` is the sole source of truth for Scholarship Scout application code. This document is a historical inspection record of the Supabase runtime and application release state on November 27, 2026. The revision identifiers retained below describe historical snapshots only; they are not alternate sources or synchronization targets.
+
+Vercel hosts the frontend. Supabase runs authentication, database, and Edge Functions. These services must be checked independently. See [the source reconciliation record](source-reconciliation-2026-11-27.md) for the GitHub-only policy and [deployment controls](deployment.md) for the current release procedure.
 
 ## Live Supabase function
 
 The existing Supabase project is `wjrwvempgjvoxlioodse`. Supabase reports `scholarship-discover` ACTIVE at version 19 with `verify_jwt=false`. That public-invocation setting applies only to this discovery endpoint; it does not make cloud CRUD or other functions public.
 
-The deployed v19 entrypoint injects an in-memory `createPublicRateLimiter`; the deployed helper contains adaptive staged search, a short-lived complete-result cache, bounded retries, and failure metrics. The corrected AgentGrid wrapper keeps the same per-isolate limiter policy, imports it from the separate shared rate-limit module, and adds the `x-scout-client-id` CORS allowance. The behaviour is deliberately no-Redis. The deployed file set remains different and must be reviewed before a function update.
+The deployed v19 entrypoint injects an in-memory `createPublicRateLimiter`; the deployed helper contains adaptive staged search, a short-lived complete-result cache, bounded retries, and failure metrics. The corrected historical implementation snapshot wrapper keeps the same per-isolate limiter policy, imports it from the separate shared rate-limit module, and adds the `x-scout-client-id` CORS allowance. The behaviour is deliberately no-Redis. The deployed file set remains different and must be reviewed before a function update.
 
-The corrected AgentGrid wrapper uses `createPublicRateLimiter()` from `supabase/functions/_shared/discovery-rate-limit.mjs`, allows `x-scout-client-id` through CORS, and retains the same per-isolate IP limit as deployed v19. It deliberately does not require Upstash. The authenticated single-process gateway supplies a shared 30-request-per-minute upstream ceiling across Edge Function isolates. The deployed v19 file set is not byte-identical to the corrected wrapper, so source parity remains a reviewed deployment gate.
+The corrected historical implementation snapshot wrapper uses `createPublicRateLimiter()` from `supabase/functions/_shared/discovery-rate-limit.mjs`, allows `x-scout-client-id` through CORS, and retains the same per-isolate IP limit as deployed v19. It deliberately does not require Upstash. The authenticated single-process gateway supplies a shared 30-request-per-minute upstream ceiling across Edge Function isolates. The deployed v19 file set is not byte-identical to the corrected wrapper, so source parity remains a reviewed deployment gate.
 
 The Supabase metadata reports version 19, while the returned `entrypoint_path` contains an internal path suffix of `_16`. Its `ezbr_sha256` metadata value is `824617afc4a5b8886424ecd6ad624c302fd3d2ccf2c5fe9993ac1fb59080f2af`. This metadata/path discrepancy is recorded as a provenance warning; it does not by itself prove which historical revision is running. Do not infer source parity from the version number or this metadata hash.
 
@@ -53,13 +55,13 @@ A second regression guard was added to assert that the production Edge Function 
 
 ## Verification limits
 
-This audit inspected the exact Library report, the current AgentGrid source revision, deployed Supabase function metadata/source, recent function logs, and current database advisors. It made no production deployment, secret, database, auth, or RLS changes.
+This audit inspected the exact Library report, the current reviewed source revision at the time, deployed Supabase function metadata/source, recent function logs, and current database advisors. It made no production deployment, secret, database, auth, or RLS changes.
 
 The corresponding GitHub release checkout containing the same corrected Edge Function wrapper and regression tests was validated on November 27: `npm ci` passed; `npm test` reported 730 passed, zero failed, zero skipped; `npm run build` completed TypeScript checking and Vite bundling; `npm audit --audit-level=moderate` found zero vulnerabilities; and `git diff --check` passed. The frontend preview was also rendered in isolated headless Chrome with no console errors or HTTP failures, but no consent, sign-in, or student workflow was submitted. Authentication, cloud-owner isolation, backup restore, spoken screen-reader behavior, and fresh Supabase-to-gateway invocation remain unverified.
 
 ## Prioritized next work
 
-1. Push the corrected, fully tested wrapper and supporting documentation from the dedicated GitHub release branch; verify its code matches AgentGrid's validated source revision.
+1. Push the corrected, fully tested wrapper and supporting documentation from the dedicated GitHub release branch; verify its code matches validated source revision recorded in this historical report.
 2. Review and deploy the corrected Supabase Edge Function as a separate backend change, preserving `verify_jwt=false` only for this intentionally public endpoint and recording the new function version/source hash.
 3. Invoke the deployed function using synthetic state/year/category inputs only. Verify CORS preflight, successful gateway results, per-isolate 429/Retry-After, fail-closed 503 for an unattributed client IP, and gateway 429 at its process cap.
 4. Complete browser workflows for source review, local save/restore, cloud-owner isolation, sign-in, responsive accessibility, and account deletion before considering production promotion.
@@ -69,7 +71,7 @@ The corresponding GitHub release checkout containing the same corrected Edge Fun
 
 A separate security follow-up applied migration `20261127052519_restrict_public_default_privileges_for_postgres`. It removed future-object grants to `anon` and `authenticated` for `public` tables, sequences, and functions created by `postgres`. The live `pg_default_acl` query confirms the change and retains `service_role` defaults. The defaults owned by `supabase_admin` remain unchanged because the connected `postgres` SQL role is not a member of `supabase_admin`; that owner-level follow-up remains open.
 
-AgentGrid source now has a restrictive meta CSP, SHA-pinned GitHub Actions, PR dependency review, and Dependabot configuration. Hosting response headers remain unverified. The full Node test/build/audit gate was run on the corresponding GitHub release checkout with the same corrected wrapper and tests. See [security hardening update](security-hardening-2026-11-27.md).
+The reviewed GitHub source then had a restrictive meta CSP, SHA-pinned GitHub Actions, PR dependency review, and Dependabot configuration. Hosting response headers remain unverified. The full Node test/build/audit gate was run on the corresponding GitHub release checkout with the same corrected wrapper and tests. See [security hardening update](security-hardening-2026-11-27.md).
 
 ## Follow-up limiter and gateway implementation review — November 27, 2026
 

@@ -7,8 +7,8 @@ type ScoutRuntimeConfig = {
 };
 
 declare global {
-  // Vite replaces this expression at build time. AgentGrid's preview runtime
-  // can also run the module without Vite build-time injection, so this stays unset.
+  // Vite replaces this expression at build time. Preview environments may
+  // also load the module without Vite build-time injection.
   var __SCHOLARSHIP_SCOUT_ENV__: ScoutRuntimeConfig | undefined;
 }
 
@@ -17,8 +17,8 @@ const supabaseUrl = (
   runtimeConfig.VITE_SUPABASE_URL ||
   "https://wjrwvempgjvoxlioodse.supabase.co"
 ).trim();
-// A publishable key is intended for browser use. This fallback supports the
-// AgentGrid preview runtime, which may not apply Vite's define() configuration.
+// A publishable key is intended for browser use. This fallback supports
+// preview environments which may not apply Vite's define() configuration.
 const SUPABASE_PUBLISHABLE_KEY_FALLBACK = "sb_publishable_SeIypldF2MLN7L91GN4qCQ_q7mUQZiJ";
 const publishableKey = (
   runtimeConfig.VITE_SUPABASE_PUBLISHABLE_KEY ||
