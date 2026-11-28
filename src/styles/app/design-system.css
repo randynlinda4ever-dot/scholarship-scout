@@ -43,13 +43,13 @@ p { max-width: 72ch; }
 .page { width: min(100%, 1400px); padding: 38px clamp(22px, 4vw, 56px) 54px; }
 .welcome, .page-heading { align-items: flex-end; margin-bottom: 30px; }
 .welcome p, .page-heading p { color: var(--muted); font-size: 14px; }
-.eyebrow { color: var(--accent); letter-spacing: .12em; }
+.eyebrow { color: var(--accent-strong); letter-spacing: .12em; }
 .primary, .secondary, .text-button { min-height: 42px; border-radius: 7px; font-size: 12px; }
 .primary { background: var(--accent); color: var(--accent-ink); }
 .primary:hover { background: color-mix(in srgb, var(--accent) 84%, black); }
 .secondary { border-color: var(--line-strong); background: var(--surface); color: var(--text); }
-.secondary:hover { border-color: var(--accent); background: var(--surface-raised); }
-.text-button { color: var(--accent); }
+.secondary:hover { border-color: var(--accent-strong); background: var(--surface-raised); }
+.text-button { color: var(--accent-strong); }
 .panel, .table-card, .filter-intro, .form-card, .safety-note, .cloud-result-card, .candidate-card,
 .source-card, .search-card, .stat, .quick-link-card {
   border-color: var(--line); border-radius: 9px; background: var(--surface); box-shadow: none;
@@ -57,9 +57,9 @@ p { max-width: 72ch; }
 .panel { padding: 20px; }
 .stat { padding: 18px; }
 .stat strong { font-family: 'Source Serif 4', Georgia, serif; font-size: 34px; font-weight: 500; }
-.stat-top b, .quick-link-icon, .search-card-icon, .prep-icon { background: var(--surface-soft); color: var(--accent); }
+.stat-top b, .quick-link-icon, .search-card-icon, .prep-icon { background: var(--surface-soft); color: var(--accent-strong); }
 .quick-link-card { min-height: 82px; }
-.quick-link-card:hover { border-color: var(--accent); background: var(--surface-raised); }
+.quick-link-card:hover { border-color: var(--accent-strong); background: var(--surface-raised); }
 .notice { border-color: var(--warning); border-radius: 8px; background: color-mix(in srgb, var(--warning) 12%, var(--surface)); }
 .notice p { color: #D9D0C2; }
 .source-tag, .tag-row span, .status, .source-status, .deadline-urgency {
@@ -76,7 +76,7 @@ p { max-width: 72ch; }
 }
 .candidate-card, .cloud-result-card, .source-card, .search-card { padding: 19px; }
 .candidate-card h3, .cloud-result-card h3 { font-size: 16px; line-height: 1.35; }
-.candidate-award { color: var(--accent); }
+.candidate-award { color: var(--accent-strong); }
 .candidate-deadline { color: var(--accent-strong); }
 .candidate-match, .cloud-result-meta { border-color: var(--line); background: var(--surface-raised); }
 .table-card { border-radius: 9px; }
@@ -99,7 +99,7 @@ select option { background: var(--surface); color: var(--text); }
 .toast { border-color: var(--line); background: var(--surface); color: var(--text); box-shadow: var(--shadow-soft); }
 .notice, .safety-note, .rank-warning, .risk-flag, .uncertainty-list { border-radius: 8px; }
 .offline-notice, .privacy-note, .cloud-message, .cloud-config-note { border-color: var(--line); border-radius: 8px; }
-a, .candidate-actions a, .source-link { color: var(--accent); }
+a, .candidate-actions a, .source-link { color: var(--accent-strong); }
 .skip-link { background: var(--accent); color: var(--accent-ink); }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button { transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
@@ -215,7 +215,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     cursor: pointer;
   }
   .sidebar-collapse-toggle:hover {
-    border-color: var(--accent);
+    border-color: var(--accent-strong);
     background: var(--surface-soft);
   }
   .sidebar:not(.is-collapsed) .logo > span:last-child,
