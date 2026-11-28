@@ -39,7 +39,7 @@ test('light-theme muted copy meets WCAG AA on every base surface', () => {
       'muted text must meet 4.5:1 on ' + name,
     );
   }
-  assert.match(css, /input::placeholder,\\s*textarea::placeholder\\s*\\{\\s*color:\\s*var\\(--muted\\)/);
+  assert.match(css, /input::placeholder,\s*textarea::placeholder\s*\{\s*color:\s*var\(--muted\)/);
   assert.ok(contrastRatio(muted, '#FFFFFF') >= 4.5, 'placeholder text inherits the contrast-safe light-theme muted token');
 });
 
