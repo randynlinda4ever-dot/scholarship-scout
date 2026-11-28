@@ -1380,3 +1380,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tracker-remove-actions button { flex: 1 1 100%; }
 }
 
+
+.field-label-row { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; }
+.field-requirement { display:inline-flex; flex:0 0 auto; align-items:center; padding:2px 7px; border:1px solid var(--line-strong); border-radius:999px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.035em; line-height:1.5; text-transform:uppercase; }
+.field-requirement[data-requirement="required"] { color:var(--text); border-color:var(--accent); }

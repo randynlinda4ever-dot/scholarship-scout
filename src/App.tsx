@@ -1909,11 +1909,19 @@ function CandidateCard({item,assessment,added,onAdd}:{item:Scholarship;assessmen
     <small className="candidate-source">Sponsor rules last checked: {item.lastCheckedDate || 'Not recorded'} · Discovered: {item.discoveredOn || 'Date not recorded'} · Added to tracker: {item.recordCreatedAt ? new Date(item.recordCreatedAt).toLocaleString() : 'Date not recorded'} · {getSourceAttribution(item.sourceUrl).label}. {item.discoverySourceLabel ? `Discovery source: ${item.discoverySourceLabel}.` : 'No discovery source recorded'}</small>
   </div>;
 }
-function Field({label,value,onChange,placeholder,type='text',id,required=false,error}:{label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string;id?:string;required?:boolean;error?:string}) {
-  const errorId = id ? `${id}-error` : undefined;
+function Field({label,value,onChange,placeholder,type='text',id,required=false,requirement,min,max,step,error}:{
+  label:string;value:string;onChange:(v:string)=>void;placeholder?:string;type?:string;id?:string;required?:boolean;
+  requirement?: 'required' | 'optional'; min?: number; max?: number; step?: number | 'any'; error?: string
+}) {
+  const errorId = id ? id + '-error' : undefined;
   return <label className={'field' + (error ? ' field-invalid' : '')}>
-    <span>{label}</span>
-    <input id={id} type={type} value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)} required={required} aria-required={required || undefined} aria-invalid={error ? 'true' : undefined} aria-describedby={error ? errorId : undefined}/>
+    <span className="field-label-row">
+      <span>{label}</span>
+      {requirement ? <small className="field-requirement" data-requirement={requirement}>{requirement === 'required' ? 'Required' : 'Optional'}</small> : null}
+    </span>
+    <input id={id} type={type} min={min} max={max} step={step} value={value} placeholder={placeholder}
+      onChange={e=>onChange(e.target.value)} required={required} aria-required={required || undefined}
+      aria-invalid={error ? 'true' : undefined} aria-describedby={error ? errorId : undefined}/>
     {error && errorId ? <small id={errorId} className="field-error" role="alert">{error}</small> : null}
   </label>;
 }

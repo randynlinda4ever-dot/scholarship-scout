@@ -146,3 +146,14 @@ test("the app clearly explains why a scholarship is retained and where informati
   assert.match(editor, /leave a field blank when the sponsor does not specify that requirement/i);
   assert.match(editor, /personal progress is separate from sponsor eligibility/i);
 });
+
+test("shared field component renders audited numeric constraints and required-field labels", () => {
+  const field = app.slice(app.indexOf("function Field("), app.indexOf("function WorkspaceSubnav("));
+  assert.match(field, /min\?: number/);
+  assert.match(field, /max\?: number/);
+  assert.match(field, /step\?: number \| 'any'/);
+  assert.match(field, /min=\{min\} max=\{max\} step=\{step\}/);
+  assert.match(field, /data-requirement=\{requirement\}/);
+  assert.match(field, /Required/);
+  assert.match(field, /Optional/);
+});
