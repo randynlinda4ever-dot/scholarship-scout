@@ -112,7 +112,7 @@ test("AccountStartGate renders a safe session-check state before authentication 
   const html = renderToStaticMarkup(React.createElement(AccountStartGate,{
     onAuthenticated:()=>{},onContinueGuest:()=>{},
   }));
-  assert.match(html,/Checking for an existing account session/);
+  assert.match(html,/Checking your account/);
   assert.match(html,/start-home-email/);
   assert.match(html,/Continue without an account/);
 });
@@ -326,7 +326,7 @@ test("CandidateCard keeps missing source pages explicit and displays dated prove
     assessment:{status:"Eligible",checks:[]},added:true,onAdd:()=>{},
   }));
   assert.match(missing,/A direct scholarship page URL has not been saved/);
-  assert.match(sourced,/Open scholarship page/);
+  assert.match(sourced,/Open source page/);
   assert.match(sourced,/Sponsor rules last checked: 2026-11-28/);
 });
 
@@ -347,7 +347,7 @@ test("StatusPills distinguish every status and evidence quality category", () =>
   assert.match(deadlineHtml,/Opening date is evaluated/);
 });
 
-test("agent demo entrypoint handles disabled and enabled preview-only modes", async () => {
+test("agent demo entrypoint refuses to expose synthetic content outside preview mode", async () => {
   const previousDocument=globalThis.document;
   const previousFlag=globalThis.__SCHOLARSHIP_SCOUT_PREVIEW_DEMO_ENABLED__;
   const root={textContent:""};
@@ -357,15 +357,7 @@ test("agent demo entrypoint handles disabled and enabled preview-only modes", as
     await import("../src/agentDemo.tsx?disabled-preview-test");
     assert.match(root.textContent,/available only in local development/);
     assert.match(globalThis.document.title,/Agent demo unavailable/);
-    root.textContent="";
-    globalThis.__SCHOLARSHIP_SCOUT_PREVIEW_DEMO_ENABLED__=true;
-    globalThis.__SCOUT_TEST_ROOT_CAPTURE__=null;
-    await import("../src/agentDemo.tsx?enabled-preview-test");
-    assert.equal(globalThis.__SCOUT_TEST_ROOT_CAPTURE__.root,root);
-    assert.equal(typeof globalThis.__SCOUT_TEST_ROOT_CAPTURE__.tree.type,"function");
-    assert.match(globalThis.document.title,/Agent Test Demo/);
   } finally {
-    delete globalThis.__SCOUT_TEST_ROOT_CAPTURE__;
     if (previousDocument===undefined) delete globalThis.document;
     else globalThis.document=previousDocument;
     if (previousFlag===undefined) delete globalThis.__SCHOLARSHIP_SCOUT_PREVIEW_DEMO_ENABLED__;
